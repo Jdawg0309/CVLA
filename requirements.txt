@@ -1,0 +1,64 @@
+# Core Graphics & Windowing
+glfw>=2.5.0               # Window creation and input handling
+PyOpenGL>=3.1.6           # OpenGL bindings (for some GL utilities)
+
+# ModernGL for GPU rendering
+moderngl>=5.8.2           # Modern OpenGL wrapper
+moderngl-window>=2.4.4    # Window utilities for ModernGL
+
+# Dear ImGui for UI
+imgui>=2.0.0              # Immediate mode GUI
+imgui[glfw]>=2.0.0        # GLFW backend for ImGui
+imgui[opengl]>=2.0.0      # OpenGL backend for ImGui
+
+# Mathematics & Linear Algebra
+numpy>=1.24.0             # Numerical operations and array handling
+scipy>=1.10.0             # Scientific computing (linear algebra, optimization)
+pyrr>=0.10.3              # 3D mathematics library (matrices, vectors, quaternions)
+
+# Enhanced Linear Algebra Tools
+sympy>=1.12               # Symbolic mathematics (optional, for symbolic operations)
+pyquaternion>=0.9.9       # Quaternion operations for 3D rotations
+
+# Data Structures & Utilities
+sortedcontainers>=2.4.0   # Efficient sorted data structures
+dataclasses-json>=0.5.8   # JSON serialization for dataclasses (Python 3.7+)
+typing-extensions>=4.5.0  # Backported typing features
+
+# Optional: For enhanced debugging and profiling
+PyOpenGL-accelerate>=3.1.6  # Accelerated OpenGL operations
+glcontext>=2.3.8          # Alternative GL context management
+triangle>=20200424        # 2D and 3D triangulation (for mesh generation)
+
+# Development & Testing
+pytest>=7.3.0            # Testing framework
+pytest-xdist>=3.3.0      # Parallel testing
+mypy>=1.3.0              # Static type checking
+flake8>=6.0.0            # Code linting
+black>=23.3.0            # Code formatting
+isort>=5.12.0            # Import sorting
+
+# Build & Distribution
+setuptools>=67.8.0       # Package building
+wheel>=0.40.0            # Binary distribution
+pyinstaller>=5.12.0      # Executable packaging (optional)
+
+# Optional: Visualization Extras
+colour>=0.1.5            # Color science and conversion
+palettable>=3.3.0        # Color palettes for visualization
+meshio>=5.3.0            # Mesh I/O for 3D models (optional)
+trimesh>=3.23.0          # 3D mesh manipulation (optional)
+
+# Performance Optimizations
+numba>=0.57.0            # JIT compilation for numerical functions (optional)
+llvmlite>=0.40.0         # LLVM compiler infrastructure (for Numba)
+cython>=0.29.35          # C extensions for Python (optional)
+pyopengl-accelerate>=3.1.6  # Faster OpenGL operations
+
+# System-Specific Notes:
+# On Ubuntu/Debian, you may need these system packages:
+#   sudo apt-get install libglfw3 libglfw3-dev libgl1-mesa-glx libglu1-mesa
+# On macOS:
+#   brew install glfw
+# On Windows:
+#   Install GLFW from https://www.glfw.org/download.html
