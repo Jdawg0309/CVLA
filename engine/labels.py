@@ -19,14 +19,16 @@ class LabelRenderer:
             'z': (0.3, 0.5, 1.0, 1.0)
         }
         
-        self.grid_color = (0.8, 0.8, 0.9, 0.9)
-        self.shadow_color = (0.0, 0.0, 0.0, 0.7)
-        self.background_color = (0.1, 0.1, 0.12, 0.8)
-        
+        # Colors tuned for high contrast on the dark background
+        self.grid_color = (0.92, 0.92, 0.96, 1.0)
+        self.shadow_color = (0.0, 0.0, 0.0, 0.75)
+        self.background_color = (0.06, 0.06, 0.07, 0.92)
+
+        # Larger offsets to avoid overlap and improve legibility
         self.label_offsets = {
-            'axis': (8, -12),
-            'grid': (4, -8),
-            'vector': (6, 6)
+            'axis': (14, -18),
+            'grid': (6, -10),
+            'vector': (8, 8)
         }
         
     def update_view(self, viewconfig):
@@ -78,17 +80,27 @@ class LabelRenderer:
         for axis in ['x', 'y', 'z']:
             endpoint = endpoints[axis]
             x, y, depth = self.world_to_screen(camera, endpoint, width, height)
-            
+
             if x is not None and depth > -0.9:  # Don't draw if too far behind
-                label = self._get_axis_label(axis)
+                label = self._get_axis_label(axis).upper()
                 color = self.axis_colors[axis]
                 offset_x, offset_y = self.label_offsets['axis']
-                
+
+                # Draw a background rounded rectangle for readability
+                text_size = imgui.calc_text_size(label)
+                padding = 6
+                bg_color = imgui.get_color_u32_rgba(*self.background_color)
+                dl.add_rect_filled(
+                    x + offset_x - padding, y + offset_y - padding,
+                    x + offset_x + text_size.x + padding, y + offset_y + text_size.y + padding,
+                    bg_color, 6.0
+                )
+
                 # Draw shadow
                 shadow_color = imgui.get_color_u32_rgba(*self.shadow_color)
-                dl.add_text(x + offset_x + 1, y + offset_y + 1, shadow_color, label)
-                
-                # Draw main text
+                dl.add_text(x + offset_x + 2, y + offset_y + 2, shadow_color, label)
+
+                # Draw main text in axis color
                 text_color = imgui.get_color_u32_rgba(*color)
                 dl.add_text(x + offset_x, y + offset_y, text_color, label)
     
@@ -110,42 +122,43 @@ class LabelRenderer:
         density_factor = max(1, int(camera_dist / 8))
         step = major * density_factor
         
-        # Draw labels for each active plane
+        # Draw labels for each active plane with stronger background and larger padding
         for plane in active_planes:
             for i in range(-grid_size, grid_size + 1, step):
                 if i == 0:
                     continue
-                
+
                 # Generate world positions for this tick
                 positions = self._get_grid_positions(plane, i, grid_size)
-                
+
                 for pos, axis in positions:
                     x, y, depth = self.world_to_screen(camera, pos, width, height)
-                    
+
                     if x is not None and -0.8 < depth < 0.8:
                         label = str(i)
                         color = self.axis_colors[axis]
                         offset_x, offset_y = self.label_offsets['grid']
-                        
+
                         # Calculate background size
                         text_size = imgui.calc_text_size(label)
-                        padding = 2
-                        
-                        # Draw background for readability
+                        padding_x = 6
+                        padding_y = 4
+
+                        # Draw semi-opaque background for readability
                         bg_color = imgui.get_color_u32_rgba(*self.background_color)
                         dl.add_rect_filled(
-                            x + offset_x - padding,
-                            y + offset_y - padding,
-                            x + offset_x + text_size.x + padding,
-                            y + offset_y + text_size.y + padding,
-                            bg_color, 3.0
+                            x + offset_x - padding_x,
+                            y + offset_y - padding_y,
+                            x + offset_x + text_size.x + padding_x,
+                            y + offset_y + text_size.y + padding_y,
+                            bg_color, 4.0
                         )
-                        
+
                         # Draw shadow
                         shadow_color = imgui.get_color_u32_rgba(*self.shadow_color)
-                        dl.add_text(x + offset_x + 1, y + offset_y + 1, shadow_color, label)
-                        
-                        # Draw text
+                        dl.add_text(x + offset_x + 2, y + offset_y + 2, shadow_color, label)
+
+                        # Draw text in axis color
                         text_color = imgui.get_color_u32_rgba(*color)
                         dl.add_text(x + offset_x, y + offset_y, text_color, label)
     
@@ -173,34 +186,37 @@ class LabelRenderer:
                     r, g, b = vector.color
                     color = (min(1.0, r * 1.5), min(1.0, g * 1.5), min(1.0, b * 1.5), 1.0)
                 else:
-                    color = (0.9, 0.9, 0.9, 0.9)
-                
-                # Calculate text size
+                    color = (0.95, 0.95, 0.95, 1.0)
+
+                # Calculate text size and padding
                 text_size = imgui.calc_text_size(label)
-                padding = 4
-                
-                # Draw background
+                padding_x = 6
+                padding_y = 4
+
+                # Draw a semi-opaque background for readability
                 bg_color = imgui.get_color_u32_rgba(*self.background_color)
                 dl.add_rect_filled(
-                    x + offset_x - padding,
-                    y + offset_y - padding,
-                    x + offset_x + text_size.x + padding,
-                    y + offset_y + text_size.y + padding,
-                    bg_color, 4.0
+                    x + offset_x - padding_x,
+                    y + offset_y - padding_y,
+                    x + offset_x + text_size.x + padding_x,
+                    y + offset_y + text_size.y + padding_y,
+                    bg_color, 5.0
                 )
-                
+
                 # Draw border if selected
                 if vector is selected_vector:
                     border_color = imgui.get_color_u32_rgba(*color)
                     dl.add_rect(
-                        x + offset_x - padding,
-                        y + offset_y - padding,
-                        x + offset_x + text_size.x + padding,
-                        y + offset_y + text_size.y + padding,
-                        border_color, 4.0, 1.0
+                        x + offset_x - padding_x,
+                        y + offset_y - padding_y,
+                        x + offset_x + text_size.x + padding_x,
+                        y + offset_y + text_size.y + padding_y,
+                        border_color, 5.0, 1.5
                     )
-                
-                # Draw text
+
+                # Draw shadow and main text
+                shadow_color = imgui.get_color_u32_rgba(*self.shadow_color)
+                dl.add_text(x + offset_x + 2, y + offset_y + 2, shadow_color, label)
                 text_color = imgui.get_color_u32_rgba(*color)
                 dl.add_text(x + offset_x, y + offset_y, text_color, label)
     

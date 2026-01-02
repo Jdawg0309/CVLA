@@ -136,21 +136,32 @@ class App:
     def _setup_imgui_style(self):
         """Setup ImGui style for better visual appearance."""
         style = imgui.get_style()
-        style.window_rounding = 5.0
-        style.frame_rounding = 3.0
-        style.grab_rounding = 3.0
+        # Improve readability: slightly larger global font and more generous spacing
+        try:
+            # Global font scale increases all ImGui text sizes
+            style.font_global_scale = 1.18
+        except Exception:
+            pass
+
+        style.window_rounding = 6.0
+        style.frame_rounding = 4.0
+        style.grab_rounding = 4.0
+        style.frame_padding = (8, 6)
+        style.window_padding = (12, 12)
+        style.item_spacing = (10, 8)
         
         colors = style.colors
-        colors[imgui.COLOR_WINDOW_BACKGROUND] = (0.08, 0.08, 0.10, 0.98)
-        colors[imgui.COLOR_FRAME_BACKGROUND] = (0.20, 0.20, 0.25, 1.00)
-        colors[imgui.COLOR_FRAME_BACKGROUND_HOVERED] = (0.25, 0.25, 0.30, 1.00)
-        colors[imgui.COLOR_FRAME_BACKGROUND_ACTIVE] = (0.30, 0.30, 0.35, 1.00)
-        colors[imgui.COLOR_BUTTON] = (0.25, 0.25, 0.30, 1.00)
-        colors[imgui.COLOR_BUTTON_HOVERED] = (0.30, 0.30, 0.35, 1.00)
-        colors[imgui.COLOR_BUTTON_ACTIVE] = (0.35, 0.35, 0.40, 1.00)
-        colors[imgui.COLOR_HEADER] = (0.35, 0.35, 0.40, 1.00)
-        colors[imgui.COLOR_HEADER_HOVERED] = (0.40, 0.40, 0.45, 1.00)
-        colors[imgui.COLOR_HEADER_ACTIVE] = (0.45, 0.45, 0.50, 1.00)
+        # Dark but higher-contrast background colors for readability
+        colors[imgui.COLOR_WINDOW_BACKGROUND] = (0.06, 0.06, 0.07, 0.98)
+        colors[imgui.COLOR_FRAME_BACKGROUND] = (0.18, 0.18, 0.22, 1.00)
+        colors[imgui.COLOR_FRAME_BACKGROUND_HOVERED] = (0.24, 0.24, 0.28, 1.00)
+        colors[imgui.COLOR_FRAME_BACKGROUND_ACTIVE] = (0.28, 0.28, 0.32, 1.00)
+        colors[imgui.COLOR_BUTTON] = (0.22, 0.45, 0.82, 0.9)
+        colors[imgui.COLOR_BUTTON_HOVERED] = (0.26, 0.55, 0.95, 1.0)
+        colors[imgui.COLOR_BUTTON_ACTIVE] = (0.18, 0.38, 0.72, 1.0)
+        colors[imgui.COLOR_HEADER] = (0.20, 0.20, 0.24, 0.95)
+        colors[imgui.COLOR_HEADER_HOVERED] = (0.26, 0.26, 0.30, 1.0)
+        colors[imgui.COLOR_HEADER_ACTIVE] = (0.30, 0.30, 0.34, 1.0)
 
     def on_key(self, win, key, scancode, action, mods):
         """Handle keyboard input."""
