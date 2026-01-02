@@ -57,8 +57,13 @@ class Sidebar:
             (0.5, 0.2, 0.8),  # Purple
         ]
         self.next_color_idx = 0
+        # Preview toggle for matrix editor
+        self.preview_matrix_enabled = False
         # Selected matrix index in the scene (for list operations)
         self.selected_matrix_idx = None
+        # Runtime references and defaults
+        self.scene = None
+        self.scale_factor = 1.0
 
     def _get_next_color(self):
         """Get next color from palette."""
@@ -433,6 +438,17 @@ class Sidebar:
                 name_changed, self.matrix_name = imgui.input_text("##matrix_name", 
                                                                 self.matrix_name, 16)
                 imgui.pop_item_width()
+                # Preview toggle
+                imgui.same_line()
+                prev_changed, self.preview_matrix_enabled = imgui.checkbox("Preview", self.preview_matrix_enabled)
+                if prev_changed:
+                    if self.preview_matrix_enabled:
+                        try:
+                            scene.set_preview_matrix(np.array(self.matrix_input, dtype=np.float32))
+                        except Exception:
+                            scene.set_preview_matrix(None)
+                    else:
+                        scene.set_preview_matrix(None)
                 
                 # Action buttons
                 imgui.spacing()
@@ -465,6 +481,23 @@ class Sidebar:
                         matrix = np.array(self.matrix_input, dtype=np.float32)
                         scene.apply_transformation(matrix)
                         self.operation_result = {'type': 'apply_all'}
+                    except Exception as e:
+                        self.operation_result = {'error': str(e)}
+
+                imgui.next_column()
+                # Compute subspaces for selected matrix
+                if imgui.button("Null Space", width=-1):
+                    try:
+                        mat = np.array(self.matrix_input, dtype=np.float32)
+                        self._compute_null_space(scene, mat)
+                    except Exception as e:
+                        self.operation_result = {'error': str(e)}
+
+                imgui.next_column()
+                if imgui.button("Column Space", width=-1):
+                    try:
+                        mat = np.array(self.matrix_input, dtype=np.float32)
+                        self._compute_column_space(scene, mat)
                     except Exception as e:
                         self.operation_result = {'error': str(e)}
 
@@ -718,6 +751,7 @@ class Sidebar:
                     # Context menu on right-click
                     if imgui.begin_popup_context_item(f"vec_context_{i}"):
                         if imgui.menu_item("Duplicate")[0]:
+                            # Duplicate vector (handled below)
                             self._duplicate_vector(scene, vector)
                         
                         if imgui.menu_item("Delete")[0]:
@@ -747,6 +781,25 @@ class Sidebar:
             self._end_section()
         
         return selected
+
+    def _duplicate_vector(self, scene, vector):
+        """Duplicate a vector and add to the scene with a new label."""
+        try:
+            new_coords = vector.coords.copy()
+            # Create a unique label
+            base = vector.label or "v"
+            # Try to create a numbered suffix
+            idx = 1
+            new_label = f"{base}_copy{idx}"
+            existing = {v.label for v in scene.vectors}
+            while new_label in existing:
+                idx += 1
+                new_label = f"{base}_copy{idx}"
+
+            v = Vector3D(new_coords, color=vector.color, label=new_label)
+            scene.add_vector(v)
+        except Exception:
+            pass
 
     def _render_export_dialog(self):
         """Render export dialog."""
@@ -780,6 +833,9 @@ class Sidebar:
 
     def render(self, height, scene, selected, camera, view_config):
         """Main render method."""
+        # Keep a reference to the scene for helper methods (exports, etc.)
+        self.scene = scene
+
         # Set window position and size
         imgui.set_next_window_position(10, 30)
         imgui.set_next_window_size(self.window_width, height - 40)
@@ -797,6 +853,13 @@ class Sidebar:
             # Header
             imgui.text_colored("🎯 CVLA - Linear Algebra Visualizer", 0.9, 0.9, 1.0, 1.0)
             imgui.text_disabled("Interactive 3D Mathematics")
+            # Undo / Redo
+            imgui.same_line(300)
+            if imgui.button("Undo"):
+                scene.undo()
+            imgui.same_line()
+            if imgui.button("Redo"):
+                scene.redo()
             imgui.separator()
             imgui.spacing()
             
@@ -1023,6 +1086,62 @@ class Sidebar:
                 label=f"x{i+1}"
             )
             scene.add_vector(v)
+
+    def _compute_null_space(self, scene, matrix):
+        """Compute null space for `matrix` and add basis vectors to the scene.
+
+        Only 3-element vectors are added as `Vector3D`; other sizes are skipped.
+        """
+        try:
+            ns = scene.compute_null_space(np.array(matrix, dtype=np.float32))
+            if ns is None or ns.size == 0:
+                self.operation_result = {'type': 'null_space', 'vectors': []}
+                return
+
+            added = []
+            # ns may be a 2D array where each row is a null vector or a vector list
+            arr = np.array(ns)
+            if arr.ndim == 1:
+                arr = arr.reshape(1, -1)
+
+            for i, vec in enumerate(arr):
+                v_arr = np.array(vec, dtype=np.float32).flatten()
+                if v_arr.size == 3:
+                    name = f"ns_{i+1}"
+                    v = Vector3D(v_arr, color=self._get_next_color(), label=name)
+                    scene.add_vector(v)
+                    added.append(name)
+
+            self.operation_result = {'type': 'null_space', 'vectors': added}
+        except Exception as e:
+            self.operation_result = {'error': str(e)}
+
+    def _compute_column_space(self, scene, matrix):
+        """Compute column space for `matrix` and add basis vectors to the scene.
+
+        Only 3-element vectors are added as `Vector3D`; other sizes are skipped.
+        """
+        try:
+            cs = scene.compute_column_space(np.array(matrix, dtype=np.float32))
+            if cs is None or cs.size == 0:
+                self.operation_result = {'type': 'column_space', 'vectors': []}
+                return
+
+            added = []
+            cols = np.array(cs)
+            # If returned as (n, k) matrix use columns
+            if cols.ndim == 2:
+                for i in range(cols.shape[1]):
+                    v_arr = cols[:, i].astype(np.float32).flatten()
+                    if v_arr.size == 3:
+                        name = f"cs_{i+1}"
+                        v = Vector3D(v_arr, color=self._get_next_color(), label=name)
+                        scene.add_vector(v)
+                        added.append(name)
+
+            self.operation_result = {'type': 'column_space', 'vectors': added}
+        except Exception as e:
+            self.operation_result = {'error': str(e)}
 
     # Export operations
     def _export_json(self):

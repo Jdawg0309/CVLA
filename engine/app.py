@@ -118,6 +118,9 @@ class App:
         self._last_debug_time = 0.0
         self.auto_rotate = False
         self.rotation_speed = 0.5
+        # Runtime status
+        self.fps = 0.0
+        self.show_help = False
 
         # -----------------------------
         # GLFW callbacks
@@ -282,6 +285,12 @@ class App:
 
             # 3D Rendering with enhanced cubic view
             self.renderer.render(self.scene)
+
+            # Update FPS (simple instantaneous measure)
+            try:
+                self.fps = 1.0 / max(delta_time, 1e-6)
+            except Exception:
+                self.fps = 0.0
 
             # 2D Overlay (Labels)
             if self.view_config.show_labels:
