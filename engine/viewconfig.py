@@ -37,6 +37,8 @@ class ViewConfig:
         show_cube_corners=True,    # Show indicators at cube corners
         cube_face_opacity=0.05,    # Opacity of cube faces
         cubic_grid_density=1.0,    # Density multiplier for cubic grid
+        auto_rotate=False,
+        rotation_speed=0.5,
         show_depth_cues=True,      # Show depth cues in cubic view
         cubic_perspective=True,    # Use perspective in cubic view
     ):
@@ -51,6 +53,9 @@ class ViewConfig:
         self.grid_size = grid_size
         self.major_tick = major_tick
         self.minor_tick = minor_tick
+        # Preserve base tick values so cubic density scaling is reversible
+        self._base_major_tick = int(self.major_tick)
+        self._base_minor_tick = int(self.minor_tick)
         self.label_density = label_density
         
         # Display toggles
@@ -64,6 +69,9 @@ class ViewConfig:
         self.show_cube_corners = show_cube_corners
         self.cube_face_opacity = cube_face_opacity
         self.cubic_grid_density = cubic_grid_density
+        # Auto-rotation for cubic demo mode
+        self.auto_rotate = auto_rotate
+        self.rotation_speed = rotation_speed
         self.show_depth_cues = show_depth_cues
         self.cubic_perspective = cubic_perspective
         
@@ -135,8 +143,18 @@ class ViewConfig:
         """Setup cubic view specific parameters."""
         if self.grid_mode == "cube":
             # Adjust grid density for better 3D visualization
-            self.minor_tick = max(1, int(self.minor_tick * self.cubic_grid_density))
-            self.major_tick = max(1, int(self.major_tick * self.cubic_grid_density))
+            try:
+                base_minor = int(getattr(self, '_base_minor_tick', self.minor_tick))
+            except Exception:
+                base_minor = int(self.minor_tick)
+            try:
+                base_major = int(getattr(self, '_base_major_tick', self.major_tick))
+            except Exception:
+                base_major = int(self.major_tick)
+
+            # Compute ticks from base values so scaling is reversible
+            self.minor_tick = max(1, int(base_minor * self.cubic_grid_density))
+            self.major_tick = max(1, int(base_major * self.cubic_grid_density))
             
             # Adjust background for better depth perception
             if self.show_depth_cues:
@@ -147,6 +165,17 @@ class ViewConfig:
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+                # If user explicitly changes the tick values, update base ticks
+                if key == 'major_tick':
+                    try:
+                        self._base_major_tick = int(value)
+                    except Exception:
+                        pass
+                if key == 'minor_tick':
+                    try:
+                        self._base_minor_tick = int(value)
+                    except Exception:
+                        pass
                 
                 # Re-setup if needed
                 if key in ['up_axis', 'grid_mode', 'cubic_grid_density', 'cube_face_opacity']:
@@ -289,6 +318,8 @@ class ViewConfig:
                 'show_cube_faces': self.show_cube_faces,
                 'show_cube_corners': self.show_cube_corners,
                 'cubic_grid_density': self.cubic_grid_density,
+                'auto_rotate': self.auto_rotate,
+                'rotation_speed': self.rotation_speed,
             })
         
         return settings

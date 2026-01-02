@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 from .vector import Vector3D
 from typing import List, Optional, Tuple
 
@@ -11,9 +12,17 @@ class Scene:
         self.matrices: List[dict] = []  # Store linear transformation matrices
         self.selected_object = None
         self.selection_type = None  # 'vector', 'plane', 'matrix'
+        # Preview matrix (non-destructive preview from UI)
+        self.preview_matrix: Optional[np.ndarray] = None
+
+        # Undo/redo stacks (store snapshots)
+        self._undo_stack: List[dict] = []
+        self._redo_stack: List[dict] = []
         
     def add_vector(self, vector: Vector3D) -> Vector3D:
         """Add a vector to the scene."""
+        # snapshot for undo
+        self.push_undo()
         self.vectors.append(vector)
         # Select the newly added vector for convenience
         self.selected_object = vector
@@ -34,6 +43,8 @@ class Scene:
     
     def add_matrix(self, matrix: np.ndarray, label: str = "") -> dict:
         """Add a transformation matrix."""
+        # snapshot for undo
+        self.push_undo()
         matrix_dict = {
             'matrix': np.array(matrix, dtype=np.float32),
             'label': label,
@@ -47,6 +58,7 @@ class Scene:
     def remove_vector(self, vector: Vector3D) -> bool:
         """Remove a vector from the scene."""
         if vector in self.vectors:
+            self.push_undo()
             self.vectors.remove(vector)
             if self.selected_object is vector:
                 self.selected_object = None
@@ -67,6 +79,7 @@ class Scene:
     def remove_matrix(self, matrix_dict: dict) -> bool:
         """Remove a matrix from the scene."""
         if matrix_dict in self.matrices:
+            self.push_undo()
             self.matrices.remove(matrix_dict)
             if self.selected_object is matrix_dict:
                 self.selected_object = None
@@ -104,6 +117,8 @@ class Scene:
     
     def apply_transformation(self, matrix: np.ndarray):
         """Apply a transformation matrix to all vectors."""
+        # snapshot for undo
+        self.push_undo()
         for v in self.vectors:
             if v.visible:
                 v.coords = np.dot(matrix, v.coords)
@@ -111,7 +126,102 @@ class Scene:
     def apply_matrix_to_selected(self, matrix: np.ndarray):
         """Apply transformation matrix only to selected vector."""
         if self.selected_object and self.selection_type == 'vector':
+            self.push_undo()
             self.selected_object.coords = np.dot(matrix, self.selected_object.coords)
+
+    # ----------------
+    # Preview helpers
+    # ----------------
+    def set_preview_matrix(self, matrix: Optional[np.ndarray]):
+        if matrix is None:
+            self.preview_matrix = None
+        else:
+            self.preview_matrix = np.array(matrix, dtype=np.float32)
+
+    # ----------------
+    # Undo/redo (simple snapshots)
+    # ----------------
+    def snapshot(self) -> dict:
+        """Return a deep copy snapshot of the scene state relevant for undo."""
+        return {
+            'vectors': [
+                {
+                    'coords': v.coords.copy(),
+                    'color': v.color,
+                    'label': v.label,
+                    'visible': v.visible,
+                    'metadata': copy.deepcopy(v.metadata),
+                }
+                for v in self.vectors
+            ],
+            'matrices': [
+                {
+                    'matrix': m['matrix'].copy(),
+                    'label': m.get('label', ''),
+                    'visible': m.get('visible', True),
+                }
+                for m in self.matrices
+            ],
+            'selected_object': None,
+            'selection_type': self.selection_type
+        }
+
+    def apply_snapshot(self, snap: dict):
+        """Restore a snapshot into the scene (non-destructive replacement)."""
+        # Replace vectors
+        self.vectors.clear()
+        for v in snap.get('vectors', []):
+            vec = Vector3D(np.array(v['coords'], dtype=np.float32), color=v.get('color', (0.8,0.2,0.2)), label=v.get('label',''))
+            vec.visible = v.get('visible', True)
+            vec.metadata = copy.deepcopy(v.get('metadata', {}))
+            self.vectors.append(vec)
+
+        # Replace matrices
+        self.matrices.clear()
+        for m in snap.get('matrices', []):
+            md = {
+                'matrix': np.array(m['matrix'], dtype=np.float32),
+                'label': m.get('label', ''),
+                'visible': m.get('visible', True),
+                'color': (0.8, 0.5, 0.2, 0.6),
+                'transformations': []
+            }
+            self.matrices.append(md)
+
+        # selection is cleared (we don't attempt to pointer-restore)
+        self.selected_object = None
+        self.selection_type = None
+
+    def push_undo(self):
+        try:
+            snap = self.snapshot()
+            self._undo_stack.append(snap)
+            # clear redo stack
+            self._redo_stack.clear()
+        except Exception:
+            pass
+
+    def undo(self):
+        if not self._undo_stack:
+            return
+        try:
+            current = self.snapshot()
+            last = self._undo_stack.pop()
+            self._redo_stack.append(current)
+            self.apply_snapshot(last)
+        except Exception:
+            pass
+
+    def redo(self):
+        if not self._redo_stack:
+            return
+        try:
+            current = self.snapshot()
+            nxt = self._redo_stack.pop()
+            self._undo_stack.append(current)
+            self.apply_snapshot(nxt)
+        except Exception:
+            pass
     
     def gaussian_elimination(self, A: np.ndarray, b: np.ndarray = None) -> dict:
         """

@@ -62,6 +62,13 @@ class Renderer:
         
         if hasattr(view_config, 'show_plane_visuals'):
             self.show_plane_visuals = view_config.show_plane_visuals
+        # Sync cube face colors from view config so opacity and color edits take effect
+        try:
+            if hasattr(view_config, 'cube_face_colors'):
+                # copy to avoid accidental shared-list mutations
+                self.cube_face_colors = [tuple(c) for c in view_config.cube_face_colors]
+        except Exception:
+            pass
 
     def render(self, scene):
         """Main rendering method."""
@@ -105,12 +112,17 @@ class Renderer:
     def _render_cubic_environment(self, vp, scene):
         """Render a beautiful 3D cubic environment."""
         if self.view.show_grid:
-            # Draw the main cubic grid
+            # Compute steps honoring cubic grid density (non-destructive)
+            # Use major/minor ticks already computed by ViewConfig
+            major_step = max(1, int(getattr(self.view, 'major_tick', 5)))
+            minor_step = max(1, int(getattr(self.view, 'minor_tick', 1)))
+
+            # Draw the main cubic grid using computed steps from view config
             self.gizmos.draw_cubic_grid(
-                vp, 
+                vp,
                 size=self.view.grid_size,
-                major_step=self.view.major_tick,
-                minor_step=self.view.minor_tick,
+                major_step=major_step,
+                minor_step=minor_step,
                 color_major=(0.35, 0.37, 0.4, 0.9),
                 color_minor=(0.2, 0.22, 0.25, 0.6)
             )
@@ -189,8 +201,23 @@ class Renderer:
             # All vertices have same normal
             normals = [normal] * 6
             
-            # Get face color
-            color = self.cube_face_colors[i % len(self.cube_face_colors)]
+            # Get face color from view config if available (respect opacity)
+            try:
+                cfg_colors = getattr(self.view, 'cube_face_colors', None)
+                if cfg_colors:
+                    color = tuple(cfg_colors[i % len(cfg_colors)])
+                else:
+                    color = self.cube_face_colors[i % len(self.cube_face_colors)]
+            except Exception:
+                color = self.cube_face_colors[i % len(self.cube_face_colors)]
+
+            # Ensure per-face alpha reflects cube_face_opacity if present
+            try:
+                opacity = float(getattr(self.view, 'cube_face_opacity', color[3]))
+                # Replace alpha
+                color = (color[0], color[1], color[2], opacity)
+            except Exception:
+                pass
             
             # Draw the face
             self.gizmos.draw_triangles(
@@ -349,6 +376,34 @@ class Renderer:
 
     def _render_linear_algebra_visuals(self, scene, vp):
         """Render linear algebra visualizations."""
+        # Render preview matrix if present (non-destructive)
+        try:
+            if hasattr(scene, 'preview_matrix') and scene.preview_matrix is not None:
+                matrix = scene.preview_matrix
+                # Visualize as transformation of standard basis
+                basis_vectors = [
+                    np.array([1, 0, 0], dtype='f4'),
+                    np.array([0, 1, 0], dtype='f4'),
+                    np.array([0, 0, 1], dtype='f4')
+                ]
+                transformed_basis = []
+                for basis in basis_vectors:
+                    if matrix.shape == (3, 3):
+                        transformed = matrix @ basis
+                    elif matrix.shape == (4, 4):
+                        point = np.array([basis[0], basis[1], basis[2], 1.0])
+                        transformed_h = matrix @ point
+                        transformed = transformed_h[:3] / transformed_h[3]
+                    else:
+                        transformed = basis
+                    transformed_basis.append(transformed)
+
+                # Draw preview with transformed basis highlighted
+                self.gizmos.draw_basis_transform(vp, basis_vectors, transformed_basis,
+                                                 show_original=True, show_transformed=True)
+        except Exception:
+            pass
+
         # Render vector spans if enabled
         if self.show_vector_spans and len(scene.vectors) >= 2:
             # Show span between first two vectors

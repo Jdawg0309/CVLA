@@ -116,8 +116,6 @@ class App:
         self.rotating = False
         self.last_mouse = None
         self._last_debug_time = 0.0
-        self.auto_rotate = False
-        self.rotation_speed = 0.5
         # Runtime status
         self.fps = 0.0
         self.show_help = False
@@ -168,8 +166,9 @@ class App:
         if action == glfw.PRESS or action == glfw.REPEAT:
             # Toggle auto-rotation with R key
             if key == glfw.KEY_R:
-                self.auto_rotate = not self.auto_rotate
-                dlog(f"[App] Auto-rotate: {self.auto_rotate}")
+                # Toggle view-config driven auto-rotate
+                self.view_config.auto_rotate = not getattr(self.view_config, 'auto_rotate', False)
+                dlog(f"[App] Auto-rotate: {self.view_config.auto_rotate}")
             
             # Reset view with space bar
             elif key == glfw.KEY_SPACE:
@@ -277,9 +276,10 @@ class App:
             self.ctx.viewport = (0, 0, fb_w, fb_h)
             self.camera.set_viewport(fb_w, fb_h)
             
-            # Auto-rotation for cubic view
-            if self.auto_rotate:
-                self.camera.cubic_view_rotation(auto_rotate=True, speed=self.rotation_speed)
+            # Auto-rotation for cubic view (driven by view_config)
+            if getattr(self.view_config, 'auto_rotate', False):
+                speed = getattr(self.view_config, 'rotation_speed', 0.5)
+                self.camera.cubic_view_rotation(auto_rotate=True, speed=speed)
 
             # Update systems with new view config
             self.renderer.update_view(self.view_config)
@@ -291,8 +291,7 @@ class App:
                 fb_h, self.scene, self.selected, self.camera, self.view_config
             )
             
-            # Add cubic view controls to UI
-            self._render_cubic_view_controls()
+            # Cubic view controls moved into the Visualize tab
 
             # 3D Rendering with enhanced cubic view
             self.renderer.render(self.scene)
@@ -327,70 +326,4 @@ class App:
         glfw.terminate()
         dlog("[App] shutdown")
 
-    def _render_cubic_view_controls(self):
-        """Render additional controls for cubic view."""
-        imgui.begin("Cubic View Controls", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-        
-        # Auto-rotation control
-        _, self.auto_rotate = imgui.checkbox("Auto-rotate", self.auto_rotate)
-        if self.auto_rotate:
-            imgui.same_line()
-            imgui.push_item_width(100)
-            _, self.rotation_speed = imgui.slider_float("Speed", self.rotation_speed, 0.1, 2.0)
-            imgui.pop_item_width()
-        
-        # Cube face toggle
-        _, self.view_config.show_cube_faces = imgui.checkbox(
-            "Show Cube Faces", self.view_config.show_cube_faces
-        )
-        
-        # Cube corner indicators
-        _, self.view_config.show_cube_corners = imgui.checkbox(
-            "Show Corner Indicators", self.view_config.show_cube_corners
-        )
-        
-        # Grid density
-        imgui.push_item_width(150)
-        changed, self.view_config.cubic_grid_density = imgui.slider_float(
-            "Grid Density", self.view_config.cubic_grid_density, 0.5, 3.0
-        )
-        if changed:
-            self.view_config._setup_cubic_view()
-        imgui.pop_item_width()
-        
-        # Cube face opacity
-        changed, self.view_config.cube_face_opacity = imgui.slider_float(
-            "Face Opacity", self.view_config.cube_face_opacity, 0.01, 0.3
-        )
-        if changed:
-            for i in range(len(self.view_config.cube_face_colors)):
-                color = list(self.view_config.cube_face_colors[i])
-                color[3] = self.view_config.cube_face_opacity
-                self.view_config.cube_face_colors[i] = tuple(color)
-        
-        imgui.separator()
-        
-        # Quick view presets
-        if imgui.button("XY View"):
-            self.view_config.grid_mode = "plane"
-            self.view_config.grid_plane = "xy"
-            self.camera.set_view_preset("xy")
-        
-        imgui.same_line()
-        if imgui.button("XZ View"):
-            self.view_config.grid_mode = "plane"
-            self.view_config.grid_plane = "xz"
-            self.camera.set_view_preset("xz")
-        
-        imgui.same_line()
-        if imgui.button("YZ View"):
-            self.view_config.grid_mode = "plane"
-            self.view_config.grid_plane = "yz"
-            self.camera.set_view_preset("yz")
-        
-        imgui.same_line()
-        if imgui.button("3D Cube"):
-            self.view_config.grid_mode = "cube"
-            self.camera.set_view_preset("cube")
-        
-        imgui.end()
+    

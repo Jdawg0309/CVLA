@@ -406,6 +406,7 @@ class Sidebar:
 
             imgui.spacing()
             # Toggle matrix editor
+            imgui.text(f"New Matrix Size: {self.matrix_size}x{self.matrix_size}")
             if imgui.button("Open Matrix Editor", width=-1):
                 self.show_matrix_editor = not self.show_matrix_editor
             
@@ -457,6 +458,8 @@ class Sidebar:
                 # Add / Save matrix
                 if self.selected_matrix_idx is None:
                     if imgui.button("Add Matrix", width=-1):
+                        # Ensure matrix_input matches desired size before adding
+                        self._resize_matrix()
                         self._add_matrix(scene)
                 else:
                     if imgui.button("Save Matrix", width=-1):
@@ -674,24 +677,122 @@ class Sidebar:
             if view_config.show_grid:
                 imgui.indent(10)
                 imgui.text("Grid Settings:")
-                
+
                 # Grid size
                 imgui.push_item_width(150)
-                changed, view_config.grid_size = imgui.slider_int(
-                    "Size", view_config.grid_size, 5, 50
+                try:
+                    safe_grid_size = int(view_config.grid_size)
+                except Exception:
+                    safe_grid_size = 20
+                safe_grid_size = max(5, min(50, safe_grid_size))
+                size_changed, new_grid_size = imgui.slider_int(
+                    "Size", safe_grid_size, 5, 50
                 )
-                
-                # Tick spacing
-                changed, view_config.major_tick = imgui.slider_int(
-                    "Major Ticks", view_config.major_tick, 1, 10
+                if size_changed:
+                    try:
+                        view_config.grid_size = int(new_grid_size)
+                    except Exception:
+                        view_config.grid_size = safe_grid_size
+
+                # Tick spacing (major)
+                try:
+                    safe_major = int(view_config.major_tick)
+                except Exception:
+                    safe_major = 5
+                safe_major = max(1, min(10, safe_major))
+                major_changed, new_major = imgui.slider_int(
+                    "Major Ticks", safe_major, 1, 10
                 )
-                
-                changed, view_config.minor_tick = imgui.slider_int(
-                    "Minor Ticks", view_config.minor_tick, 1, 5
+                if major_changed:
+                    try:
+                        view_config.major_tick = int(new_major)
+                    except Exception:
+                        view_config.major_tick = safe_major
+
+                # Tick spacing (minor)
+                try:
+                    safe_minor = int(view_config.minor_tick)
+                except Exception:
+                    safe_minor = 1
+                safe_minor = max(1, min(5, safe_minor))
+                minor_changed, new_minor = imgui.slider_int(
+                    "Minor Ticks", safe_minor, 1, 5
                 )
+                if minor_changed:
+                    try:
+                        view_config.minor_tick = int(new_minor)
+                    except Exception:
+                        view_config.minor_tick = safe_minor
+
                 imgui.pop_item_width()
-                
+
                 imgui.unindent(10)
+
+            # Cubic view controls (moved from floating window)
+            if view_config.grid_mode == "cube":
+                imgui.separator()
+                imgui.text("Cubic View Settings:")
+                imgui.push_item_width(150)
+
+                # Auto-rotate (now part of view_config)
+                auto_changed, view_config.auto_rotate = imgui.checkbox(
+                    "Auto-rotate", getattr(view_config, 'auto_rotate', False)
+                )
+                if auto_changed:
+                    # nothing else to do here; App.run reads view_config.auto_rotate
+                    pass
+
+                # Rotation speed
+                try:
+                    rs = float(getattr(view_config, 'rotation_speed', 0.5))
+                except Exception:
+                    rs = 0.5
+                rs_changed, view_config.rotation_speed = imgui.slider_float(
+                    "Rotation Speed", rs, 0.1, 2.0
+                )
+
+                # Cube face toggle
+                changed, view_config.show_cube_faces = imgui.checkbox(
+                    "Show Cube Faces", view_config.show_cube_faces
+                )
+
+                # Cube corner indicators
+                changed, view_config.show_cube_corners = imgui.checkbox(
+                    "Show Corner Indicators", view_config.show_cube_corners
+                )
+
+                # Grid density
+                try:
+                    gd = float(view_config.cubic_grid_density)
+                except Exception:
+                    gd = 1.0
+                gd_changed, view_config.cubic_grid_density = imgui.slider_float(
+                    "Grid Density", gd, 0.5, 3.0
+                )
+                if gd_changed:
+                    try:
+                        view_config._setup_cubic_view()
+                    except Exception:
+                        pass
+
+                # Cube face opacity
+                try:
+                    fo = float(view_config.cube_face_opacity)
+                except Exception:
+                    fo = 0.05
+                fo_changed, view_config.cube_face_opacity = imgui.slider_float(
+                    "Face Opacity", fo, 0.01, 0.3
+                )
+                if fo_changed:
+                    try:
+                        for i in range(len(view_config.cube_face_colors)):
+                            color = list(view_config.cube_face_colors[i])
+                            color[3] = view_config.cube_face_opacity
+                            view_config.cube_face_colors[i] = tuple(color)
+                    except Exception:
+                        pass
+
+                imgui.pop_item_width()
             
             self._end_section()
 
