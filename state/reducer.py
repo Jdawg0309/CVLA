@@ -395,6 +395,9 @@ def reduce(state: AppState, action: Action) -> AppState:
                 @property
                 def width(self):
                     return self.data.shape[1]
+                @property
+                def history(self):
+                    return []
 
             temp_img = TempImageMatrix(state.current_image.pixels, state.current_image.name)
             h, w = temp_img.height, temp_img.width
@@ -447,6 +450,9 @@ def reduce(state: AppState, action: Action) -> AppState:
                 @property
                 def width(self):
                     return self.data.shape[1]
+                @property
+                def history(self):
+                    return []
 
             temp_img = TempImageMatrix(state.current_image.pixels, state.current_image.name)
             transform = AffineTransform()

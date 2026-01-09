@@ -58,6 +58,8 @@ class Sidebar:
         self.window_width = 420
         self.active_tab = "vectors"
         self.vector_list_filter = ""
+        self._cell_buffers = {}
+        self._cell_active = set()
         
         # Color palette for auto-colors
         self.color_palette = [
@@ -198,6 +200,38 @@ class Sidebar:
 
         return changed, values
 
+    def _coerce_float(self, text):
+        """Parse numeric text safely, allowing partial input."""
+        if text is None:
+            return None
+        stripped = text.strip()
+        if stripped in ("", "-", "+", ".", "-.", "+."):
+            return None
+        try:
+            return float(stripped)
+        except Exception:
+            return None
+
+    def _input_number_cell(self, key, value):
+        """Numeric input cell with backspace-friendly editing."""
+        buf = self._cell_buffers.get(key)
+        if buf is None:
+            buf = f"{value:.2f}"
+
+        flags = 0
+        try:
+            flags = imgui.INPUT_TEXT_CHARS_DECIMAL
+        except Exception:
+            flags = 0
+
+        changed, new_buf = imgui.input_text(f"##{key}", buf, 32, flags)
+        if changed:
+            self._cell_buffers[key] = new_buf
+            parsed = self._coerce_float(new_buf)
+            if parsed is not None:
+                return True, parsed
+        return False, value
+
     def _matrix_input_widget(self, matrix, editable=True):
         """Widget for matrix input."""
         changed = False
@@ -234,13 +268,11 @@ class Sidebar:
                     
                     if editable:
                         # Use a per-cell ID to avoid collisions and focus issues
-                        imgui.push_id(f"mat_{i}_{j}")
+                        cell_key = f"mat_{i}_{j}"
+                        imgui.push_id(cell_key)
                         imgui.push_item_width(60)
-                        # Avoid forcing auto-select-all behavior which prevents
-                        # typical in-place editing (delete/backspace). Let the
-                        # user edit freely and commit numeric changes normally.
-                        cell_changed, new_val = imgui.input_float(
-                            f"##mat_{i}_{j}", matrix[i][j], format="%.2f"
+                        cell_changed, new_val = self._input_number_cell(
+                            cell_key, matrix[i][j]
                         )
                         imgui.pop_item_width()
                         imgui.pop_id()
@@ -574,10 +606,11 @@ class Sidebar:
                     # Input for each coefficient
                     for j in range(self.equation_count):
                         imgui.push_item_width(50)
-                        coeff_changed, self.equation_input[i][j] = imgui.input_float(
-                            f"##coeff_{i}_{j}", self.equation_input[i][j], 
-                            format="%.2f"
+                        coeff_changed, new_val = self._input_number_cell(
+                            f"eq_{i}_{j}", self.equation_input[i][j]
                         )
+                        if coeff_changed:
+                            self.equation_input[i][j] = new_val
                         imgui.pop_item_width()
                         
                         imgui.same_line()
@@ -590,9 +623,11 @@ class Sidebar:
                     
                     # RHS input
                     imgui.push_item_width(50)
-                    rhs_changed, self.equation_input[i][-1] = imgui.input_float(
-                        f"##rhs_{i}", self.equation_input[i][-1], format="%.2f"
+                    rhs_changed, new_rhs = self._input_number_cell(
+                        f"eq_rhs_{i}", self.equation_input[i][-1]
                     )
+                    if rhs_changed:
+                        self.equation_input[i][-1] = new_rhs
                     imgui.pop_item_width()
                     
                     imgui.pop_id()
@@ -887,89 +922,30 @@ class Sidebar:
                             scene.remove_vector(vector)
                         
                         imgui.end_popup()
-            
+
             imgui.end_child()
-            
+
             # List actions
             imgui.spacing()
             imgui.columns(2, "##list_actions", border=False)
-            
+
             if imgui.button("Clear All", width=-1):
                 scene.clear_vectors()
                 selected = None
-            
+
             imgui.next_column()
-            
+
             if imgui.button("Export...", width=-1):
                 self.show_export_dialog = True
-            
+
             imgui.columns(1)
-            
+
             self._end_section()
-        
+
         return selected
 
-    def _duplicate_vector(self, scene, vector):
-        """Duplicate a vector and add to the scene with a new label."""
-        try:
-            new_coords = vector.coords.copy()
-            # Create a unique label
-            base = vector.label or "v"
-            # Try to create a numbered suffix
-            idx = 1
-            new_label = f"{base}_copy{idx}"
-            existing = {v.label for v in scene.vectors}
-            while new_label in existing:
-                idx += 1
-                new_label = f"{base}_copy{idx}"
-
-            v = Vector3D(new_coords, color=vector.color, label=new_label)
-            scene.add_vector(v)
-        except Exception:
-            pass
-
-    def _render_export_dialog(self):
-        """Render export dialog."""
-        if self.show_export_dialog:
-            imgui.open_popup("Export Vectors")
-        
-        if imgui.begin_popup_modal("Export Vectors")[0]:
-            imgui.text("Export format:")
-            imgui.spacing()
-            
-            if imgui.button("JSON", width=100):
-                self._export_json()
-                self.show_export_dialog = False
-                imgui.close_current_popup()
-            
-            imgui.same_line()
-            
-            if imgui.button("CSV", width=100):
-                self._export_csv()
-                self.show_export_dialog = False
-                imgui.close_current_popup()
-            
-            imgui.same_line()
-            
-            if imgui.button("Python", width=100):
-                self._export_python()
-                self.show_export_dialog = False
-                imgui.close_current_popup()
-            
-            imgui.end_popup()
-
     def render(self, height, scene, selected, camera, view_config, state=None, dispatch=None):
-        """Main render method.
-
-        Args:
-            height: Window height
-            scene: Legacy Scene object (for vectors/matrices tabs)
-            selected: Currently selected object
-            camera: Camera object
-            view_config: View configuration
-            state: AppState for state-driven tabs (Images)
-            dispatch: Dispatch function for state-driven tabs
-        """
+        """Main render method."""
         # Keep a reference to the scene for helper methods (exports, etc.)
         self.scene = scene
 
@@ -988,7 +964,7 @@ class Sidebar:
                             imgui.WINDOW_NO_TITLE_BAR):
             
             # Header
-            imgui.text_colored("🎯 CVLA - Linear Algebra Visualizer", 0.9, 0.9, 1.0, 1.0)
+            imgui.text_colored("CVLA - Linear Algebra Visualizer", 0.9, 0.9, 1.0, 1.0)
             imgui.text_disabled("Interactive 3D Mathematics")
             # Undo / Redo
             imgui.same_line(300)
@@ -1042,11 +1018,9 @@ class Sidebar:
                 self._render_linear_systems(scene)
 
             elif self.active_tab == "images":
-                # Use new state-driven Images tab
                 if state is not None and dispatch is not None:
                     render_images_tab(state, dispatch)
                 else:
-                    # Fallback to old implementation if state not provided
                     self._render_image_operations(scene)
 
             elif self.active_tab == "visualize":
@@ -1059,6 +1033,56 @@ class Sidebar:
         imgui.pop_style_var(2)
         
         return selected
+
+    def _duplicate_vector(self, scene, vector):
+        """Duplicate a vector and add to the scene with a new label."""
+        try:
+            new_coords = vector.coords.copy()
+            # Create a unique label
+            base = vector.label or "v"
+            # Try to create a numbered suffix
+            idx = 1
+            new_label = f"{base}_copy{idx}"
+            existing = {v.label for v in scene.vectors}
+            while new_label in existing:
+                idx += 1
+                new_label = f"{base}_copy{idx}"
+
+            v = Vector3D(new_coords, color=vector.color, label=new_label)
+            scene.add_vector(v)
+        except Exception:
+            pass
+
+    def _render_export_dialog(self):
+        """Render export dialog."""
+        if self.show_export_dialog:
+            imgui.open_popup("Export Vectors")
+        
+        if imgui.begin_popup_modal("Export Vectors")[0]:
+            imgui.text("Export format:")
+            imgui.spacing()
+            
+            if imgui.button("JSON", width=100):
+                self._export_json()
+                self.show_export_dialog = False
+                imgui.close_current_popup()
+            
+            imgui.same_line()
+            
+            if imgui.button("CSV", width=100):
+                self._export_csv()
+                self.show_export_dialog = False
+                imgui.close_current_popup()
+            
+            imgui.same_line()
+            
+            if imgui.button("Python", width=100):
+                self._export_python()
+                self.show_export_dialog = False
+                imgui.close_current_popup()
+            
+            imgui.end_popup()
+
 
     # Vector operations
     def _add_vector(self, scene):
