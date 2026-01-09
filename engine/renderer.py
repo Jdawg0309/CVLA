@@ -70,7 +70,7 @@ class Renderer:
         except Exception:
             pass
 
-    def render(self, scene):
+    def render(self, scene, image_data=None, show_image_on_grid=False, image_render_scale=1.0, image_color_mode="grayscale"):
         """Main rendering method."""
         # Clear buffers with gradient background
         self._clear_with_gradient()
@@ -83,6 +83,9 @@ class Renderer:
             self._render_cubic_environment(vp, scene)
         else:
             self._render_planar_environment(vp)
+
+        if image_data is not None:
+            self.draw_image_plane(image_data, vp, scale=image_render_scale, color_mode=image_color_mode)
         
         # Render special linear algebra visualizations
         self._render_linear_algebra_visuals(scene, vp)
@@ -93,6 +96,43 @@ class Renderer:
         # Render selection highlights
         if scene.selected_object and scene.selection_type == 'vector':
             self._render_selection_highlight(scene.selected_object, vp)
+
+    def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale"):
+        """Render image pixels as points on the XY plane (Z = 0)."""
+        try:
+            matrix = image_data.as_matrix()
+        except Exception:
+            return
+
+        h, w = matrix.shape[:2]
+        if h == 0 or w == 0:
+            return
+
+        points = []
+        colors = []
+        half_w = w / 2.0
+        half_h = h / 2.0
+        for y in range(h):
+            for x in range(w):
+                intensity = float(matrix[y, x])
+                i = max(0.0, min(1.0, intensity))
+                px = (x - half_w) * scale
+                py = (half_h - y) * scale
+                points.append([px, py, 0.0])
+                colors.append(self._image_color(i, color_mode))
+
+        if points:
+            self.gizmos.draw_points(points, colors, vp, size=4.0)
+
+    def _image_color(self, intensity, color_mode):
+        """Map intensity to grayscale or heatmap color."""
+        i = max(0.0, min(1.0, float(intensity)))
+        if color_mode == "heatmap":
+            r = min(1.0, max(0.0, 1.5 * (i - 0.33)))
+            g = min(1.0, max(0.0, 1.5 * (1.0 - abs(i - 0.5) * 2.0)))
+            b = min(1.0, max(0.0, 1.5 * (0.66 - i)))
+            return (r, g, b, 1.0)
+        return (i, i, i, 1.0)
 
     def _clear_with_gradient(self):
         """Clear with a subtle gradient background."""

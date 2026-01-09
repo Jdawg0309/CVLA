@@ -20,6 +20,8 @@ from .models import (
     PlaneData,
     ImageData,
     EducationalStep,
+    PipelineOp,
+    MicroOp,
 )
 
 from .app_state import (
@@ -51,6 +53,8 @@ from .actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
+    SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
+    ToggleImageDownsample, SetImagePreviewResolution, ToggleImageOnGrid,
     # Navigation actions
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
     ClearSelection,
@@ -63,7 +67,7 @@ from .scene_adapter import SceneAdapter, RendererVector, RendererMatrix, create_
 
 __all__ = [
     # Models
-    'VectorData', 'MatrixData', 'PlaneData', 'ImageData', 'EducationalStep',
+    'VectorData', 'MatrixData', 'PlaneData', 'ImageData', 'EducationalStep', 'PipelineOp', 'MicroOp',
     # State
     'AppState', 'MAX_HISTORY', 'create_initial_state',
     'get_vector_by_id', 'get_matrix_by_id',
@@ -81,6 +85,8 @@ __all__ = [
     'SetInputVector', 'SetInputMatrixCell', 'SetInputMatrixSize', 'SetInputMatrixLabel',
     'SetImagePath', 'SetSamplePattern', 'SetSampleSize',
     'SetTransformRotation', 'SetTransformScale', 'SetSelectedKernel',
+    'SetImageRenderScale', 'SetImageRenderMode', 'SetImageColorMode', 'ToggleImageGridOverlay',
+    'ToggleImageDownsample', 'SetImagePreviewResolution', 'ToggleImageOnGrid',
     'SetActiveTab', 'ToggleMatrixEditor', 'ToggleMatrixValues', 'TogglePreview',
     'ClearSelection',
     'Undo', 'Redo',

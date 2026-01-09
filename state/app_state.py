@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace, field
 from typing import Tuple, Optional, List
 import numpy as np
 
-from .models import VectorData, MatrixData, PlaneData, ImageData, EducationalStep
+from .models import VectorData, MatrixData, PlaneData, ImageData, EducationalStep, PipelineOp, MicroOp
 
 
 # Maximum undo history depth
@@ -49,6 +49,24 @@ class AppState:
     current_image: Optional[ImageData] = None
     processed_image: Optional[ImageData] = None
     selected_kernel: str = 'sobel_x'
+    image_status: str = ""
+    image_status_level: str = "info"  # "info" | "error"
+    image_pipeline: Tuple[PipelineOp, ...] = ()
+    active_pipeline_index: int = 0
+    micro_step_index: int = 0
+    micro_step_total: int = 0
+    micro_op: Optional[MicroOp] = None
+    selected_pixel: Optional[Tuple[int, int]] = None
+    image_step_index: int = 0
+    image_step_total: int = 0
+    image_render_mode: str = "plane"  # 'plane' | 'height-field'
+    image_render_scale: float = 1.0
+    image_color_mode: str = "grayscale"  # 'grayscale' | 'heatmap'
+    image_auto_fit: bool = True
+    show_image_grid_overlay: bool = False
+    image_downsample_enabled: bool = False
+    image_preview_resolution: int = 128
+    image_max_resolution: int = 512
 
     # =========================================================================
     # EDUCATIONAL PIPELINE STATE
@@ -73,6 +91,7 @@ class AppState:
     input_matrix_size: int = 3
 
     input_image_path: str = ""
+    input_mnist_index: int = 0
     input_sample_pattern: str = "checkerboard"
     input_sample_size: int = 32
     input_transform_rotation: float = 0.0
@@ -82,8 +101,12 @@ class AppState:
     # UI VIEW STATE
     # =========================================================================
     active_tab: str = "vectors"
+    ribbon_tab: str = "File"
     show_matrix_editor: bool = False
     show_matrix_values: bool = False
+    show_heatmap: bool = True
+    show_channels: bool = False
+    show_image_on_grid: bool = True
     preview_enabled: bool = False
 
     # =========================================================================

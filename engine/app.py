@@ -296,17 +296,25 @@ class App:
             self.labels.update_view(self.view_config)
 
             # UI
+            state = self.store.get_state()
             imgui.new_frame()
             self.selected = self.sidebar.render(
                 fb_h, self.scene, self.selected, self.camera, self.view_config,
-                state=self.store.get_state(),
+                state=state,
                 dispatch=self.store.dispatch
             )
             
             # Cubic view controls moved into the Visualize tab
 
             # 3D Rendering with enhanced cubic view
-            self.renderer.render(self.scene)
+            render_image = state.processed_image or state.current_image
+            self.renderer.render(
+                self.scene,
+                image_data=render_image,
+                show_image_on_grid=state.show_image_on_grid,
+                image_render_scale=state.image_render_scale,
+                image_color_mode=state.image_color_mode,
+            )
 
             # Update FPS (simple instantaneous measure)
             try:

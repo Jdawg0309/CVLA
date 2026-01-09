@@ -32,13 +32,23 @@ from .actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
+    SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
+    ToggleImageDownsample, SetImagePreviewResolution,
     # Navigation actions
-    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
+    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid, TogglePreview,
     ClearSelection,
     # History actions
     Undo, Redo,
 )
 
+
+def _auto_fit_scale(image_data, grid_size=20.0, margin=0.9):
+    """Compute a render scale that fits the image within the grid bounds."""
+    if image_data is None:
+        return 1.0
+    max_dim = max(float(image_data.width), float(image_data.height), 1.0)
+    fit = (2.0 * grid_size * margin) / max_dim
+    return min(1.0, max(0.05, fit))
 
 def reduce(state: AppState, action: Action) -> AppState:
     """
@@ -237,21 +247,38 @@ def reduce(state: AppState, action: Action) -> AppState:
     # =========================================================================
 
     if isinstance(action, LoadImage):
+        max_size = action.max_size
+        if max_size is None and state.image_downsample_enabled:
+            max_size = (state.image_preview_resolution, state.image_preview_resolution)
         try:
             from vision import load_image as vision_load_image
-            img = vision_load_image(action.path, max_size=action.max_size)
+            img = vision_load_image(action.path, max_size=max_size, grayscale=True)
             if img is None:
-                return state
+                return replace(state,
+                    image_status="Failed to load image. Check the path and Pillow install.",
+                    image_status_level="error",
+                )
             image_data = ImageData.create(img.data, img.name)
+            render_scale = state.image_render_scale
+            if state.image_auto_fit:
+                render_scale = _auto_fit_scale(image_data)
             new_state = replace(state,
                 current_image=image_data,
                 processed_image=None,
                 pipeline_steps=(),
                 pipeline_step_index=0,
+                image_status=f"Loaded image '{image_data.name}' ({image_data.width}x{image_data.height})",
+                image_status_level="info",
+                image_render_scale=render_scale,
+                show_image_on_grid=True,
+                selected_pixel=(0, 0),
             )
             return with_history(new_state)
-        except Exception:
-            return state
+        except Exception as e:
+            return replace(state,
+                image_status=f"Failed to load image: {e}",
+                image_status_level="error",
+            )
 
     if isinstance(action, CreateSampleImage):
         try:
@@ -267,15 +294,27 @@ def reduce(state: AppState, action: Action) -> AppState:
                 output_data=image_data,
             )
 
+            render_scale = state.image_render_scale
+            if state.image_auto_fit:
+                render_scale = _auto_fit_scale(image_data)
+
             new_state = replace(state,
                 current_image=image_data,
                 processed_image=None,
                 pipeline_steps=(step,),
                 pipeline_step_index=0,
+                image_status=f"Created sample image '{image_data.name}' ({image_data.width}x{image_data.height})",
+                image_status_level="info",
+                image_render_scale=render_scale,
+                show_image_on_grid=True,
+                selected_pixel=(0, 0),
             )
             return with_history(new_state)
         except Exception:
-            return state
+            return replace(state,
+                image_status="Failed to create sample image.",
+                image_status_level="error",
+            )
 
     if isinstance(action, ApplyKernel):
         if state.current_image is None:
@@ -552,6 +591,30 @@ def reduce(state: AppState, action: Action) -> AppState:
 
     if isinstance(action, TogglePreview):
         return replace(state, preview_enabled=not state.preview_enabled)
+
+    if isinstance(action, SetImageRenderScale):
+        return replace(state, image_render_scale=max(0.05, float(action.scale)))
+
+    if isinstance(action, SetImageRenderMode):
+        mode = action.mode if action.mode in ("plane", "height-field") else "plane"
+        return replace(state, image_render_mode=mode)
+
+    if isinstance(action, SetImageColorMode):
+        mode = action.mode if action.mode in ("grayscale", "heatmap") else "grayscale"
+        return replace(state, image_color_mode=mode)
+
+    if isinstance(action, ToggleImageGridOverlay):
+        return replace(state, show_image_grid_overlay=not state.show_image_grid_overlay)
+
+    if isinstance(action, ToggleImageDownsample):
+        return replace(state, image_downsample_enabled=not state.image_downsample_enabled)
+
+    if isinstance(action, SetImagePreviewResolution):
+        size = max(16, min(int(action.size), 1024))
+        return replace(state, image_preview_resolution=size)
+
+    if isinstance(action, ToggleImageOnGrid):
+        return replace(state, show_image_on_grid=not state.show_image_on_grid)
 
     if isinstance(action, ClearSelection):
         return replace(state, selected_id=None, selected_type=None)

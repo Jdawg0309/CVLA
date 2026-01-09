@@ -98,7 +98,7 @@ class ApplyMatrixToAll:
 class LoadImage:
     """Load an image from file path."""
     path: str
-    max_size: Tuple[int, int] = (128, 128)
+    max_size: Optional[Tuple[int, int]] = None
 
 
 @dataclass(frozen=True)
@@ -235,6 +235,42 @@ class SetSelectedKernel:
     kernel_name: str
 
 
+@dataclass(frozen=True)
+class SetImageRenderScale:
+    """Update the image render scale (pixel spacing)."""
+    scale: float
+
+
+@dataclass(frozen=True)
+class SetImageRenderMode:
+    """Set image render mode ('plane' or 'height-field')."""
+    mode: str
+
+
+@dataclass(frozen=True)
+class SetImageColorMode:
+    """Set image color mode ('grayscale' or 'heatmap')."""
+    mode: str
+
+
+@dataclass(frozen=True)
+class ToggleImageGridOverlay:
+    """Toggle pixel grid overlay for the image plane."""
+    pass
+
+
+@dataclass(frozen=True)
+class ToggleImageDownsample:
+    """Toggle downsampling for large image loads."""
+    pass
+
+
+@dataclass(frozen=True)
+class SetImagePreviewResolution:
+    """Set preview/downsample resolution for image loading."""
+    size: int
+
+
 # =============================================================================
 # NAVIGATION / UI STATE ACTIONS
 # =============================================================================
@@ -254,6 +290,12 @@ class ToggleMatrixEditor:
 @dataclass(frozen=True)
 class ToggleMatrixValues:
     """Toggle showing matrix values in the Images tab."""
+    pass
+
+
+@dataclass(frozen=True)
+class ToggleImageOnGrid:
+    """Toggle image rendering on the 3D grid."""
     pass
 
 
@@ -304,8 +346,10 @@ Action = Union[
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
+    SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
+    ToggleImageDownsample, SetImagePreviewResolution,
     # Navigation actions
-    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
+    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid, TogglePreview,
     ClearSelection,
     # History actions
     Undo, Redo,
