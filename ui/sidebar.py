@@ -9,6 +9,20 @@ import colorsys
 import json
 from typing import List, Tuple, Optional
 
+# Import vision module for image processing (optional dependency)
+try:
+    from vision import (
+        ImageMatrix, load_image, create_sample_image,
+        list_kernels, get_kernel_by_name, apply_kernel,
+        ConvolutionVisualizer, AffineTransform, apply_affine_transform
+    )
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+
+# Import new state-driven Images tab
+from ui.images_tab import render_images_tab
+
 
 class Sidebar:
     def __init__(self):
@@ -64,6 +78,18 @@ class Sidebar:
         # Runtime references and defaults
         self.scene = None
         self.scale_factor = 1.0
+
+        # Image/Vision state (for ML/CV visualization)
+        self.current_image = None  # Current ImageMatrix
+        self.processed_image = None  # Result of last operation
+        self.selected_kernel = 'sobel_x'  # Default kernel
+        self.show_image_matrix = False  # Show matrix values
+        self.image_path = ""  # Path input for loading
+        self.sample_pattern = 'checkerboard'  # For sample images
+        self.sample_size = 32  # Sample image size
+        self.transform_rotation = 0.0  # Rotation angle
+        self.transform_scale = 1.0  # Scale factor
+        self.convolution_position = (0, 0)  # For visualization
 
     def _get_next_color(self):
         """Get next color from palette."""
@@ -932,8 +958,18 @@ class Sidebar:
             
             imgui.end_popup()
 
-    def render(self, height, scene, selected, camera, view_config):
-        """Main render method."""
+    def render(self, height, scene, selected, camera, view_config, state=None, dispatch=None):
+        """Main render method.
+
+        Args:
+            height: Window height
+            scene: Legacy Scene object (for vectors/matrices tabs)
+            selected: Currently selected object
+            camera: Camera object
+            view_config: View configuration
+            state: AppState for state-driven tabs (Images)
+            dispatch: Dispatch function for state-driven tabs
+        """
         # Keep a reference to the scene for helper methods (exports, etc.)
         self.scene = scene
 
@@ -966,13 +1002,13 @@ class Sidebar:
             
             # Tabs
             imgui.push_style_var(imgui.STYLE_FRAME_ROUNDING, 4.0)
-            tab_names = ["Vectors", "Matrices", "Systems", "Visualize"]
-            tab_values = ["vectors", "matrices", "systems", "visualize"]
-            
+            tab_names = ["Vectors", "Matrices", "Systems", "Images", "View"]
+            tab_values = ["vectors", "matrices", "systems", "images", "visualize"]
+
             for i, (name, value) in enumerate(zip(tab_names, tab_values)):
                 if i > 0:
                     imgui.same_line()
-                
+
                 if self.active_tab == value:
                     imgui.push_style_color(imgui.COLOR_BUTTON, 0.26, 0.59, 0.98, 0.6)
                     imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, 0.26, 0.59, 0.98, 0.8)
@@ -981,12 +1017,12 @@ class Sidebar:
                     imgui.push_style_color(imgui.COLOR_BUTTON, 0.18, 0.18, 0.24, 1.0)
                     imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, 0.26, 0.59, 0.98, 0.4)
                     imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, 0.26, 0.59, 0.98, 0.6)
-                
-                if imgui.button(name, width=(self.window_width - 50) / 4):
+
+                if imgui.button(name, width=(self.window_width - 50) / 5):
                     self.active_tab = value
-                
+
                 imgui.pop_style_color(3)
-            
+
             imgui.pop_style_var(1)
             imgui.spacing()
             imgui.separator()
@@ -998,13 +1034,21 @@ class Sidebar:
                 if selected:
                     self._render_vector_operations(scene, selected)
                 self._render_vector_list(scene, selected)
-                
+
             elif self.active_tab == "matrices":
                 self._render_matrix_operations(scene)
-                
+
             elif self.active_tab == "systems":
                 self._render_linear_systems(scene)
-                
+
+            elif self.active_tab == "images":
+                # Use new state-driven Images tab
+                if state is not None and dispatch is not None:
+                    render_images_tab(state, dispatch)
+                else:
+                    # Fallback to old implementation if state not provided
+                    self._render_image_operations(scene)
+
             elif self.active_tab == "visualize":
                 self._render_visualization_options(scene, camera, view_config)
             
@@ -1288,5 +1332,276 @@ class Sidebar:
             python_code += f"    np.array({v.coords.tolist()}, dtype=np.float32),\n"
         
         python_code += "]\n"
-        
+
         print("Python Export ready")
+
+    # =========================================================================
+    # IMAGE / VISION OPERATIONS (ML/CV Visualization)
+    # =========================================================================
+
+    def _render_image_operations(self, scene):
+        """Render image processing section for ML/CV visualization.
+
+        This section demonstrates how images are matrices and how
+        convolutions (the core of CNNs) work at the pixel level.
+        """
+        if not VISION_AVAILABLE:
+            imgui.text_colored("Vision module not available", 0.8, 0.4, 0.4, 1.0)
+            imgui.text_disabled("Install Pillow: pip install Pillow")
+            return
+
+        # Section 1: Load/Create Image
+        if self._section("Image Source", "Load"):
+            # Sample image creation (always available)
+            imgui.text("Create Sample Image:")
+            imgui.spacing()
+
+            # Pattern selection
+            patterns = ['gradient', 'checkerboard', 'circle', 'edges', 'noise', 'rgb_gradient']
+            imgui.push_item_width(150)
+            if imgui.begin_combo("##pattern", self.sample_pattern):
+                for p in patterns:
+                    if imgui.selectable(p, p == self.sample_pattern)[0]:
+                        self.sample_pattern = p
+                imgui.end_combo()
+            imgui.pop_item_width()
+
+            imgui.same_line()
+
+            # Size selection
+            imgui.push_item_width(80)
+            changed, self.sample_size = imgui.slider_int("Size", self.sample_size, 16, 128)
+            imgui.pop_item_width()
+
+            if imgui.button("Create Sample", width=-1):
+                self.current_image = create_sample_image(self.sample_size, self.sample_pattern)
+                self.processed_image = None
+
+            imgui.spacing()
+            imgui.separator()
+            imgui.spacing()
+
+            # Load from file
+            imgui.text("Load from File:")
+            imgui.push_item_width(-1)
+            changed, self.image_path = imgui.input_text_with_hint(
+                "##imgpath", "Path to image (PNG/JPG)...", self.image_path, 256
+            )
+            imgui.pop_item_width()
+
+            if imgui.button("Load Image", width=-1):
+                img = load_image(self.image_path, max_size=(128, 128))
+                if img:
+                    self.current_image = img
+                    self.processed_image = None
+
+            self._end_section()
+
+        # Section 2: Current Image Info
+        if self.current_image is not None:
+            if self._section("Image as Matrix", "Matrix", default_open=True):
+                img = self.current_image
+
+                # Basic info
+                imgui.text_colored(f"{img.name}", 0.4, 0.8, 1.0, 1.0)
+                imgui.text(f"Shape: {img.shape} = {img.height}x{img.width}")
+                if img.is_rgb:
+                    imgui.text("Type: RGB (3 channels)")
+                else:
+                    imgui.text("Type: Grayscale")
+
+                imgui.spacing()
+
+                # Statistics
+                stats = img.get_statistics()
+                imgui.text(f"Mean: {stats['mean']:.3f}  Std: {stats['std']:.3f}")
+                imgui.text(f"Min: {stats['min']:.3f}  Max: {stats['max']:.3f}")
+
+                imgui.spacing()
+
+                # Toggle matrix view
+                changed, self.show_image_matrix = imgui.checkbox("Show Matrix Values", self.show_image_matrix)
+
+                if self.show_image_matrix:
+                    imgui.begin_child("##matrix_view", 0, 150, border=True)
+                    matrix = img.as_matrix()
+                    # Show a small portion (8x8 max)
+                    rows = min(8, matrix.shape[0])
+                    cols = min(8, matrix.shape[1])
+                    imgui.text_disabled("Matrix preview (8x8 max):")
+                    for i in range(rows):
+                        row_str = " ".join(f"{matrix[i, j]:.2f}" for j in range(cols))
+                        imgui.text(row_str)
+                    if matrix.shape[0] > 8 or matrix.shape[1] > 8:
+                        imgui.text_disabled("...")
+                    imgui.end_child()
+
+                self._end_section()
+
+        # Section 3: Convolution Operations
+        if self.current_image is not None:
+            if self._section("Convolution (CNN Core)", "Conv"):
+                imgui.text_colored("Kernels detect features", 0.8, 0.8, 0.4, 1.0)
+                imgui.text_disabled("Select a kernel and apply:")
+
+                imgui.spacing()
+
+                # Kernel selection
+                kernels = list_kernels()
+                kernel_names = [k[0] for k in kernels]
+
+                imgui.push_item_width(-1)
+                if imgui.begin_combo("##kernel", self.selected_kernel):
+                    for name, desc in kernels:
+                        label = f"{name}: {desc}"
+                        if imgui.selectable(label[:40], name == self.selected_kernel)[0]:
+                            self.selected_kernel = name
+                    imgui.end_combo()
+                imgui.pop_item_width()
+
+                imgui.spacing()
+
+                # Show kernel values
+                kernel = get_kernel_by_name(self.selected_kernel)
+                imgui.text("Kernel Matrix:")
+                imgui.begin_child("##kernel_view", 0, 80, border=True)
+                for row in kernel:
+                    row_str = "  ".join(f"{v:>6.2f}" for v in row)
+                    imgui.text(row_str)
+                imgui.end_child()
+
+                imgui.spacing()
+
+                # Apply button
+                if imgui.button("Apply Convolution", width=-1):
+                    self.processed_image = apply_kernel(
+                        self.current_image,
+                        self.selected_kernel,
+                        normalize_output=True
+                    )
+
+                # Quick kernel buttons
+                imgui.spacing()
+                imgui.text("Quick Apply:")
+                quick_kernels = ['sobel_x', 'sobel_y', 'gaussian_blur', 'sharpen']
+                imgui.columns(2, "##quick_kernels", border=False)
+                for i, k in enumerate(quick_kernels):
+                    if imgui.button(k.replace('_', ' ').title(), width=-1):
+                        self.selected_kernel = k
+                        self.processed_image = apply_kernel(
+                            self.current_image, k, normalize_output=True
+                        )
+                    if i % 2 == 0:
+                        imgui.next_column()
+                imgui.columns(1)
+
+                self._end_section()
+
+        # Section 4: Affine Transforms
+        if self.current_image is not None:
+            if self._section("Affine Transforms", "Transform"):
+                imgui.text_colored("Linear transforms on coordinates", 0.4, 0.8, 0.4, 1.0)
+
+                imgui.spacing()
+
+                # Rotation
+                imgui.push_item_width(150)
+                changed, self.transform_rotation = imgui.slider_float(
+                    "Rotation", self.transform_rotation, -180, 180, "%.1f deg"
+                )
+                imgui.pop_item_width()
+
+                # Scale
+                imgui.push_item_width(150)
+                changed, self.transform_scale = imgui.slider_float(
+                    "Scale", self.transform_scale, 0.5, 2.0, "%.2fx"
+                )
+                imgui.pop_item_width()
+
+                imgui.spacing()
+
+                if imgui.button("Apply Transform", width=-1):
+                    h, w = self.current_image.height, self.current_image.width
+                    center = (w / 2, h / 2)
+                    transform = AffineTransform()
+                    transform.rotate(self.transform_rotation, center)
+                    transform.scale(self.transform_scale, center=center)
+                    self.processed_image = apply_affine_transform(
+                        self.current_image, transform
+                    )
+
+                imgui.spacing()
+
+                # Quick transforms
+                if imgui.button("Flip Horizontal", width=-1):
+                    h, w = self.current_image.height, self.current_image.width
+                    transform = AffineTransform()
+                    transform.flip_horizontal(w)
+                    self.processed_image = apply_affine_transform(
+                        self.current_image, transform
+                    )
+
+                self._end_section()
+
+        # Section 5: Result / Processed Image
+        if self.processed_image is not None:
+            if self._section("Result", "Result", default_open=True):
+                result = self.processed_image
+
+                imgui.text_colored(f"Output: {result.name}", 0.4, 1.0, 0.4, 1.0)
+                imgui.text(f"Shape: {result.shape}")
+
+                # Show transformation history
+                if result.history:
+                    imgui.text("Operations applied:")
+                    for op, param in result.history:
+                        imgui.bullet_text(f"{op}")
+
+                imgui.spacing()
+
+                # Use as input
+                if imgui.button("Use as Input", width=-1):
+                    self.current_image = self.processed_image
+                    self.processed_image = None
+
+                # Add to scene as vectors (if small enough)
+                if result.height <= 8 and result.width <= 8:
+                    imgui.spacing()
+                    if imgui.button("Add Matrix Rows as Vectors", width=-1):
+                        self._add_image_as_vectors(scene, result)
+
+                self._end_section()
+
+        # ML/CV Educational Info
+        if self._section("ML/CV Info", "Info", default_open=False):
+            imgui.text_wrapped(
+                "Images are matrices! Each pixel is a number (0-1). "
+                "Convolution kernels slide over the image computing "
+                "weighted sums - this is how CNNs detect edges, "
+                "textures, and patterns. The kernels shown here are "
+                "what neural networks learn automatically from data."
+            )
+            imgui.spacing()
+            imgui.text_disabled("Pipeline: Image -> Matrix -> Transform -> Result")
+            self._end_section()
+
+    def _add_image_as_vectors(self, scene, image_matrix):
+        """Add image matrix rows as 3D vectors for visualization."""
+        matrix = image_matrix.as_matrix()
+        h, w = matrix.shape[:2]
+
+        # Limit to small matrices
+        if h > 8 or w > 8:
+            return
+
+        # Add each row as a vector (first 3 columns become x, y, z)
+        for i in range(min(h, 8)):
+            row = matrix[i, :min(w, 3)]
+            if len(row) < 3:
+                row = np.pad(row, (0, 3 - len(row)))
+
+            coords = np.array(row, dtype=np.float32) * 5  # Scale for visibility
+            color = self._get_next_color()
+            label = f"img_row{i}"
+            v = Vector3D(coords, color=color, label=label)
+            scene.add_vector(v)

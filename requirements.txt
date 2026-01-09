@@ -43,6 +43,9 @@ setuptools>=67.8.0       # Package building
 wheel>=0.40.0            # Binary distribution
 pyinstaller>=5.12.0      # Executable packaging (optional)
 
+# Image Processing (for ML/CV visualization)
+Pillow>=10.0.0           # Image loading and manipulation (PIL)
+
 # Optional: Visualization Extras
 colour>=0.1.5            # Color science and conversion
 palettable>=3.3.0        # Color palettes for visualization

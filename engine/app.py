@@ -19,6 +19,9 @@ from core.scene import Scene
 from core.vector import Vector3D
 from ui.sidebar import Sidebar
 
+# New state management
+from state import Store, create_initial_state, create_scene_from_state
+
 
 DEBUG = os.getenv("CVLA_DEBUG") == "1"
 
@@ -101,7 +104,14 @@ class App:
         self.sidebar = Sidebar()
 
         # -----------------------------
+        # State Management (Redux-style)
+        # Single source of truth for Images tab
+        # -----------------------------
+        self.store = Store(create_initial_state())
+
+        # -----------------------------
         # Enhanced basis vectors for cubic view
+        # (Using old Scene for vectors/matrices tabs for now)
         # -----------------------------
         self.scene.add_vector(Vector3D([2, 0, 0], color=(1.0, 0.25, 0.25), label="i"))
         self.scene.add_vector(Vector3D([0, 2, 0], color=(0.25, 1.0, 0.25), label="j"))
@@ -288,7 +298,9 @@ class App:
             # UI
             imgui.new_frame()
             self.selected = self.sidebar.render(
-                fb_h, self.scene, self.selected, self.camera, self.view_config
+                fb_h, self.scene, self.selected, self.camera, self.view_config,
+                state=self.store.get_state(),
+                dispatch=self.store.dispatch
             )
             
             # Cubic view controls moved into the Visualize tab
