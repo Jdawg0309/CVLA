@@ -15,7 +15,7 @@ import os
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from runtime.app import App
+from app.app import App
 
 
 def demo_image_processing():
@@ -30,7 +30,7 @@ def demo_image_processing():
     Run with: python main.py --demo-vision
     """
     try:
-        from vision import (
+        from domain.images import (
             create_sample_image, apply_kernel, list_kernels,
             get_kernel_by_name, AffineTransform, apply_affine_transform,
             compute_gradient_magnitude

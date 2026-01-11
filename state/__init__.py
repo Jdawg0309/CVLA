@@ -14,7 +14,7 @@ ARCHITECTURE:
                               No side effects
 """
 
-from .models import (
+from state.models import (
     VectorData,
     MatrixData,
     PlaneData,
@@ -27,8 +27,8 @@ from .models import (
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from runtime.app_state import AppState, MAX_HISTORY, create_initial_state
-    from runtime.state_queries import (
+    from state.app_state import AppState, MAX_HISTORY, create_initial_state
+    from state.selectors import (
         get_vector_by_id,
         get_matrix_by_id,
         get_selected_vector,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
         COLOR_PALETTE,
     )
 
-from .actions import (
+from state.actions import (
     Action,
     # Vector actions
     AddVector, DeleteVector, UpdateVector, SelectVector,
@@ -58,12 +58,12 @@ from .actions import (
     ToggleImageDownsample, SetImagePreviewResolution, ToggleImageOnGrid,
     # Navigation actions
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
-    ClearSelection,
+    ClearSelection, SetTheme, SetActiveTool,
     # History actions
     Undo, Redo,
 )
 
-from .reducer import reduce
+from state.reducers import reduce
 
 __all__ = [
     # Models
@@ -88,7 +88,7 @@ __all__ = [
     'SetImageRenderScale', 'SetImageRenderMode', 'SetImageColorMode', 'ToggleImageGridOverlay',
     'ToggleImageDownsample', 'SetImagePreviewResolution', 'ToggleImageOnGrid',
     'SetActiveTab', 'ToggleMatrixEditor', 'ToggleMatrixValues', 'TogglePreview',
-    'ClearSelection',
+    'ClearSelection', 'SetTheme', 'SetActiveTool',
     'Undo', 'Redo',
     # Scene adapter
     'SceneAdapter', 'RendererVector', 'RendererMatrix', 'create_scene_from_state',
@@ -97,19 +97,19 @@ __all__ = [
 
 def __getattr__(name):
     if name in ("AppState", "MAX_HISTORY", "create_initial_state"):
-        from runtime import app_state as _app_state
+        from state import app_state as _app_state
         return getattr(_app_state, name)
     if name in (
         "get_vector_by_id", "get_matrix_by_id",
         "get_selected_vector", "get_selected_matrix",
         "get_current_step", "get_next_color", "COLOR_PALETTE",
     ):
-        from runtime import state_queries as _state_queries
+        from state import selectors as _state_queries
         return getattr(_state_queries, name)
     if name == "Store":
         from state.store import Store as _Store
         return _Store
     if name in ("SceneAdapter", "RendererVector", "RendererMatrix", "create_scene_from_state"):
-        from graph import scene_adapter as _scene_adapter
+        from engine import scene_adapter as _scene_adapter
         return getattr(_scene_adapter, name)
     raise AttributeError(f"module 'state' has no attribute {name!r}")

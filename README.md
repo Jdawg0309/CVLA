@@ -17,16 +17,34 @@ A comprehensive 3D linear algebra visualization tool with an intuitive interface
 - **Projections**: Visualize vector projections onto axes and planes
 
 ### Enhanced UI
-- **Modern Interface**: Clean, dark-themed UI with intuitive controls
-- **Real-time Inspector**: Detailed property inspection for selected objects
-- **Contextual Toolbar**: Quick access to common operations
-- **Tabbed Interface**: Organized workspace with vector, matrix, and system tabs
+- **Photoshop-Style Workspace**: Top ribbon, left tool palette, right inspector, bottom timeline
+- **Theme Support**: Dark, light, and high-contrast modes
+- **Real-time Inspector**: Detailed property inspection for selected vectors
+- **Action-Driven UI**: Panels dispatch actions; state is the only source of truth
 
 ### Advanced Features
 - **Gaussian Elimination**: Step-by-step visualization of solving linear systems
 - **Null Space/Column Space**: Compute and visualize fundamental subspaces
-- **Transformation History**: Track and revert vector transformations
+- **Educational Timeline**: Navigate pipeline steps and intermediate states
 - **Export Capabilities**: Export vectors to JSON, CSV, or Python code
+
+## Architecture
+
+CVLA follows a strict one-directional data flow:
+
+1. UI dispatches actions
+2. Reducers create new immutable state
+3. SceneAdapter projects state into renderable data
+4. Renderers visualize the projection
+
+The codebase is organized into clear layers:
+
+- `domain/` for pure math and vision logic
+- `state/` for Redux-style store, actions, reducers, and selectors
+- `engine/` for runtime orchestration (scene adapter, picking)
+- `render/` for cameras, view configs, gizmos, and renderers
+- `ui/` for panels, inspectors, layouts, and themes
+- `app/` for bootstrap and wiring
 
 ## Installation
 

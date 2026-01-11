@@ -4,9 +4,9 @@ State store and dispatch helpers.
 
 from typing import Callable
 
-from runtime.app_state import AppState
+from state.app_state import AppState
 from state.actions import Action
-from state.reducer import reduce
+from state.reducers import reduce
 
 
 class Store:

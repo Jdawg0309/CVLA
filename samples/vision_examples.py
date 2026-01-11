@@ -3,7 +3,7 @@ Vision example functions.
 """
 
 import numpy as np
-from vision import (
+from domain.images import (
     ImageMatrix, create_sample_image, load_image,
     SOBEL_X, SOBEL_Y, GAUSSIAN_BLUR, SHARPEN, LAPLACIAN,
     apply_kernel, convolve2d, list_kernels,
