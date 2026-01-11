@@ -8,6 +8,7 @@ from state.actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
+    SetImageNormalizeMean, SetImageNormalizeStd,
 )
 
 
@@ -62,5 +63,12 @@ def reduce_inputs(state, action):
 
     if isinstance(action, SetSelectedKernel):
         return replace(state, selected_kernel=action.kernel_name)
+
+    if isinstance(action, SetImageNormalizeMean):
+        return replace(state, input_image_normalize_mean=action.mean)
+
+    if isinstance(action, SetImageNormalizeStd):
+        safe_std = max(0.001, action.std)
+        return replace(state, input_image_normalize_std=safe_std)
 
     return None

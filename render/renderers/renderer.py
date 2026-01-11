@@ -69,7 +69,8 @@ class Renderer:
         except Exception:
             pass
 
-    def render(self, scene, image_data=None, show_image_on_grid=False, image_render_scale=1.0, image_color_mode="grayscale"):
+    def render(self, scene, image_data=None, show_image_on_grid=False, image_render_scale=1.0,
+               image_color_mode="grayscale", image_color_source=None):
         """Main rendering method."""
         self._clear_with_gradient()
 
@@ -81,7 +82,13 @@ class Renderer:
             self._render_planar_environment(vp)
 
         if image_data is not None:
-            self.draw_image_plane(image_data, vp, scale=image_render_scale, color_mode=image_color_mode)
+            self.draw_image_plane(
+                image_data,
+                vp,
+                scale=image_render_scale,
+                color_mode=image_color_mode,
+                color_source=image_color_source,
+            )
 
         self._render_linear_algebra_visuals(scene, vp)
         self._render_vectors_with_enhancements(scene, vp)

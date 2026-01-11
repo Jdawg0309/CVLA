@@ -33,7 +33,7 @@ def reduce_navigation(state, action):
         return replace(state, image_render_mode=mode)
 
     if isinstance(action, SetImageColorMode):
-        mode = action.mode if action.mode in ("grayscale", "heatmap") else "grayscale"
+        mode = action.mode if action.mode in ("grayscale", "heatmap", "rgb") else "grayscale"
         return replace(state, image_color_mode=mode)
 
     if isinstance(action, ToggleImageGridOverlay):
@@ -48,6 +48,10 @@ def reduce_navigation(state, action):
 
     if isinstance(action, ToggleImageOnGrid):
         return replace(state, show_image_on_grid=not state.show_image_on_grid)
+
+    if isinstance(action, SetActiveImageTab):
+        tab = action.tab if action.tab in ("raw", "preprocess") else "raw"
+        return replace(state, active_image_tab=tab)
 
     if isinstance(action, ClearSelection):
         return replace(state, selected_id=None, selected_type=None)

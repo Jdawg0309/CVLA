@@ -66,7 +66,7 @@ class AppState:
     image_step_total: int = 0
     image_render_mode: str = "plane"  # 'plane' | 'height-field'
     image_render_scale: float = 1.0
-    image_color_mode: str = "grayscale"  # 'grayscale' | 'heatmap'
+    image_color_mode: str = "rgb"  # 'rgb' | 'grayscale' | 'heatmap'
     image_auto_fit: bool = True
     show_image_grid_overlay: bool = False
     image_downsample_enabled: bool = False
@@ -101,6 +101,9 @@ class AppState:
     input_sample_size: int = 32
     input_transform_rotation: float = 0.0
     input_transform_scale: float = 1.0
+    input_image_normalize_mean: float = 0.0
+    input_image_normalize_std: float = 1.0
+    active_image_tab: str = "raw"
 
     # =========================================================================
     # UI VIEW STATE

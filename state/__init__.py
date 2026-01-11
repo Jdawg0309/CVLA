@@ -56,9 +56,10 @@ from state.actions import (
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
     ToggleImageDownsample, SetImagePreviewResolution, ToggleImageOnGrid,
+    NormalizeImage, SetImageNormalizeMean, SetImageNormalizeStd,
     # Navigation actions
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
-    ClearSelection, SetTheme, SetActiveTool,
+    ClearSelection, SetTheme, SetActiveTool, SetActiveImageTab,
     # History actions
     Undo, Redo,
 )
@@ -87,8 +88,9 @@ __all__ = [
     'SetTransformRotation', 'SetTransformScale', 'SetSelectedKernel',
     'SetImageRenderScale', 'SetImageRenderMode', 'SetImageColorMode', 'ToggleImageGridOverlay',
     'ToggleImageDownsample', 'SetImagePreviewResolution', 'ToggleImageOnGrid',
+    'NormalizeImage', 'SetImageNormalizeMean', 'SetImageNormalizeStd',
     'SetActiveTab', 'ToggleMatrixEditor', 'ToggleMatrixValues', 'TogglePreview',
-    'ClearSelection', 'SetTheme', 'SetActiveTool',
+    'ClearSelection', 'SetTheme', 'SetActiveTool', 'SetActiveImageTab',
     'Undo', 'Redo',
     # Scene adapter
     'SceneAdapter', 'RendererVector', 'RendererMatrix', 'create_scene_from_state',

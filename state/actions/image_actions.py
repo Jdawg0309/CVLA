@@ -49,3 +49,10 @@ class UseResultAsInput:
 class ClearImage:
     """Clear both current and processed images."""
     pass
+
+
+@dataclass(frozen=True)
+class NormalizeImage:
+    """Normalize the currently loaded image."""
+    mean: Optional[float] = None
+    std: Optional[float] = None

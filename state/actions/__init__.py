@@ -18,6 +18,8 @@ from state.actions.matrix_actions import (
 from state.actions.image_actions import (
     LoadImage, CreateSampleImage, ApplyKernel, ApplyTransform,
     FlipImageHorizontal, UseResultAsInput, ClearImage,
+    NormalizeImage,
+    NormalizeImage,
 )
 from state.actions.pipeline_actions import StepForward, StepBackward, JumpToStep, ResetPipeline
 from state.actions.input_actions import (
@@ -26,10 +28,14 @@ from state.actions.input_actions import (
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
     ToggleImageDownsample, SetImagePreviewResolution,
+    SetImageNormalizeMean, SetImageNormalizeStd,
+    SetImageNormalizeMean, SetImageNormalizeStd,
+    SetImageNormalizeMean, SetImageNormalizeStd,
 )
 from state.actions.navigation_actions import (
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
     TogglePreview, ClearSelection, SetTheme, SetActiveTool,
+    SetActiveImageTab,
 )
 from state.actions.history_actions import Undo, Redo
 
@@ -52,6 +58,7 @@ Action = Union[
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
     ToggleImageDownsample, SetImagePreviewResolution,
+    SetImageNormalizeMean, SetImageNormalizeStd,
     # Navigation actions
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
     TogglePreview, ClearSelection, SetTheme, SetActiveTool,

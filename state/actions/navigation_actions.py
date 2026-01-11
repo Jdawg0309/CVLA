@@ -36,6 +36,12 @@ class TogglePreview:
 
 
 @dataclass(frozen=True)
+class SetActiveImageTab:
+    """Set which image sub-tab is active (raw/preprocess)."""
+    tab: str
+
+
+@dataclass(frozen=True)
 class ClearSelection:
     """Clear the current selection."""
     pass

@@ -89,6 +89,18 @@ class SetImageColorMode:
 
 
 @dataclass(frozen=True)
+class SetImageNormalizeMean:
+    """Set the normalization mean used before preprocessing."""
+    mean: float
+
+
+@dataclass(frozen=True)
+class SetImageNormalizeStd:
+    """Set the normalization standard deviation used before preprocessing."""
+    std: float
+
+
+@dataclass(frozen=True)
 class ToggleImageGridOverlay:
     """Toggle pixel grid overlay for the image plane."""
     pass
