@@ -24,7 +24,7 @@ def reduce_image_load(state, action, with_history):
             max_size = (state.image_preview_resolution, state.image_preview_resolution)
         try:
             from domain.images import load_image as vision_load_image
-            img = vision_load_image(action.path, max_size=max_size, grayscale=True)
+            img = vision_load_image(action.path, max_size=max_size, grayscale=False)
             if img is None:
                 return replace(state,
                     image_status="Failed to load image. Check the path and Pillow install.",

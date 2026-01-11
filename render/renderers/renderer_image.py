@@ -38,8 +38,8 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
                 intensity = _get_intensity(matrix, y, x)
                 color = _image_color(self, intensity, color_mode)
 
-            px = (x - half_w) * scale
-            py = (half_h - y) * scale
+            px = (x - half_w + 0.5) * scale
+            py = (half_h - y - 0.5) * scale
             points.append([px, py, 0.0])
             colors.append(color)
 
@@ -91,11 +91,12 @@ def _colorize_with_source(alt_matrix, y, x, intensity):
     base_r = max(0.0, min(1.0, float(alt_matrix[y, x, 0])))
     base_g = max(0.0, min(1.0, float(alt_matrix[y, x, 1])))
     base_b = max(0.0, min(1.0, float(alt_matrix[y, x, 2])))
-    factor = 0.4 + 0.6 * intensity
+    value = max(0.0, min(1.0, intensity))
+    brightness = 0.3 + 0.7 * value
     return (
-        max(0.0, min(1.0, base_r * factor)),
-        max(0.0, min(1.0, base_g * factor)),
-        max(0.0, min(1.0, base_b * factor)),
+        max(0.0, min(1.0, base_r * brightness)),
+        max(0.0, min(1.0, base_g * brightness)),
+        max(0.0, min(1.0, base_b * brightness)),
         1.0,
     )
 

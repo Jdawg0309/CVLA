@@ -52,10 +52,13 @@ def run(self):
         )
 
         # Render 3D scene using adapter (vectors from state)
-        render_image = state.processed_image or state.current_image
+        render_image = state.processed_image
         color_source = None
-        if state.processed_image and state.current_image and state.image_color_mode == "rgb":
-            color_source = state.current_image
+        if state.active_image_tab == "raw" or state.processed_image is None:
+            render_image = state.current_image
+        else:
+            if state.current_image and state.image_color_mode == "rgb":
+                color_source = state.current_image
         self.renderer.render(
             scene_adapter,
             image_data=render_image,
