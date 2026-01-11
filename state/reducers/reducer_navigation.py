@@ -9,6 +9,7 @@ from state.actions import (
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode,
     ToggleImageGridOverlay, ToggleImageDownsample, SetImagePreviewResolution,
     ToggleImageOnGrid, ClearSelection, SetTheme, SetActiveTool,
+    SetActiveImageTab,
 )
 
 

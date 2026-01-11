@@ -4,7 +4,7 @@ Image rendering helpers.
 
 
 def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", color_source=None):
-    """Render image pixels as points on the XY plane (Z = 0)."""
+    """Render image pixels as filled squares on the XY plane (Z = 0)."""
     try:
         matrix, channels = _resolve_image_matrix(image_data)
     except Exception:
@@ -22,10 +22,26 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
     if h == 0 or w == 0:
         return
 
-    points = []
+    vertices = []
+    normals = []
     colors = []
     half_w = w / 2.0
     half_h = h / 2.0
+    normal = [0.0, 0.0, 1.0]
+
+    chunk_pixel_limit = max(512, (2 * 1024 * 1024) // (6 * 10 * 4))
+    vertices = []
+    normals = []
+    colors = []
+    normal = [0.0, 0.0, 1.0]
+
+    def flush():
+        if not vertices:
+            return
+        self.gizmos.draw_triangles(vertices, normals, colors, vp, use_lighting=False)
+        vertices.clear()
+        normals.clear()
+        colors.clear()
 
     for y in range(h):
         for x in range(w):
@@ -38,13 +54,28 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
                 intensity = _get_intensity(matrix, y, x)
                 color = _image_color(self, intensity, color_mode)
 
-            px = (x - half_w + 0.5) * scale
-            py = (half_h - y - 0.5) * scale
-            points.append([px, py, 0.0])
-            colors.append(color)
+            x0 = (x - half_w) * scale
+            x1 = (x - half_w + 1.0) * scale
+            y0 = (half_h - y) * scale
+            y1 = (half_h - y - 1.0) * scale
 
-    if points:
-        self.gizmos.draw_points(points, colors, vp, size=4.0)
+            quad = [
+                [x0, y0, 0.0],
+                [x0, y1, 0.0],
+                [x1, y1, 0.0],
+                [x0, y0, 0.0],
+                [x1, y1, 0.0],
+                [x1, y0, 0.0],
+            ]
+
+            vertices.extend(quad)
+            normals.extend([normal] * len(quad))
+            colors.extend([color] * len(quad))
+
+            if len(vertices) >= chunk_pixel_limit * 6:
+                flush()
+
+    flush()
 
 
 def _resolve_image_matrix(image_data):

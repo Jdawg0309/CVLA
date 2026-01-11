@@ -41,6 +41,8 @@ def on_key(self, win, key, scancode, action, mods):
         elif key == glfw.KEY_V:
             self.renderer.show_vector_components = not self.renderer.show_vector_components
             dlog(f"[App] Vector components: {self.renderer.show_vector_components}")
+    if hasattr(self, "imgui") and self.imgui is not None:
+        self.imgui.keyboard_callback(win, key, scancode, action, mods)
 
 
 def on_resize(self, win, width, height):
