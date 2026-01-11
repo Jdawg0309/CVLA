@@ -5,7 +5,7 @@ Sidebar linear systems section.
 import imgui
 
 
-def _render_linear_systems(self, scene):
+def _render_linear_systems(self):
     """Render linear systems solver section."""
     if self._section("Linear Systems", "🧮"):
         if imgui.button("Open Equation Solver", width=-1):
@@ -64,7 +64,7 @@ def _render_linear_systems(self, scene):
 
             imgui.spacing()
             if imgui.button("Solve System", width=-1):
-                self._solve_linear_system(scene)
+                self._solve_linear_system()
 
             if self.operation_result and 'solution' in self.operation_result:
                 imgui.spacing()
@@ -79,7 +79,7 @@ def _render_linear_systems(self, scene):
 
                 imgui.spacing()
                 if imgui.button("Add Solution Vectors", width=-1):
-                    self._add_solution_vectors(scene, solution)
+                    self._add_solution_vectors(solution)
 
             imgui.end_child()
 

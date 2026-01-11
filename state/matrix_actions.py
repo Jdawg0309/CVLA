@@ -3,7 +3,7 @@ Matrix-related action definitions.
 """
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,14 @@ class UpdateMatrixCell:
     row: int
     col: int
     value: float
+
+
+@dataclass(frozen=True)
+class UpdateMatrix:
+    """Update an existing matrix by ID."""
+    id: str
+    values: Optional[Tuple[Tuple[float, ...], ...]] = None
+    label: Optional[str] = None
 
 
 @dataclass(frozen=True)

@@ -1,24 +1,52 @@
 """
 Sidebar vector operations section.
+
+This module handles vector algebra operations (add, subtract, cross, dot).
+Reads from AppState.vectors when available.
 """
 
 import imgui
+import numpy as np
+from state.actions import AddVector, UpdateVector
 
 
-def _render_vector_operations(self, scene, selected):
-    """Render vector operations section."""
+def _render_vector_operations(self):
+    """
+    Render vector operations section.
+
+    Uses state.vectors for reading, dispatches actions for results.
+    """
     if self._section("Vector Operations", "⚡"):
+        if self._state is None or self._dispatch is None:
+            imgui.text_disabled("Vector operations unavailable (no state).")
+            self._end_section()
+            return
+
+        vectors = list(self._state.vectors)
+        selected_id = self._state.selected_id
+        selected_vector = None
+        for v in vectors:
+            if v.id == selected_id:
+                selected_vector = v
+                break
+
         imgui.columns(2, "##vec_ops_cols", border=False)
 
+        # Normalize button
         if self._styled_button("Normalize", (0.3, 0.3, 0.6, 1.0), width=-1):
-            if selected:
-                selected.normalize()
+            if selected_vector:
+                coords = np.array(selected_vector.coords, dtype=np.float32)
+                norm = np.linalg.norm(coords)
+                if norm > 1e-10:
+                    new_coords = tuple((coords / norm).tolist())
+                    self._dispatch(UpdateVector(id=selected_vector.id, coords=new_coords))
 
         imgui.next_column()
 
+        # Scale input
         if self._styled_button("Reset", (0.6, 0.4, 0.2, 1.0), width=-1):
-            if selected:
-                selected.reset()
+            if selected_vector:
+                self._dispatch(UpdateVector(id=selected_vector.id, coords=(1.0, 0.0, 0.0)))
 
         imgui.next_column()
         imgui.spacing()
@@ -28,14 +56,16 @@ def _render_vector_operations(self, scene, selected):
 
         imgui.push_item_width(-1)
         scale_changed, self.scale_factor = imgui.input_float("##scale",
-                                                           1.0, 0.1, 1.0, "%.2f")
+                                                           self.scale_factor, 0.1, 1.0, "%.2f")
         imgui.pop_item_width()
 
         imgui.next_column()
 
         if self._styled_button("Apply Scale", (0.3, 0.5, 0.3, 1.0), width=-1):
-            if selected:
-                selected.scale(self.scale_factor)
+            if selected_vector:
+                coords = np.array(selected_vector.coords, dtype=np.float32)
+                new_coords = tuple((coords * self.scale_factor).tolist())
+                self._dispatch(UpdateVector(id=selected_vector.id, coords=new_coords))
 
         imgui.columns(1)
         imgui.spacing()
@@ -43,11 +73,18 @@ def _render_vector_operations(self, scene, selected):
         imgui.text("Vector Algebra:")
         imgui.spacing()
 
-        if len(scene.vectors) >= 2:
+        if len(vectors) >= 2:
             imgui.columns(2, "##algebra_cols", border=False)
 
-            v1_idx = 0
-            v2_idx = min(1, len(scene.vectors) - 1)
+            # Use persistent indices stored on self
+            if not hasattr(self, '_v1_idx'):
+                self._v1_idx = 0
+            if not hasattr(self, '_v2_idx'):
+                self._v2_idx = min(1, len(vectors) - 1)
+
+            # Clamp indices to valid range
+            self._v1_idx = min(self._v1_idx, len(vectors) - 1)
+            self._v2_idx = min(self._v2_idx, len(vectors) - 1)
 
             imgui.text("Vector 1:")
             imgui.next_column()
@@ -55,43 +92,87 @@ def _render_vector_operations(self, scene, selected):
             imgui.next_column()
 
             imgui.push_item_width(-1)
-            if imgui.begin_combo("##v1_select", scene.vectors[v1_idx].label):
-                for i, v in enumerate(scene.vectors):
-                    if imgui.selectable(v.label, i == v1_idx)[0]:
-                        v1_idx = i
+            if imgui.begin_combo("##v1_select", vectors[self._v1_idx].label):
+                for i, v in enumerate(vectors):
+                    if imgui.selectable(v.label, i == self._v1_idx)[0]:
+                        self._v1_idx = i
                 imgui.end_combo()
             imgui.pop_item_width()
 
             imgui.next_column()
 
             imgui.push_item_width(-1)
-            if imgui.begin_combo("##v2_select", scene.vectors[v2_idx].label):
-                for i, v in enumerate(scene.vectors):
-                    if imgui.selectable(v.label, i == v2_idx)[0]:
-                        v2_idx = i
+            if imgui.begin_combo("##v2_select", vectors[self._v2_idx].label):
+                for i, v in enumerate(vectors):
+                    if imgui.selectable(v.label, i == self._v2_idx)[0]:
+                        self._v2_idx = i
                 imgui.end_combo()
             imgui.pop_item_width()
 
             imgui.next_column()
             imgui.spacing()
 
-            op_buttons = [
-                ("Add", lambda: self._add_vectors(scene, v1_idx, v2_idx), (0.2, 0.5, 0.2, 1.0)),
-                ("Subtract", lambda: self._subtract_vectors(scene, v1_idx, v2_idx), (0.5, 0.2, 0.2, 1.0)),
-                ("Cross Product", lambda: self._cross_vectors(scene, v1_idx, v2_idx), (0.2, 0.2, 0.5, 1.0)),
-                ("Dot Product", lambda: self._dot_vectors(scene, v1_idx, v2_idx), (0.5, 0.5, 0.2, 1.0)),
-            ]
+            # Get the selected vectors
+            v1 = vectors[self._v1_idx]
+            v2 = vectors[self._v2_idx]
 
-            for i, (label, func, color) in enumerate(op_buttons):
-                if i % 2 == 0 and i > 0:
-                    imgui.next_column()
+            # Operation buttons
+            if self._styled_button("Add", (0.2, 0.5, 0.2, 1.0), width=-1):
+                self._do_vector_algebra(v1, v2, "add")
 
-                if self._styled_button(label, color, width=-1):
-                    func()
+            imgui.next_column()
 
-                if i % 2 == 0:
-                    imgui.next_column()
+            if self._styled_button("Subtract", (0.5, 0.2, 0.2, 1.0), width=-1):
+                self._do_vector_algebra(v1, v2, "subtract")
+
+            imgui.next_column()
+
+            if self._styled_button("Cross", (0.2, 0.2, 0.5, 1.0), width=-1):
+                self._do_vector_algebra(v1, v2, "cross")
+
+            imgui.next_column()
+
+            if self._styled_button("Dot", (0.5, 0.5, 0.2, 1.0), width=-1):
+                self._do_vector_algebra(v1, v2, "dot")
 
             imgui.columns(1)
 
         self._end_section()
+
+
+def _do_vector_algebra(self, v1, v2, operation):
+    """
+    Perform vector algebra and dispatch result.
+
+    Args:
+        v1, v2: VectorData objects
+        operation: "add", "subtract", "cross", or "dot"
+    """
+    coords1 = np.array(v1.coords, dtype=np.float32)
+    coords2 = np.array(v2.coords, dtype=np.float32)
+
+    if operation == "add":
+        result = coords1 + coords2
+        label = f"{v1.label}+{v2.label}"
+    elif operation == "subtract":
+        result = coords1 - coords2
+        label = f"{v1.label}-{v2.label}"
+    elif operation == "cross":
+        result = np.cross(coords1, coords2)
+        label = f"{v1.label}x{v2.label}"
+    elif operation == "dot":
+        dot = float(np.dot(coords1, coords2))
+        self.operation_result = {
+            'type': 'dot_product',
+            'value': dot,
+            'vectors': [v1.label, v2.label]
+        }
+        return  # Dot product doesn't create a new vector
+
+    # Dispatch new vector
+    if self._dispatch:
+        self._dispatch(AddVector(
+            coords=tuple(result.tolist()),
+            color=self._get_next_color(),
+            label=label
+        ))

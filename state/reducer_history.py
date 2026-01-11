@@ -3,8 +3,10 @@ History handling for reducer.
 """
 
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
-from runtime.app_state import AppState
+if TYPE_CHECKING:
+    from runtime.app_state import AppState
 from state.actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
@@ -16,7 +18,7 @@ from state.actions import (
 )
 
 
-def reduce_history(state: AppState, action):
+def reduce_history(state: "AppState", action):
     """Handle undo/redo actions."""
     if isinstance(action, Undo):
         if not state.history:

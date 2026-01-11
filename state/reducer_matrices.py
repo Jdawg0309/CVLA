@@ -5,7 +5,7 @@ Matrix action reducers.
 from dataclasses import replace
 
 from state.actions import (
-    AddMatrix, DeleteMatrix, UpdateMatrixCell, SelectMatrix,
+    AddMatrix, DeleteMatrix, UpdateMatrixCell, UpdateMatrix, SelectMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
 )
 from state.models import MatrixData
@@ -43,6 +43,18 @@ def reduce_matrices(state, action, with_history):
     if isinstance(action, UpdateMatrixCell):
         new_matrices = tuple(
             m.with_cell(action.row, action.col, action.value) if m.id == action.id else m
+            for m in state.matrices
+        )
+        new_state = replace(state, matrices=new_matrices)
+        return with_history(new_state)
+
+    if isinstance(action, UpdateMatrix):
+        new_matrices = tuple(
+            replace(
+                m,
+                values=action.values if action.values is not None else m.values,
+                label=action.label if action.label is not None else m.label,
+            ) if m.id == action.id else m
             for m in state.matrices
         )
         new_state = replace(state, matrices=new_matrices)

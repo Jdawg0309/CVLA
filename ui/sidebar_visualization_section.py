@@ -5,7 +5,7 @@ Sidebar visualization section.
 import imgui
 
 
-def _render_visualization_options(self, scene, camera, view_config):
+def _render_visualization_options(self, camera, view_config):
     """Render visualization options section."""
     if self._section("Visualization", "👁️"):
         imgui.text("View Preset:")

@@ -3,9 +3,10 @@ Inspector header rendering.
 """
 
 import imgui
+from state.actions import UpdateVector
 
 
-def _render_header(self, vector):
+def _render_header(self, vector, dispatch):
     """Render inspector header."""
     draw_list = imgui.get_window_draw_list()
     pos = imgui.get_cursor_screen_pos()
@@ -27,4 +28,6 @@ def _render_header(self, vector):
     imgui.text_disabled("3D Position Vector")
 
     imgui.same_line(200)
-    changed, vector.visible = imgui.checkbox("Visible", vector.visible)
+    changed, visible = imgui.checkbox("Visible", vector.visible)
+    if changed and dispatch:
+        dispatch(UpdateVector(id=vector.id, visible=visible))

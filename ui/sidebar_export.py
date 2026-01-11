@@ -39,15 +39,19 @@ def _render_export_dialog(self):
 
 def _export_json(self):
     """Export vectors to JSON."""
+    if self._state is None:
+        print("JSON Export unavailable (no state).")
+        return
+
     data = {
         'vectors': [
             {
                 'label': v.label,
-                'coords': v.coords.tolist(),
+                'coords': list(v.coords),
                 'color': v.color,
                 'visible': v.visible
             }
-            for v in self.scene.vectors
+            for v in self._state.vectors
         ]
     }
 
@@ -56,8 +60,12 @@ def _export_json(self):
 
 def _export_csv(self):
     """Export vectors to CSV."""
+    if self._state is None:
+        print("CSV Export unavailable (no state).")
+        return
+
     csv_lines = ["Label,X,Y,Z,R,G,B"]
-    for v in self.scene.vectors:
+    for v in self._state.vectors:
         csv_lines.append(
             f'{v.label},{v.coords[0]},{v.coords[1]},{v.coords[2]},'
             f'{v.color[0]},{v.color[1]},{v.color[2]}'
@@ -70,13 +78,17 @@ def _export_csv(self):
 
 def _export_python(self):
     """Export vectors as Python code."""
+    if self._state is None:
+        print("Python Export unavailable (no state).")
+        return
+
     python_code = "# CVLA Vector Export\n"
     python_code += "import numpy as np\n\n"
     python_code += "vectors = [\n"
 
-    for v in self.scene.vectors:
+    for v in self._state.vectors:
         python_code += f"    # {v.label}\n"
-        python_code += f"    np.array({v.coords.tolist()}, dtype=np.float32),\n"
+        python_code += f"    np.array({list(v.coords)}, dtype=np.float32),\n"
 
     python_code += "]\n"
 

@@ -1,72 +1,68 @@
 """
 Sidebar state initialization.
+
+NOTE: Most state has been migrated to AppState. This file only contains
+UI-specific state that doesn't need to be in the global store:
+- ImGui widget buffers
+- Transient UI state
+- Window layout
+
+Vector/Matrix/Image data is now in AppState via the Redux store.
 """
 
 
 def sidebar_init(self):
-    # Vector creation
-    self.vec_input = [1.0, 0.0, 0.0]
-    self.vec_name = ""
-    self.vec_color = (0.8, 0.2, 0.2)
-    self.next_vector_id = 4
+    # =========================================================================
+    # UI LAYOUT STATE (local to sidebar)
+    # =========================================================================
+    self.window_width = 420
+    self.active_tab = "vectors"  # Will be migrated to state.active_tab
 
-    # Matrix input
-    self.matrix_input = [[1.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0],
-                        [0.0, 0.0, 1.0]]
-    self.matrix_name = "A"
-    self.matrix_size = 3
+    # =========================================================================
+    # TRANSIENT INPUT BUFFERS (for ImGui text inputs)
+    # =========================================================================
 
-    # System of equations
+    # System of equations (local for now)
     self.equation_count = 3
     self.equation_input = [
-        [1.0, 1.0, 1.0, 0.0],  # x + y + z = 0
-        [2.0, -1.0, 0.0, 0.0], # 2x - y = 0
-        [0.0, 1.0, -1.0, 0.0]  # y - z = 0
+        [1.0, 1.0, 1.0, 0.0],
+        [2.0, -1.0, 0.0, 0.0],
+        [0.0, 1.0, -1.0, 0.0]
     ]
 
-    # Operation state
-    self.current_operation = None
-    self.operation_result = None
-    self.show_matrix_editor = False
+    # =========================================================================
+    # UI WIDGET STATE (purely local)
+    # =========================================================================
     self.show_equation_editor = False
     self.show_export_dialog = False
-
-    # UI state
-    self.window_width = 420
-    self.active_tab = "vectors"
     self.vector_list_filter = ""
-    self._cell_buffers = {}
+    self._cell_buffers = {}  # For matrix cell editing
     self._cell_active = set()
 
-    # Color palette for auto-colors
+    # Color palette (for auto-coloring new vectors)
     self.color_palette = [
-        (0.8, 0.2, 0.2),  # Red
-        (0.2, 0.8, 0.2),  # Green
-        (0.2, 0.2, 0.8),  # Blue
-        (0.8, 0.8, 0.2),  # Yellow
-        (0.8, 0.2, 0.8),  # Magenta
-        (0.2, 0.8, 0.8),  # Cyan
-        (0.8, 0.5, 0.2),  # Orange
-        (0.5, 0.2, 0.8),  # Purple
+        (0.8, 0.2, 0.2),
+        (0.2, 0.8, 0.2),
+        (0.2, 0.2, 0.8),
+        (0.8, 0.8, 0.2),
+        (0.8, 0.2, 0.8),
+        (0.2, 0.8, 0.8),
+        (0.8, 0.5, 0.2),
+        (0.5, 0.2, 0.8),
     ]
     self.next_color_idx = 0
-    # Preview toggle for matrix editor
-    self.preview_matrix_enabled = False
-    # Selected matrix index in the scene (for list operations)
+
+    # Matrix selection index (local UI state)
     self.selected_matrix_idx = None
-    # Runtime references and defaults
-    self.scene = None
+
+    # Runtime references
+    self._state = None  # Current AppState (set each frame)
+    self._dispatch = None  # Dispatch function (set each frame)
     self.scale_factor = 1.0
 
-    # Image/Vision state (for ML/CV visualization)
-    self.current_image = None  # Current ImageMatrix
-    self.processed_image = None  # Result of last operation
-    self.selected_kernel = 'sobel_x'  # Default kernel
-    self.show_image_matrix = False  # Show matrix values
-    self.image_path = ""  # Path input for loading
-    self.sample_pattern = 'checkerboard'  # For sample images
-    self.sample_size = 32  # Sample image size
-    self.transform_rotation = 0.0  # Rotation angle
-    self.transform_scale = 1.0  # Scale factor
-    self.convolution_position = (0, 0)  # For visualization
+    # =========================================================================
+    # OPERATION RESULTS (transient display state)
+    # =========================================================================
+    self.current_operation = None
+    self.operation_result = None
+    self.convolution_position = (0, 0)

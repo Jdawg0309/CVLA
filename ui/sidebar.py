@@ -23,9 +23,6 @@ from ui.sidebar_linear_system_ops import (
 )
 from ui.sidebar_linear_systems_section import _render_linear_systems
 from ui.sidebar_matrix_ops import (
-    _resize_matrix,
-    _add_matrix,
-    _apply_matrix_to_selected,
     _compute_null_space,
     _compute_column_space,
 )
@@ -44,15 +41,7 @@ from ui.sidebar_utils import (
 )
 from ui.sidebar_vector_creation import _render_vector_creation
 from ui.sidebar_vector_list import _render_vector_list
-from ui.sidebar_vector_ops import (
-    _duplicate_vector,
-    _add_vector,
-    _add_vectors,
-    _subtract_vectors,
-    _cross_vectors,
-    _dot_vectors,
-)
-from ui.sidebar_vector_operations import _render_vector_operations
+from ui.sidebar_vector_operations import _render_vector_operations, _do_vector_algebra
 from ui.sidebar_visualization_section import _render_visualization_options
 
 
@@ -72,17 +61,9 @@ class Sidebar:
     _render_vector_operations = _render_vector_operations
     _render_vector_list = _render_vector_list
 
-    _duplicate_vector = _duplicate_vector
-    _add_vector = _add_vector
-    _add_vectors = _add_vectors
-    _subtract_vectors = _subtract_vectors
-    _cross_vectors = _cross_vectors
-    _dot_vectors = _dot_vectors
+    _do_vector_algebra = _do_vector_algebra
 
     _render_matrix_operations = _render_matrix_operations
-    _resize_matrix = _resize_matrix
-    _add_matrix = _add_matrix
-    _apply_matrix_to_selected = _apply_matrix_to_selected
     _compute_null_space = _compute_null_space
     _compute_column_space = _compute_column_space
 

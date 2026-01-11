@@ -2,13 +2,14 @@
 State query helpers and color palette.
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TYPE_CHECKING
 
-from runtime.app_state import AppState
+if TYPE_CHECKING:
+    from runtime.app_state import AppState
 from state.models import VectorData, MatrixData, EducationalStep
 
 
-def get_vector_by_id(state: AppState, id: str) -> Optional[VectorData]:
+def get_vector_by_id(state: "AppState", id: str) -> Optional[VectorData]:
     """Find a vector by ID."""
     for v in state.vectors:
         if v.id == id:
@@ -16,7 +17,7 @@ def get_vector_by_id(state: AppState, id: str) -> Optional[VectorData]:
     return None
 
 
-def get_matrix_by_id(state: AppState, id: str) -> Optional[MatrixData]:
+def get_matrix_by_id(state: "AppState", id: str) -> Optional[MatrixData]:
     """Find a matrix by ID."""
     for m in state.matrices:
         if m.id == id:
@@ -24,21 +25,21 @@ def get_matrix_by_id(state: AppState, id: str) -> Optional[MatrixData]:
     return None
 
 
-def get_selected_vector(state: AppState) -> Optional[VectorData]:
+def get_selected_vector(state: "AppState") -> Optional[VectorData]:
     """Get the currently selected vector, if any."""
     if state.selected_type == 'vector' and state.selected_id:
         return get_vector_by_id(state, state.selected_id)
     return None
 
 
-def get_selected_matrix(state: AppState) -> Optional[MatrixData]:
+def get_selected_matrix(state: "AppState") -> Optional[MatrixData]:
     """Get the currently selected matrix, if any."""
     if state.selected_type == 'matrix' and state.selected_id:
         return get_matrix_by_id(state, state.selected_id)
     return None
 
 
-def get_current_step(state: AppState) -> Optional[EducationalStep]:
+def get_current_step(state: "AppState") -> Optional[EducationalStep]:
     """Get the current educational step."""
     if 0 <= state.pipeline_step_index < len(state.pipeline_steps):
         return state.pipeline_steps[state.pipeline_step_index]
@@ -57,7 +58,7 @@ COLOR_PALETTE = (
 )
 
 
-def get_next_color(state: AppState) -> Tuple[Tuple[float, float, float], int]:
+def get_next_color(state: "AppState") -> Tuple[Tuple[float, float, float], int]:
     """Get next color from palette and the new index."""
     color = COLOR_PALETTE[state.next_color_index % len(COLOR_PALETTE)]
     new_index = (state.next_color_index + 1) % len(COLOR_PALETTE)

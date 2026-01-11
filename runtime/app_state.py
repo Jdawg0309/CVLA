@@ -15,7 +15,12 @@ from dataclasses import dataclass, replace, field
 from typing import Tuple, Optional, List
 import numpy as np
 
-from state.models import VectorData, MatrixData, PlaneData, ImageData, EducationalStep, PipelineOp, MicroOp
+from state.vector_model import VectorData
+from state.matrix_model import MatrixData
+from state.plane_model import PlaneData
+from state.image_model import ImageData
+from state.educational_step import EducationalStep
+from state.pipeline_models import PipelineOp, MicroOp
 
 
 # Maximum undo history depth
@@ -128,16 +133,19 @@ def create_initial_state() -> AppState:
     """
     Create the initial application state.
 
-    This is called once at startup.
+    This is called once at startup. This is the SINGLE SOURCE OF TRUTH
+    for default vectors - do not duplicate elsewhere.
     """
-    # Default basis vectors
+    # Default basis vectors + example vectors
     initial_vectors = (
         VectorData.create((2.0, 0.0, 0.0), (1.0, 0.25, 0.25), "i"),
         VectorData.create((0.0, 2.0, 0.0), (0.25, 1.0, 0.25), "j"),
         VectorData.create((0.0, 0.0, 2.0), (0.35, 0.55, 1.0), "k"),
+        VectorData.create((1.0, 1.0, 0.0), (0.8, 0.6, 0.2), "v1"),
+        VectorData.create((0.5, 1.0, 1.0), (0.6, 0.2, 0.8), "v2"),
     )
 
     return AppState(
         vectors=initial_vectors,
-        next_vector_id=4,  # Next ID after i, j, k
+        next_vector_id=6,  # Next ID after i, j, k, v1, v2
     )

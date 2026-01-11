@@ -7,9 +7,12 @@ They do NOT perform the change — the reducer does.
 
 from typing import Union
 
-from state.vector_actions import AddVector, DeleteVector, UpdateVector, SelectVector
+from state.vector_actions import (
+    AddVector, DeleteVector, UpdateVector, SelectVector,
+    ClearAllVectors, DuplicateVector, DeselectVector,
+)
 from state.matrix_actions import (
-    AddMatrix, DeleteMatrix, UpdateMatrixCell, SelectMatrix,
+    AddMatrix, DeleteMatrix, UpdateMatrixCell, UpdateMatrix, SelectMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
 )
 from state.image_actions import (
@@ -34,8 +37,9 @@ from state.history_actions import Undo, Redo
 Action = Union[
     # Vector actions
     AddVector, DeleteVector, UpdateVector, SelectVector,
+    ClearAllVectors, DuplicateVector, DeselectVector,
     # Matrix actions
-    AddMatrix, DeleteMatrix, UpdateMatrixCell, SelectMatrix,
+    AddMatrix, DeleteMatrix, UpdateMatrixCell, UpdateMatrix, SelectMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
     # Image actions
     LoadImage, CreateSampleImage, ApplyKernel, ApplyTransform,

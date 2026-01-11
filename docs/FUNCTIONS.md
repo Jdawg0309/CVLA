@@ -37,22 +37,12 @@ Below is a concise mapping of the main modules and functions in this repository.
 - `transform(matrix)`: Apply matrix to vector and return a new `Vector3D`.
 - `reset()`, `copy()`, `to_list()`, `__str__/__repr__()`: Utility methods for state and display.
 
-`core/scene.py` (Scene state and operations)
-- `Scene.__init__()`: Initialize collections (`vectors`, `matrices`, `planes`) and undo/redo stacks.
-- `add_vector(vector)`: Push undo snapshot, append vector, select it.
-- `add_plane(equation, color, label)`: Add plane dictionary (equation, color, label).
-- `add_matrix(matrix, label)`: Push undo snapshot, add a transformation matrix dict.
-- `remove_vector/plane/matrix(...)`: Remove item and push undo for matrices/vectors.
-- `clear_vectors/planes/matrices()`: Clear collections and reset selection where applicable.
-- `get_vector_by_label(label)`: Find vector by its label string.
-- `apply_transformation(matrix)`: Apply matrix to all visible vectors (push undo).
-- `apply_matrix_to_selected(matrix)`: Apply matrix only to currently selected vector (push undo).
-- `set_preview_matrix(matrix)`: Set a non-destructive preview matrix used by the renderer for visualization.
-- `snapshot()`, `apply_snapshot(snap)`, `push_undo()`, `undo()`, `redo()`: Simple snapshot-based undo/redo support (deep-copy snapshot of vectors and matrices).
-- `gaussian_elimination(A, b=None)`: Perform Gaussian elimination and return `{'solution', 'steps', 'augmented_matrix'}` useful for step visualization.
-- `compute_null_space(A)`, `compute_column_space(A)`: SVD-based computation of fundamental subspaces.
+`graph/scene_adapter.py` (SceneAdapter: AppState -> renderer compatibility)
+- `SceneAdapter.__init__(state)`: Build a read-only adapter that exposes vectors/matrices/planes in renderer-friendly shapes.
+- `selected_object`, `selection_type`, `preview_matrix`: Selection and preview data derived from AppState.
+- `create_scene_from_state(state)`: Convenience factory for adapter creation.
 
-`engine/camera.py` (Camera controls & matrices)
+`render/camera.py` (Camera controls & matrices)
 - `Camera.__init__()`: Initialize orbit parameters, viewport, mode flags, cubic-view tweaks.
 - `set_viewport(width, height)`: Update aspect and viewport size.
 - `position()`: Compute camera world position (sphere/2D variants).
@@ -63,7 +53,7 @@ Below is a concise mapping of the main modules and functions in this repository.
 - `cubic_view_rotation(auto_rotate, speed)`: Optional auto-rotation for demo mode.
 - `reset()`, `focus_on_vector(coords)`, `world_to_screen(world_pos, width, height)`, `screen_to_ray(screen_x, screen_y, width, height)`, `get_view_matrix()`, `get_projection_matrix()`: Utility methods for coordinate conversions and camera state.
 
-`engine/renderer.py` (High-level rendering orchestration)
+`render/renderer.py` (High-level rendering orchestration)
 - `Renderer.__init__(ctx, camera, view)`: Create `Gizmos`, initialize rendering flags and GL state.
 - `_get_view_projection()`, `update_view(view_config)`: VP caching and view updates.
 - `render(scene)`: Top-level render routine. Clears background, draws cube/plane grid, linear algebra visuals, vectors, and selection highlight.
@@ -89,33 +79,32 @@ Below is a concise mapping of the main modules and functions in this repository.
 - `draw_axes(camera, width, height)`, `draw_grid_numbers(camera, width, height, viewconfig, grid_size, major)`, `draw_vector_labels(camera, vectors, width, height, selected_vector)`: Draw axis labels, grid tick labels, and vector labels using ImGui's background draw list.
 - Internal helpers: `_get_axis_label(axis)`, `_get_active_planes()`, `_get_grid_positions(plane, value, grid_size)`.
 
-`engine/viewconfig.py` (View configuration and cubic-view helpers)
+`render/viewconfig.py` (View configuration and cubic-view helpers)
 - `ViewConfig` encapsulates many display toggles and cubic-view tuning parameters.
 - Methods include `_setup_axis_mapping()`, `_setup_cubic_view()`, `update(**kwargs)`, `axis_vectors()`, `axis_label_strings()`, `get_grid_planes()`, `get_cube_corners()`, `get_cube_face_centers()`, `get_cubic_grid_settings()`, `grid_axes()`, `get_grid_normal()`, `get_grid_basis()`, `get_display_settings()`, `clone()`, `__str__()` — used by `Renderer`, `Labels`, and UI components to read or tweak rendering settings.
 
-`engine/app.py` (Application lifecycle and GLFW/ImGui glue)
+`runtime/app.py` (Application lifecycle and GLFW/ImGui glue)
 - `dlog(msg)`: Debug logging helper.
-- `App.__init__()`: Create GLFW window, setup ModernGL context, ImGui integration, camera, renderer, label renderer, sidebar, default scene vectors, and input callbacks.
+- `App.__init__()`: Create GLFW window, setup ModernGL context, ImGui integration, camera, renderer, label renderer, sidebar, Redux store, and input callbacks.
 - Input handlers: `on_key(win, key, scancode, action, mods)`, `on_resize(win, width, height)`, `on_mouse_button(win, btn, action, mods)`, `on_mouse_move(win, x, y)`, `on_scroll(win, xoff, yoff)` — process keyboard and mouse events and drive camera and picking logic.
-- `run()`: Main loop: event polling, UI frame, call `sidebar.render(...)`, rendering, label overlays, and presentation. Contains `self._render_cubic_view_controls()` helper for extra UI.
+- `run()`: Main loop: event polling, UI frame, call `sidebar.render(...)`, rendering via `SceneAdapter`, label overlays, and presentation.
 
 `ui/sidebar.py` (Primary ImGui panel with vector/matrix/system controls)
 - `Sidebar` manages input widgets and state used by the UI.
 - Helpers and UI widgets: `_get_next_color()`, `_styled_button()`, `_section()`, `_end_section()`, `_input_float3(...)`, `_matrix_input_widget(...)` — small UI building blocks to keep consistent styling and correct per-cell IDs.
-- Vector UI: `_render_vector_creation(scene)`, `_render_vector_operations(scene, selected)`, `_render_vector_list(scene, selected)`, plus mutators `_add_vector(scene)`, `_add_vectors(scene, idx1, idx2)`, `_subtract_vectors(...)`, `_cross_vectors(...)`, `_dot_vectors(...)`, `_duplicate_vector(...)` (context actions).
-- Matrix UI and solvers: `_render_matrix_operations(scene)`, `_render_linear_systems(scene)`, `_resize_matrix()`, `_add_matrix(scene)`, `_apply_matrix_to_selected(scene)`, `_resize_equations()`, `_solve_linear_system(scene)`, `_add_solution_vectors(scene, solution)` — these drive matrix CRUD, preview, apply, solver UI and adding solutions as vectors.
+- Vector UI: `_render_vector_creation()`, `_render_vector_operations()`, `_render_vector_list()` — read from AppState and dispatch actions.
+- Matrix UI and solvers: `_render_matrix_operations()`, `_render_linear_systems()`, `_resize_equations()`, `_solve_linear_system()`, `_add_solution_vectors(solution)` — driven by AppState inputs and actions.
 - Export helpers: `_render_export_dialog()`, `_export_json()`, `_export_csv()`, `_export_python()`.
 
 `ui/inspector.py` (Right-hand inspector for selected object)
-- `Inspector.render(scene, selected_vector, screen_width, screen_height)` orchestrates the inspector window.
-- Private methods: `_render_header(vector)`, `_render_coordinate_editor(vector)`, `_render_properties(vector, scene)`, `_render_transform_history(vector)`, `_render_computed_properties(vector, scene)` — used to inspect and edit coordinates, color, label, and computed relations with other vectors.
+- `Inspector.render(state, dispatch, screen_width, screen_height)` orchestrates the inspector window.
+- Private methods: `_render_header(vector, dispatch)`, `_render_coordinate_editor(vector, dispatch)`, `_render_properties(vector, dispatch)`, `_render_transform_history(vector, dispatch)`, `_render_computed_properties(vector, state, dispatch)` — used to inspect and edit coordinates, color, label, and computed relations with other vectors.
 
 `ui/toolbar.py` (Top toolbar)
-- `Toolbar.render(scene, camera, view_config, app)` draws quick actions (focus, reset, grid/axes/labels toggles) and displays counts/FPS.
+- `Toolbar.render(state, camera, view_config, app)` draws quick actions (focus, reset, grid/axes/labels toggles) and displays counts/FPS.
 
 Usage notes
 - Most UI functions are callbacks invoked during the ImGui frame (via `App.run()` -> `Sidebar.render()` / `Inspector.render()` / `Toolbar.render()`).
 - Rendering helpers in `engine/gizmos.py` are called by `Renderer` to produce GPU draws; they accept plain Python lists/ndarrays and a view-projection matrix `vp`.
-- Scene mutation methods (e.g., `Scene.add_vector`, `Scene.apply_transformation`) push undo snapshots internally — use `Scene.undo()` / `Scene.redo()` to revert.
 
 If you'd like, I can: generate a more detailed per-function docstring file (e.g., `docs/FUNCTIONS.md`) or automatically extract and insert full docstrings for each function into the README. Which would you prefer next?

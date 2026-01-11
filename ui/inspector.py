@@ -3,7 +3,7 @@ Inspector panel for detailed object inspection and editing.
 """
 
 import imgui
-from core.vector import Vector3D
+from runtime.state_queries import get_selected_vector
 
 from ui.inspector_header import _render_header
 from ui.inspector_coordinates import _render_coordinate_editor
@@ -18,9 +18,13 @@ class Inspector:
         self.show_transform_history = True
         self.show_computed_properties = True
 
-    def render(self, scene, selected_vector, screen_width, screen_height):
+    def render(self, state, dispatch, screen_width, screen_height):
         """Render inspector panel."""
-        if not selected_vector or not isinstance(selected_vector, Vector3D):
+        if state is None or dispatch is None:
+            return
+
+        selected_vector = get_selected_vector(state)
+        if not selected_vector:
             return
 
         imgui.set_next_window_position(screen_width - self.window_width - 10, 30)
@@ -34,21 +38,21 @@ class Inspector:
                             imgui.WINDOW_NO_MOVE |
                             imgui.WINDOW_NO_TITLE_BAR):
 
-            self._render_header(selected_vector)
+            self._render_header(selected_vector, dispatch)
             imgui.separator()
 
-            self._render_coordinate_editor(selected_vector)
+            self._render_coordinate_editor(selected_vector, dispatch)
             imgui.separator()
 
-            self._render_properties(selected_vector, scene)
+            self._render_properties(selected_vector, dispatch)
             imgui.separator()
 
             if self.show_transform_history:
-                self._render_transform_history(selected_vector)
+                self._render_transform_history(selected_vector, dispatch)
                 imgui.separator()
 
             if self.show_computed_properties:
-                self._render_computed_properties(selected_vector, scene)
+                self._render_computed_properties(selected_vector, state, dispatch)
 
         imgui.end()
         imgui.pop_style_var(2)

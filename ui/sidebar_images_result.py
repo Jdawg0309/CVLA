@@ -5,7 +5,7 @@ Sidebar image result section.
 import imgui
 
 
-def _render_image_result_section(self, scene):
+def _render_image_result_section(self):
     """Render processed image section."""
     if self.processed_image is None:
         return
@@ -30,6 +30,6 @@ def _render_image_result_section(self, scene):
         if result.height <= 8 and result.width <= 8:
             imgui.spacing()
             if imgui.button("Add Matrix Rows as Vectors", width=-1):
-                self._add_image_as_vectors(scene, result)
+                self._add_image_as_vectors(result)
 
         self._end_section()

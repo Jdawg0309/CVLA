@@ -1,132 +1,182 @@
 """
 Sidebar matrix operations section.
+
+This module handles matrix operations UI.
+Reads from AppState.matrices when available.
 """
 
 import imgui
 import numpy as np
+from state.actions import (
+    AddMatrix, DeleteMatrix, UpdateMatrix,
+    ApplyMatrixToSelected, ApplyMatrixToAll,
+    SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    ToggleMatrixEditor, TogglePreview,
+)
 
 
-def _render_matrix_operations(self, scene):
-    """Render matrix operations section."""
+def _render_matrix_operations(self):
+    """
+    Render matrix operations section.
+
+    Uses state.matrices for reading when available.
+    """
     if self._section("Matrix Operations", "📐"):
+        if self._state is None or self._dispatch is None:
+            imgui.text_disabled("Matrix operations unavailable (no state).")
+            self._end_section()
+            return
+
+        matrices = list(self._state.matrices)
+        input_matrix = [list(row) for row in self._state.input_matrix]
+        matrix_size = self._state.input_matrix_size
+        matrix_name = self._state.input_matrix_label
+        show_matrix_editor = self._state.show_matrix_editor
+        preview_enabled = self._state.preview_enabled
+        selected_matrix_id = None
+        if self.selected_matrix_idx is not None and self.selected_matrix_idx < len(matrices):
+            selected_matrix_id = matrices[self.selected_matrix_idx].id
+
         imgui.text("Saved Matrices:")
         imgui.spacing()
         imgui.begin_child("##matrix_list", 0, 120, border=True)
-        if not scene.matrices:
+        if not matrices:
             imgui.text_disabled("No matrices saved")
         else:
-            for i, mat in enumerate(scene.matrices):
-                label = mat.get('label') or f"Matrix {i+1}"
-                shape = mat.get('matrix').shape if 'matrix' in mat else None
-                selectable_label = f"{label} ({shape[0]}x{shape[1]})##mat_{i}"
+            for i, mat in enumerate(matrices):
+                label = mat.label or f"Matrix {i+1}"
+                rows, cols = mat.shape
                 is_selected = (self.selected_matrix_idx == i)
+
+                selectable_label = f"{label} ({rows}x{cols})##mat_{i}"
                 if imgui.selectable(selectable_label, is_selected)[0]:
                     self.selected_matrix_idx = i
-                    scene.selected_object = mat
-                    scene.selection_type = 'matrix'
-                    try:
-                        m = mat['matrix']
-                        self.matrix_size = m.shape[0] if m.ndim == 2 else self.matrix_size
-                        self.matrix_input = [list(row) for row in np.array(m).tolist()]
-                        self.matrix_name = mat.get('label', self.matrix_name)
-                        self.show_matrix_editor = True
-                    except Exception:
-                        pass
+                    self._dispatch(SetInputMatrixSize(size=rows))
+                    for r in range(rows):
+                        for c in range(cols):
+                            self._dispatch(SetInputMatrixCell(
+                                row=r,
+                                col=c,
+                                value=float(mat.values[r][c]),
+                            ))
+                    self._dispatch(SetInputMatrixLabel(label=label))
+                    if not self._state.show_matrix_editor:
+                        self._dispatch(ToggleMatrixEditor())
 
                 imgui.same_line()
                 if imgui.small_button(f"Del##mat_del_{i}"):
-                    scene.remove_matrix(mat)
+                    self._dispatch(DeleteMatrix(id=mat.id))
                     if self.selected_matrix_idx == i:
                         self.selected_matrix_idx = None
         imgui.end_child()
 
         imgui.spacing()
-        imgui.text(f"New Matrix Size: {self.matrix_size}x{self.matrix_size}")
+        imgui.text(f"New Matrix Size: {matrix_size}x{matrix_size}")
         if imgui.button("Open Matrix Editor", width=-1):
-            self.show_matrix_editor = not self.show_matrix_editor
+            self._dispatch(ToggleMatrixEditor())
 
         imgui.spacing()
 
-        if self.show_matrix_editor:
+        if show_matrix_editor:
             imgui.begin_child("##matrix_editor", 0, 200, border=True)
 
             imgui.text("Matrix Size:")
             imgui.same_line()
             imgui.push_item_width(100)
-            size_changed, self.matrix_size = imgui.slider_int("##matrix_size",
-                                                            self.matrix_size, 2, 4)
+            size_changed, new_size = imgui.slider_int(
+                "##matrix_size",
+                matrix_size,
+                2,
+                4
+            )
             imgui.pop_item_width()
 
             if size_changed:
-                self._resize_matrix()
+                self._dispatch(SetInputMatrixSize(size=new_size))
+                matrix_size = new_size
 
             imgui.spacing()
-            changed, self.matrix_input = self._matrix_input_widget(self.matrix_input)
+            changed, new_matrix = self._matrix_input_widget(input_matrix)
+            if changed:
+                for r in range(len(new_matrix)):
+                    for c in range(len(new_matrix[r])):
+                        if new_matrix[r][c] != self._state.input_matrix[r][c]:
+                            self._dispatch(SetInputMatrixCell(
+                                row=r,
+                                col=c,
+                                value=float(new_matrix[r][c]),
+                            ))
 
             imgui.spacing()
             imgui.text("Name:")
             imgui.same_line()
             imgui.push_item_width(100)
-            name_changed, self.matrix_name = imgui.input_text("##matrix_name",
-                                                            self.matrix_name, 16)
+            name_changed, new_name = imgui.input_text(
+                "##matrix_name",
+                matrix_name,
+                16
+            )
             imgui.pop_item_width()
+            if name_changed:
+                self._dispatch(SetInputMatrixLabel(label=new_name))
+                matrix_name = new_name
 
             imgui.same_line()
-            prev_changed, self.preview_matrix_enabled = imgui.checkbox("Preview", self.preview_matrix_enabled)
+            prev_changed, preview_value = imgui.checkbox("Preview", preview_enabled)
             if prev_changed:
-                if self.preview_matrix_enabled:
-                    try:
-                        scene.set_preview_matrix(np.array(self.matrix_input, dtype=np.float32))
-                    except Exception:
-                        scene.set_preview_matrix(None)
-                else:
-                    scene.set_preview_matrix(None)
+                self._dispatch(TogglePreview())
 
             imgui.spacing()
             imgui.columns(3, "##matrix_buttons", border=False)
 
-            if self.selected_matrix_idx is None:
+            is_selected = selected_matrix_id is not None
+            if not is_selected:
                 if imgui.button("Add Matrix", width=-1):
-                    self._resize_matrix()
-                    self._add_matrix(scene)
+                    matrix_tuple = tuple(tuple(row) for row in input_matrix)
+                    self._dispatch(AddMatrix(values=matrix_tuple, label=matrix_name))
+                    self.operation_result = {'type': 'add_matrix', 'label': matrix_name}
             else:
                 if imgui.button("Save Matrix", width=-1):
                     try:
-                        matrix = np.array(self.matrix_input, dtype=np.float32)
-                        scene.matrices[self.selected_matrix_idx]['matrix'] = matrix
-                        scene.matrices[self.selected_matrix_idx]['label'] = self.matrix_name
-                        self.operation_result = {'type': 'save_matrix', 'index': self.selected_matrix_idx}
+                        matrix_tuple = tuple(tuple(row) for row in input_matrix)
+                        self._dispatch(UpdateMatrix(
+                            id=selected_matrix_id,
+                            values=matrix_tuple,
+                            label=matrix_name,
+                        ))
+                        self.operation_result = {'type': 'save_matrix', 'id': selected_matrix_id}
                     except Exception as e:
                         self.operation_result = {'error': str(e)}
 
             imgui.next_column()
 
             if imgui.button("Apply to Selected", width=-1):
-                self._apply_matrix_to_selected(scene)
+                if selected_matrix_id:
+                    self._dispatch(ApplyMatrixToSelected(matrix_id=selected_matrix_id))
 
             imgui.next_column()
 
             if imgui.button("Apply to All", width=-1):
                 try:
-                    matrix = np.array(self.matrix_input, dtype=np.float32)
-                    scene.apply_transformation(matrix)
-                    self.operation_result = {'type': 'apply_all'}
+                    if selected_matrix_id:
+                        self._dispatch(ApplyMatrixToAll(matrix_id=selected_matrix_id))
+                        self.operation_result = {'type': 'apply_all'}
                 except Exception as e:
                     self.operation_result = {'error': str(e)}
 
             imgui.next_column()
             if imgui.button("Null Space", width=-1):
                 try:
-                    mat = np.array(self.matrix_input, dtype=np.float32)
-                    self._compute_null_space(scene, mat)
+                    mat = np.array(input_matrix, dtype=np.float32)
+                    self._compute_null_space(mat)
                 except Exception as e:
                     self.operation_result = {'error': str(e)}
 
             imgui.next_column()
             if imgui.button("Column Space", width=-1):
                 try:
-                    mat = np.array(self.matrix_input, dtype=np.float32)
-                    self._compute_column_space(scene, mat)
+                    mat = np.array(input_matrix, dtype=np.float32)
+                    self._compute_column_space(mat)
                 except Exception as e:
                     self.operation_result = {'error': str(e)}
 

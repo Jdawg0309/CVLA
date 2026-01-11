@@ -34,3 +34,21 @@ class UpdateVector:
 class SelectVector:
     """Select a vector by ID."""
     id: str
+
+
+@dataclass(frozen=True)
+class ClearAllVectors:
+    """Clear all vectors from the scene."""
+    pass
+
+
+@dataclass(frozen=True)
+class DuplicateVector:
+    """Duplicate a vector by ID."""
+    id: str
+
+
+@dataclass(frozen=True)
+class DeselectVector:
+    """Clear the current vector selection."""
+    pass

@@ -1,5 +1,8 @@
 """
 App input handlers.
+
+This module handles keyboard, mouse, and window events.
+Uses SceneAdapter for picking and dispatches SelectVector actions.
 """
 
 import time
@@ -8,6 +11,8 @@ import imgui
 
 from engine.picking import pick_vector
 from runtime.app_logging import dlog, DEBUG
+from graph.scene_adapter import SceneAdapter
+from state.actions import SelectVector
 
 
 def on_key(self, win, key, scancode, action, mods):
@@ -52,19 +57,30 @@ def on_mouse_button(self, win, btn, action, mods):
             return
 
         fb_w, fb_h = glfw.get_framebuffer_size(self.window)
-        self.selected = pick_vector(
+
+        # Get vectors from state via adapter
+        state = self.store.get_state()
+        scene_adapter = SceneAdapter(state)
+
+        picked = pick_vector(
             screen_x=x,
             screen_y=y,
             width=fb_w,
             height=fb_h,
             camera=self.camera,
-            vectors=self.scene.vectors,
+            vectors=scene_adapter.vectors,
             radius_px=20,
         )
 
-        if self.selected:
-            dlog(f"[App] Selected vector: {self.selected.label}")
-            self.camera.focus_on_vector(self.selected.coords)
+        if picked:
+            dlog(f"[App] Selected vector: {picked.label}")
+            self.camera.focus_on_vector(picked.coords)
+
+            # Find vector ID by label and dispatch selection
+            for v in state.vectors:
+                if v.label == picked.label:
+                    self.store.dispatch(SelectVector(id=v.id))
+                    break
 
     if btn == glfw.MOUSE_BUTTON_RIGHT:
         if action == glfw.PRESS:

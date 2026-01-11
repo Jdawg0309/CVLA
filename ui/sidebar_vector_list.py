@@ -1,13 +1,26 @@
 """
 Sidebar vector list section.
+
+This module displays the list of vectors and handles selection/deletion.
+Reads from AppState.vectors and dispatches actions for state changes.
 """
 
 import imgui
+from state.actions import SelectVector, DeleteVector, DuplicateVector, ClearAllVectors
 
 
-def _render_vector_list(self, scene, selected):
-    """Render vector list with filtering."""
+def _render_vector_list(self):
+    """
+    Render vector list with filtering.
+
+    Reads vectors from AppState and dispatches actions.
+    """
     if self._section("Vector List", "📋", default_open=True):
+        if self._state is None or self._dispatch is None:
+            imgui.text_disabled("Vector list unavailable (no state).")
+            self._end_section()
+            return
+
         imgui.push_item_width(-1)
         filter_changed, self.vector_list_filter = imgui.input_text_with_hint(
             "##vector_filter", "Filter vectors...", self.vector_list_filter, 64
@@ -18,29 +31,32 @@ def _render_vector_list(self, scene, selected):
 
         imgui.begin_child("##vector_list", 0, 200, border=True)
 
-        filtered_vectors = scene.vectors
+        all_vectors = list(self._state.vectors)
+        selected_id = self._state.selected_id
+
+        # Apply filter
+        filtered_vectors = all_vectors
         if self.vector_list_filter:
             filter_lower = self.vector_list_filter.lower()
             filtered_vectors = [
-                v for v in scene.vectors
+                v for v in all_vectors
                 if filter_lower in v.label.lower() or
-                any(str(coord) for coord in v.coords if filter_lower in str(coord))
+                any(filter_lower in str(coord) for coord in v.coords)
             ]
 
         if not filtered_vectors:
             imgui.text_disabled("No vectors match filter")
         else:
             for i, vector in enumerate(filtered_vectors):
-                is_selected = (vector is selected)
+                is_selected = (vector.id == selected_id)
 
-                coords_str = f"({vector.coords[0]:.2f}, {vector.coords[1]:.2f}, {vector.coords[2]:.2f})"
+                coords = vector.coords
+                coords_str = f"({coords[0]:.2f}, {coords[1]:.2f}, {coords[2]:.2f})"
                 label_text = f"{vector.label} {coords_str}"
 
                 imgui.push_style_color(imgui.COLOR_TEXT, *vector.color)
                 if imgui.selectable(f"##vec_{i}", is_selected)[0]:
-                    selected = vector
-                    scene.selected_object = vector
-                    scene.selection_type = 'vector'
+                    self._dispatch(SelectVector(id=vector.id))
 
                 draw_list = imgui.get_window_draw_list()
                 pos = imgui.get_cursor_screen_pos()
@@ -55,12 +71,10 @@ def _render_vector_list(self, scene, selected):
 
                 if imgui.begin_popup_context_item(f"vec_context_{i}"):
                     if imgui.menu_item("Duplicate")[0]:
-                        self._duplicate_vector(scene, vector)
+                        self._dispatch(DuplicateVector(id=vector.id))
 
                     if imgui.menu_item("Delete")[0]:
-                        if vector is selected:
-                            selected = None
-                        scene.remove_vector(vector)
+                        self._dispatch(DeleteVector(id=vector.id))
 
                     imgui.end_popup()
 
@@ -70,8 +84,7 @@ def _render_vector_list(self, scene, selected):
         imgui.columns(2, "##list_actions", border=False)
 
         if imgui.button("Clear All", width=-1):
-            scene.clear_vectors()
-            selected = None
+            self._dispatch(ClearAllVectors())
 
         imgui.next_column()
 
@@ -81,5 +94,3 @@ def _render_vector_list(self, scene, selected):
         imgui.columns(1)
 
         self._end_section()
-
-    return selected

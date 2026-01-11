@@ -12,7 +12,7 @@ class Toolbar:
         self.show_stats = True
         self.show_quick_actions = True
         
-    def render(self, scene, camera, view_config, app):
+    def render(self, state, camera, view_config, app):
         """Render toolbar at top of screen."""
         # Set window at top
         imgui.set_next_window_position(10, 10)
@@ -48,10 +48,15 @@ class Toolbar:
             # Middle: Quick action buttons
             imgui.same_line(imgui.get_io().display_size.x / 2 - 100)
             
+            selected_coords = None
+            if state and state.selected_type == 'vector' and state.selected_id:
+                for v in state.vectors:
+                    if v.id == state.selected_id:
+                        selected_coords = v.coords
+                        break
+
             quick_actions = [
-                ("🎯", "Focus", lambda: camera.focus_on_vector(
-                    scene.selected_object.coords if scene.selected_object else None
-                )),
+                ("🎯", "Focus", lambda: camera.focus_on_vector(selected_coords)),
                 ("🔄", "Reset", camera.reset),
                 ("📐", "Grid", lambda: view_config.update(show_grid=not view_config.show_grid)),
                 ("📏", "Axes", lambda: view_config.update(show_axes=not view_config.show_axes)),
@@ -77,7 +82,8 @@ class Toolbar:
                 imgui.same_line()
             
             # Vector count
-            imgui.text(f"Vectors: {len(scene.vectors)}")
+            vector_count = len(state.vectors) if state else 0
+            imgui.text(f"Vectors: {vector_count}")
             imgui.same_line()
             
             # Help button

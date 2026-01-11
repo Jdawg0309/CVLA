@@ -1,5 +1,8 @@
 """
 App main loop.
+
+This module contains the main render loop. It uses SceneAdapter to convert
+the immutable AppState into a format the renderer understands.
 """
 
 import time
@@ -7,6 +10,7 @@ import glfw
 import imgui
 
 from runtime.app_logging import dlog
+from graph.scene_adapter import SceneAdapter
 
 
 def run(self):
@@ -34,17 +38,25 @@ def run(self):
         self.renderer.update_view(self.view_config)
         self.labels.update_view(self.view_config)
 
+        # Get current state and create scene adapter for rendering
         state = self.store.get_state()
+        scene_adapter = SceneAdapter(state)
+
         imgui.new_frame()
-        self.selected = self.sidebar.render(
-            fb_h, self.scene, self.selected, self.camera, self.view_config,
+
+        # Sidebar renders UI and returns nothing (selection is in state now)
+        self.sidebar.render(
+            fb_h,
+            self.camera,
+            self.view_config,
             state=state,
-            dispatch=self.store.dispatch
+            dispatch=self.store.dispatch,
         )
 
+        # Render 3D scene using adapter (vectors from state)
         render_image = state.processed_image or state.current_image
         self.renderer.render(
-            self.scene,
+            scene_adapter,
             image_data=render_image,
             show_image_on_grid=state.show_image_on_grid,
             image_render_scale=state.image_render_scale,
@@ -56,6 +68,7 @@ def run(self):
         except Exception:
             self.fps = 0.0
 
+        # Draw labels using vectors from adapter
         if self.view_config.show_labels:
             self.labels.draw_axes(self.camera, fb_w, fb_h)
             self.labels.draw_grid_numbers(
@@ -66,8 +79,10 @@ def run(self):
                 grid_size=self.view_config.grid_size,
                 major=self.view_config.major_tick
             )
-            self.labels.draw_vector_labels(self.camera, self.scene.vectors, fb_w, fb_h,
-                                           selected_vector=self.selected)
+            self.labels.draw_vector_labels(
+                self.camera, scene_adapter.vectors, fb_w, fb_h,
+                selected_vector=scene_adapter.selected_object
+            )
 
         imgui.render()
         self.imgui.render(imgui.get_draw_data())

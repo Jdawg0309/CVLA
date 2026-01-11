@@ -4,9 +4,10 @@ Inspector coordinate editor.
 
 import imgui
 import numpy as np
+from state.actions import UpdateVector
 
 
-def _render_coordinate_editor(self, vector):
+def _render_coordinate_editor(self, vector, dispatch):
     """Render coordinate editor."""
     imgui.text_colored("Coordinates", 0.8, 0.8, 0.2, 1.0)
     imgui.spacing()
@@ -25,24 +26,24 @@ def _render_coordinate_editor(self, vector):
     imgui.text("X:")
     imgui.same_line()
     x_changed, new_x = imgui.input_float("##edit_x", x, format="%.4f")
-    if x_changed:
-        vector.coords[0] = new_x
+    if x_changed and dispatch:
+        dispatch(UpdateVector(id=vector.id, coords=(new_x, y, z)))
 
     imgui.same_line(120)
 
     imgui.text("Y:")
     imgui.same_line()
     y_changed, new_y = imgui.input_float("##edit_y", y, format="%.4f")
-    if y_changed:
-        vector.coords[1] = new_y
+    if y_changed and dispatch:
+        dispatch(UpdateVector(id=vector.id, coords=(x, new_y, z)))
 
     imgui.same_line(240)
 
     imgui.text("Z:")
     imgui.same_line()
     z_changed, new_z = imgui.input_float("##edit_z", z, format="%.4f")
-    if z_changed:
-        vector.coords[2] = new_z
+    if z_changed and dispatch:
+        dispatch(UpdateVector(id=vector.id, coords=(x, y, new_z)))
 
     imgui.pop_item_width()
 
@@ -67,12 +68,21 @@ def _render_coordinate_editor(self, vector):
                              color[0]*1.2, color[1]*1.2, color[2]*1.2, 1.0)
 
         if imgui.button(label, width=-1):
+            if not dispatch:
+                continue
+
             if coords is not None:
-                vector.coords = np.array(coords, dtype=np.float32)
+                dispatch(UpdateVector(id=vector.id, coords=tuple(coords)))
             elif label == "Normalize":
-                vector.normalize()
+                vec = np.array(vector.coords, dtype=np.float32)
+                norm = np.linalg.norm(vec)
+                if norm > 1e-10:
+                    dispatch(UpdateVector(
+                        id=vector.id,
+                        coords=tuple((vec / norm).tolist()),
+                    ))
             elif label == "Reset":
-                vector.reset()
+                dispatch(UpdateVector(id=vector.id, coords=(1.0, 0.0, 0.0)))
 
         imgui.pop_style_color(2)
 
