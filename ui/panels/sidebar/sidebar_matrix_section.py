@@ -11,7 +11,7 @@ from state.actions import (
     AddMatrix, DeleteMatrix, UpdateMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
     SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
-    ToggleMatrixEditor, TogglePreview,
+    ToggleMatrixEditor, TogglePreview, ToggleMatrixPlot,
 )
 
 
@@ -125,6 +125,12 @@ def _render_matrix_operations(self):
             prev_changed, preview_value = imgui.checkbox("Preview", preview_enabled)
             if prev_changed:
                 self._dispatch(TogglePreview())
+
+            imgui.same_line()
+            plot_enabled = self._state.matrix_plot_enabled
+            plot_changed, plot_enabled = imgui.checkbox("3D Matrix Plot", plot_enabled)
+            if plot_changed:
+                self._dispatch(ToggleMatrixPlot())
 
             imgui.spacing()
             imgui.columns(3, "##matrix_buttons", border=False)

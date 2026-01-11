@@ -119,6 +119,8 @@ class AppState:
     show_image_on_grid: bool = True
     preview_enabled: bool = False
 
+    matrix_plot_enabled: bool = False
+
     # =========================================================================
     # HISTORY (for undo/redo)
     # Tuple-based, max depth enforced

@@ -140,6 +140,8 @@ class SceneAdapter:
         if state.preview_enabled and state.input_matrix:
             self._preview_matrix = np.array(state.input_matrix, dtype=np.float32)
 
+        self._show_matrix_plot = state.matrix_plot_enabled
+
     @property
     def vectors(self) -> List[RendererVector]:
         """Get all vectors for rendering."""
@@ -169,6 +171,11 @@ class SceneAdapter:
     def preview_matrix(self) -> Optional[np.ndarray]:
         """Get preview transformation matrix."""
         return self._preview_matrix
+
+    @property
+    def show_matrix_plot(self) -> bool:
+        """Indicate whether the 3D matrix plot should render."""
+        return self._show_matrix_plot
 
 
 def create_scene_from_state(state: AppState) -> SceneAdapter:

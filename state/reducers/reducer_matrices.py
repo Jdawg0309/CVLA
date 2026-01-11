@@ -6,7 +6,7 @@ from dataclasses import replace
 
 from state.actions import (
     AddMatrix, DeleteMatrix, UpdateMatrixCell, UpdateMatrix, SelectMatrix,
-    ApplyMatrixToSelected, ApplyMatrixToAll,
+    ApplyMatrixToSelected, ApplyMatrixToAll, ToggleMatrixPlot,
 )
 from state.models import MatrixData
 
@@ -108,5 +108,8 @@ def reduce_matrices(state, action, with_history):
 
         new_state = replace(state, vectors=tuple(new_vectors))
         return with_history(new_state)
+
+    if isinstance(action, ToggleMatrixPlot):
+        return replace(state, matrix_plot_enabled=not state.matrix_plot_enabled)
 
     return None

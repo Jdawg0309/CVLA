@@ -9,7 +9,10 @@ from render.gizmos.gizmos import Gizmos
 from render.renderers.renderer_environment import _render_cubic_environment, _render_planar_environment
 from render.renderers.renderer_cubic_faces import _render_cube_faces, _render_cube_corner_indicators
 from render.renderers.renderer_axes import _render_3d_axes_with_depths, _draw_axis_cones
-from render.renderers.renderer_linear_algebra import _render_linear_algebra_visuals
+from render.renderers.renderer_linear_algebra import (
+    _render_linear_algebra_visuals,
+    _render_matrix_3d_plot,
+)
 from render.renderers.renderer_vectors import _render_vectors_with_enhancements, _render_vector_projections, _render_selection_highlight
 from render.renderers.renderer_image import draw_image_plane, _image_color
 
@@ -121,6 +124,8 @@ class Renderer:
     _render_3d_axes_with_depths = _render_3d_axes_with_depths
     _draw_axis_cones = _draw_axis_cones
     _render_linear_algebra_visuals = _render_linear_algebra_visuals
+    _render_matrix_3d_plot = _render_matrix_3d_plot
+    _render_matrix_3d_plot = _render_matrix_3d_plot
     _render_vectors_with_enhancements = _render_vectors_with_enhancements
     _render_vector_projections = _render_vector_projections
     _render_selection_highlight = _render_selection_highlight

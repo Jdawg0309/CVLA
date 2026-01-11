@@ -80,6 +80,7 @@ __all__ = [
     'AddVector', 'DeleteVector', 'UpdateVector', 'SelectVector',
     'AddMatrix', 'DeleteMatrix', 'UpdateMatrixCell', 'UpdateMatrix', 'SelectMatrix',
     'ApplyMatrixToSelected', 'ApplyMatrixToAll',
+    'ToggleMatrixPlot',
     'LoadImage', 'CreateSampleImage', 'ApplyKernel', 'ApplyTransform',
     'FlipImageHorizontal', 'UseResultAsInput', 'ClearImage',
     'StepForward', 'StepBackward', 'JumpToStep', 'ResetPipeline',

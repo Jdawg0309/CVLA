@@ -52,3 +52,9 @@ class ApplyMatrixToSelected:
 class ApplyMatrixToAll:
     """Apply a matrix transformation to all vectors."""
     matrix_id: str
+
+
+@dataclass(frozen=True)
+class ToggleMatrixPlot:
+    """Toggle the 3D matrix plot visualization."""
+    pass

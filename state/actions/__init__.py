@@ -14,6 +14,7 @@ from state.actions.vector_actions import (
 from state.actions.matrix_actions import (
     AddMatrix, DeleteMatrix, UpdateMatrixCell, UpdateMatrix, SelectMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
+    ToggleMatrixPlot,
 )
 from state.actions.image_actions import (
     LoadImage, CreateSampleImage, ApplyKernel, ApplyTransform,
@@ -47,6 +48,7 @@ Action = Union[
     # Matrix actions
     AddMatrix, DeleteMatrix, UpdateMatrixCell, UpdateMatrix, SelectMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
+    ToggleMatrixPlot,
     # Image actions
     LoadImage, CreateSampleImage, ApplyKernel, ApplyTransform,
     FlipImageHorizontal, UseResultAsInput, ClearImage,
