@@ -28,6 +28,8 @@ class Renderer:
         self.show_vector_components = True
         self.show_vector_spans = False
 
+        self._image_plane_cache = {"key": None, "batches": []}
+
         self.ctx.enable(moderngl.DEPTH_TEST)
         self.ctx.enable(moderngl.BLEND)
         # Always draw both sides of planar grids/images so they remain visible when orbiting.

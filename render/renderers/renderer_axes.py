@@ -7,12 +7,12 @@ import numpy as np
 
 def _render_3d_axes_with_depths(self, vp):
     """Render 3D axes with depth cues."""
-    length = 8.0
+    length = max(10.0, self.view.grid_size * 0.75)
 
     axes = [
-        {"points": [[0, 0, 0], [length, 0, 0]], "color": (1.0, 0.3, 0.3, 1.0)},
-        {"points": [[0, 0, 0], [0, length, 0]], "color": (0.3, 1.0, 0.3, 1.0)},
-        {"points": [[0, 0, 0], [0, 0, length]], "color": (0.3, 0.5, 1.0, 1.0)},
+        {"points": [[0, 0, 0], [length, 0, 0]], "color": (0.95, 0.45, 0.45, 1.0)},
+        {"points": [[0, 0, 0], [0, length, 0]], "color": (0.45, 0.95, 0.45, 1.0)},
+        {"points": [[0, 0, 0], [0, 0, length]], "color": (0.55, 0.6, 1.0, 1.0)},
     ]
 
     for axis in axes:
@@ -22,11 +22,11 @@ def _render_3d_axes_with_depths(self, vp):
             vp, width=3.0
         )
 
-    size = self.view.grid_size * 1.5
+    size = max(20.0, self.view.grid_size) * 1.2
     faint_axes = [
-        {"points": [[-size, 0, 0], [size, 0, 0]], "color": (1.0, 0.3, 0.3, 0.15)},
-        {"points": [[0, -size, 0], [0, size, 0]], "color": (0.3, 1.0, 0.3, 0.15)},
-        {"points": [[0, 0, -size], [0, 0, size]], "color": (0.3, 0.5, 1.0, 0.15)},
+        {"points": [[-size, 0, 0], [size, 0, 0]], "color": (0.6, 0.6, 0.6, 0.35)},
+        {"points": [[0, -size, 0], [0, size, 0]], "color": (0.6, 0.6, 0.6, 0.35)},
+        {"points": [[0, 0, -size], [0, 0, size]], "color": (0.6, 0.6, 0.6, 0.35)},
     ]
 
     for axis in faint_axes:
