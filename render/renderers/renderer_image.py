@@ -22,14 +22,15 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
     if h == 0 or w == 0:
         return
 
-    vertices = []
-    normals = []
-    colors = []
     half_w = w / 2.0
     half_h = h / 2.0
-    normal = [0.0, 0.0, 1.0]
 
-    chunk_pixel_limit = max(512, (2 * 1024 * 1024) // (6 * 10 * 4))
+    buffer_capacity = getattr(self.gizmos.triangle_vbo, "size", 2 * 1024 * 1024)
+    bytes_per_vertex = 10 * 4  # 3 position + 3 normal + 4 color floats.
+    bytes_per_pixel = 6 * bytes_per_vertex
+    chunk_pixel_limit = max(256, buffer_capacity // bytes_per_pixel)
+    chunk_pixel_limit = max(chunk_pixel_limit, 1)
+
     vertices = []
     normals = []
     colors = []

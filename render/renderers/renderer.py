@@ -30,7 +30,8 @@ class Renderer:
 
         self.ctx.enable(moderngl.DEPTH_TEST)
         self.ctx.enable(moderngl.BLEND)
-        self.ctx.enable(moderngl.CULL_FACE)
+        # Always draw both sides of planar grids/images so they remain visible when orbiting.
+        self.ctx.disable(moderngl.CULL_FACE)
         self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
 
         self._vp_cache = None
