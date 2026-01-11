@@ -36,7 +36,7 @@ git clone https://github.com/Jdawg0309/CVLA.git
 cd CVLA
 ```
 
-For a full, per-function mapping and usage notes see `DOCS/FUNCTIONS.md`.
+For a full, per-function mapping and usage notes see `docs/FUNCTIONS.md`.
 
 
 2. Create and activate a virtual environment, then install dependencies:

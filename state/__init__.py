@@ -24,10 +24,12 @@ from .models import (
     MicroOp,
 )
 
-from .app_state import (
+from runtime.app_state import (
     AppState,
     MAX_HISTORY,
     create_initial_state,
+)
+from runtime.state_queries import (
     get_vector_by_id,
     get_matrix_by_id,
     get_selected_vector,
@@ -62,8 +64,9 @@ from .actions import (
     Undo, Redo,
 )
 
-from .reducer import reduce, Store
-from .scene_adapter import SceneAdapter, RendererVector, RendererMatrix, create_scene_from_state
+from .reducer import reduce
+from .store import Store
+from graph.scene_adapter import SceneAdapter, RendererVector, RendererMatrix, create_scene_from_state
 
 __all__ = [
     # Models

@@ -15,7 +15,7 @@ import os
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from engine.app import App
+from runtime.app import App
 
 
 def demo_image_processing():
