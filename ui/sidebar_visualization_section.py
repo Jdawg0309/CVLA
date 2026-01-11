@@ -22,10 +22,9 @@ def _render_visualization_options(self, scene, camera, view_config):
                 if imgui.selectable(preset, i == current_idx)[0]:
                     preset_value = preset_values[i]
                     if preset_value == "cube":
-                        view_config.grid_mode = "cube"
+                        view_config.update(grid_mode="cube")
                     else:
-                        view_config.grid_mode = "plane"
-                        view_config.grid_plane = preset_value
+                        view_config.update(grid_mode="plane", grid_plane=preset_value)
                     camera.set_view_preset(preset_value)
             imgui.end_combo()
         imgui.pop_item_width()
@@ -44,7 +43,7 @@ def _render_visualization_options(self, scene, camera, view_config):
         if imgui.begin_combo("##up_axis", axes[current_axis_idx]):
             for i, axis in enumerate(axes):
                 if imgui.selectable(axis, i == current_axis_idx)[0]:
-                    view_config.up_axis = axis_values[i]
+                    view_config.update(up_axis=axis_values[i])
             imgui.end_combo()
         imgui.pop_item_width()
 
@@ -63,7 +62,7 @@ def _render_visualization_options(self, scene, camera, view_config):
                 if changed:
                     camera.mode_2d = mode_2d
                     if mode_2d:
-                        view_config.grid_mode = "plane"
+                        view_config.update(grid_mode="plane")
             else:
                 current_value = getattr(view_config, attr)
                 changed, new_value = imgui.checkbox(label, current_value)
