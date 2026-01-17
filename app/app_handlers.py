@@ -11,7 +11,7 @@ import imgui
 from engine.picking_system import pick_vector
 from app.app_logging import dlog, DEBUG
 from app.app_state_bridge import build_scene_adapter
-from state.actions import SelectVector, AddVector, AddMatrix, SetSelectedPixel
+from state.actions import SelectVector, AddVector, AddMatrix, SetSelectedPixel, StepForward
 
 
 def on_key(self, win, key, scancode, action, mods):
@@ -95,6 +95,10 @@ def on_mouse_button(self, win, btn, action, mods):
         if active_tool == "rotate":
             self.rotating = True
             self.last_mouse = (x, y)
+            return
+
+        if active_tool == "pipeline":
+            self.store.dispatch(StepForward())
             return
 
         if active_tool == "add_vector":
