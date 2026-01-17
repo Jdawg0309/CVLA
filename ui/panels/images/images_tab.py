@@ -38,6 +38,14 @@ def render_images_tab(state: AppState, dispatch: Callable[[Action], None]) -> No
         imgui.text_disabled("Install Pillow: pip install Pillow")
         return
 
+    if state.image_status:
+        if state.image_status_level == "error":
+            color = (0.9, 0.3, 0.3, 1.0)
+        else:
+            color = (0.6, 0.8, 0.6, 1.0)
+        imgui.text_colored(state.image_status, *color)
+        imgui.spacing()
+
     _render_image_source_section(state, dispatch)
 
     if state.current_image is None:
