@@ -9,6 +9,7 @@ from state.actions import (
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode,
     ToggleImageGridOverlay, ToggleImageDownsample, SetImagePreviewResolution,
     ToggleImageOnGrid, ClearSelection, SetTheme, SetActiveTool,
+    SetSelectedPixel,
     SetActiveImageTab,
 )
 
@@ -49,6 +50,9 @@ def reduce_navigation(state, action):
 
     if isinstance(action, ToggleImageOnGrid):
         return replace(state, show_image_on_grid=not state.show_image_on_grid)
+
+    if isinstance(action, SetSelectedPixel):
+        return replace(state, selected_pixel=(action.row, action.col))
 
     if isinstance(action, SetActiveImageTab):
         tab = action.tab if action.tab in ("raw", "preprocess") else "raw"

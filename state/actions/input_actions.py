@@ -130,3 +130,10 @@ class ToggleImageDownsample:
 class SetImagePreviewResolution:
     """Set preview/downsample resolution for image loading."""
     size: int
+
+
+@dataclass(frozen=True)
+class SetSelectedPixel:
+    """Set the selected pixel coordinate (row, col)."""
+    row: int
+    col: int

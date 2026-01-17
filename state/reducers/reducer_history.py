@@ -18,7 +18,7 @@ from state.actions import (
     SetImageNormalizeMean, SetImageNormalizeStd, SetImageColorMode,
     SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
     ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
-    SetActiveImageTab,
+    SetActiveImageTab, SetSelectedPixel,
 )
 
 
@@ -56,5 +56,5 @@ def should_record_history(action) -> bool:
         SetImageNormalizeMean, SetImageNormalizeStd, SetImageColorMode,
         SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
         ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
-        SetActiveImageTab,
+        SetActiveImageTab, SetSelectedPixel,
     ))

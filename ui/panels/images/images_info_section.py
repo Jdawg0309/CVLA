@@ -38,6 +38,28 @@ def _render_image_info_section(state: AppState, dispatch: Callable[[Action], Non
         imgui.text(f"Min: {np.min(matrix):.3f}  Max: {np.max(matrix):.3f}")
 
         imgui.spacing()
+        selected = state.selected_pixel
+        if selected is not None:
+            row, col = selected
+            image_for_pixel = img
+            if state.active_image_tab != "raw" and state.processed_image is not None:
+                image_for_pixel = state.processed_image
+            if 0 <= row < image_for_pixel.height and 0 <= col < image_for_pixel.width:
+                if image_for_pixel.is_grayscale:
+                    value = float(image_for_pixel.as_matrix()[row, col])
+                    imgui.text(f"Selected Pixel: ({row}, {col}) = {value:.3f}")
+                else:
+                    rgb = image_for_pixel.data[row, col]
+                    imgui.text(
+                        f"Selected Pixel: ({row}, {col}) = "
+                        f"({rgb[0]:.3f}, {rgb[1]:.3f}, {rgb[2]:.3f})"
+                    )
+            else:
+                imgui.text("Selected Pixel: (out of bounds)")
+        else:
+            imgui.text("Selected Pixel: (none)")
+
+        imgui.spacing()
 
         if imgui.checkbox("Show Matrix Values", state.show_matrix_values)[1] != state.show_matrix_values:
             dispatch(ToggleMatrixValues())

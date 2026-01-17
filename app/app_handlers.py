@@ -11,7 +11,7 @@ import imgui
 from engine.picking_system import pick_vector
 from app.app_logging import dlog, DEBUG
 from app.app_state_bridge import build_scene_adapter
-from state.actions import SelectVector, AddVector, AddMatrix
+from state.actions import SelectVector, AddVector, AddMatrix, SetSelectedPixel
 
 
 def on_key(self, win, key, scancode, action, mods):
@@ -114,6 +114,29 @@ def on_mouse_button(self, win, btn, action, mods):
                 color=(0.8, 0.2, 0.2),
                 label="",
             ))
+            return
+
+        if active_tool == "image":
+            if not state.show_image_on_grid:
+                return
+            image = state.current_image
+            if state.active_image_tab != "raw" and state.processed_image is not None:
+                image = state.processed_image
+            if image is None:
+                return
+            origin, direction = self.camera.screen_to_ray(x, y, fb_w, fb_h)
+            denom = direction[2]
+            if abs(denom) < 1e-6:
+                return
+            t = (0.0 - origin[2]) / denom
+            if t < 0:
+                return
+            hit = origin + direction * t
+            scale = max(0.001, float(state.image_render_scale))
+            col = int((hit[0] / scale) + (image.width / 2.0))
+            row = int((image.height / 2.0) - (hit[1] / scale))
+            if 0 <= row < image.height and 0 <= col < image.width:
+                self.store.dispatch(SetSelectedPixel(row=row, col=col))
             return
 
         if active_tool == "add_matrix":

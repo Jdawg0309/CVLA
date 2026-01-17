@@ -29,7 +29,7 @@ from state.actions.input_actions import (
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
-    ToggleImageDownsample, SetImagePreviewResolution,
+    ToggleImageDownsample, SetImagePreviewResolution, SetSelectedPixel,
     SetImageNormalizeMean, SetImageNormalizeStd,
     SetImageNormalizeMean, SetImageNormalizeStd,
     SetImageNormalizeMean, SetImageNormalizeStd,
@@ -61,7 +61,7 @@ Action = Union[
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
-    ToggleImageDownsample, SetImagePreviewResolution,
+    ToggleImageDownsample, SetImagePreviewResolution, SetSelectedPixel,
     SetImageNormalizeMean, SetImageNormalizeStd,
     # Navigation actions
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,

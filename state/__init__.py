@@ -55,7 +55,7 @@ from state.actions import (
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
-    ToggleImageDownsample, SetImagePreviewResolution, ToggleImageOnGrid,
+    ToggleImageDownsample, SetImagePreviewResolution, ToggleImageOnGrid, SetSelectedPixel,
     NormalizeImage, SetImageNormalizeMean, SetImageNormalizeStd,
     # Navigation actions
     SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
@@ -89,7 +89,7 @@ __all__ = [
     'SetImagePath', 'SetSamplePattern', 'SetSampleSize',
     'SetTransformRotation', 'SetTransformScale', 'SetSelectedKernel',
     'SetImageRenderScale', 'SetImageRenderMode', 'SetImageColorMode', 'ToggleImageGridOverlay',
-    'ToggleImageDownsample', 'SetImagePreviewResolution', 'ToggleImageOnGrid',
+    'ToggleImageDownsample', 'SetImagePreviewResolution', 'ToggleImageOnGrid', 'SetSelectedPixel',
     'NormalizeImage', 'SetImageNormalizeMean', 'SetImageNormalizeStd',
     'SetActiveTab', 'ToggleMatrixEditor', 'ToggleMatrixValues', 'TogglePreview',
     'ClearSelection', 'SetTheme', 'SetActiveTool', 'SetActiveImageTab',
