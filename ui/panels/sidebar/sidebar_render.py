@@ -13,6 +13,7 @@ _SET_WINDOW_POS_FIRST = getattr(imgui, "SET_WINDOW_POS_FIRST_USE_EVER", 0)
 _SET_WINDOW_SIZE_FIRST = getattr(imgui, "SET_WINDOW_SIZE_FIRST_USE_EVER", 0)
 _WINDOW_RESIZABLE = getattr(imgui, "WINDOW_RESIZABLE", 1)
 _WINDOW_NO_SCROLLBAR = getattr(imgui, "WINDOW_NO_SCROLLBAR", 0)
+_WINDOW_ALWAYS_VERTICAL_SCROLLBAR = getattr(imgui, "WINDOW_ALWAYS_VERTICAL_SCROLLBAR", 0)
 
 
 def render(self, rect, camera, view_config, state=None, dispatch=None):
@@ -40,7 +41,7 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
     imgui.push_style_var(imgui.STYLE_WINDOW_ROUNDING, 6.0)
     imgui.push_style_var(imgui.STYLE_WINDOW_PADDING, (12, 10))
 
-    flags = _WINDOW_RESIZABLE | _WINDOW_NO_SCROLLBAR
+    flags = _WINDOW_RESIZABLE
     if imgui.begin(
         "Operations Panel",
         flags=flags,
@@ -64,22 +65,25 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
 
         imgui.separator()
 
-        if active_mode == "vectors":
-            self._render_vector_creation()
-            if state and state.selected_type == 'vector':
-                self._render_vector_operations()
-            self._render_vector_list()
-            self._render_matrix_operations()
-            self._render_linear_systems()
+        if imgui.begin_child("##ops_body", 0, 0, border=False, flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR):
+            if active_mode == "vectors":
+                self._render_input_section()
+                self._render_vector_creation()
+                if state and state.selected_type == 'vector':
+                    self._render_vector_operations()
+                self._render_vector_list()
+                self._render_matrix_operations()
+                self._render_linear_systems()
 
-        elif active_mode == "images":
-            if state is not None and dispatch is not None:
-                render_images_tab(state, dispatch)
-            else:
-                imgui.text_disabled("Images panel unavailable (no state).")
+            elif active_mode == "images":
+                if state is not None and dispatch is not None:
+                    render_images_tab(state, dispatch)
+                else:
+                    imgui.text_disabled("Images panel unavailable (no state).")
 
-        elif active_mode == "visualize":
-            self._render_visualization_options(state, dispatch)
+            elif active_mode == "visualize":
+                self._render_visualization_options(state, dispatch)
+        imgui.end_child()
 
         self._render_export_dialog()
 

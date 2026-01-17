@@ -5,15 +5,25 @@ UI input action reducers.
 from dataclasses import replace
 
 from state.actions import (
-    SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetEquationCell, SetEquationCount,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
-    SetImageNormalizeMean, SetImageNormalizeStd,
+    SetImageNormalizeMean, SetImageNormalizeStd, SetInputExpression,
 )
 
 
 def reduce_inputs(state, action):
+    def compute_matrix_preview_vectors(matrix):
+        if not matrix:
+            return ()
+        rows = len(matrix)
+        cols = len(matrix[0]) if rows else 0
+        preview = []
+        for c in range(cols):
+            col = tuple(float(matrix[r][c]) for r in range(rows))
+            preview.append(col)
+        return tuple(preview)
     if isinstance(action, SetInputVector):
         return replace(state,
             input_vector_coords=action.coords if action.coords is not None else state.input_vector_coords,
@@ -24,25 +34,39 @@ def reduce_inputs(state, action):
     if isinstance(action, SetInputMatrixCell):
         new_matrix = list(list(row) for row in state.input_matrix)
         while len(new_matrix) <= action.row:
-            new_matrix.append([0.0] * state.input_matrix_size)
+            new_matrix.append([0.0] * state.input_matrix_cols)
         while len(new_matrix[action.row]) <= action.col:
             new_matrix[action.row].append(0.0)
         new_matrix[action.row][action.col] = action.value
-        return replace(state, input_matrix=tuple(tuple(row) for row in new_matrix))
+        matrix_tuple = tuple(tuple(row) for row in new_matrix)
+        preview_vectors = compute_matrix_preview_vectors(matrix_tuple)
+        return replace(state,
+            input_matrix=matrix_tuple,
+            input_matrix_preview_vectors=preview_vectors,
+        )
 
-    if isinstance(action, SetInputMatrixSize):
+    if isinstance(action, SetInputMatrixShape):
         old = state.input_matrix
-        new_size = action.size
+        new_rows = max(1, int(action.rows))
+        new_cols = max(1, int(action.cols))
         new_matrix = []
-        for i in range(new_size):
+        for i in range(new_rows):
             row = []
-            for j in range(new_size):
+            for j in range(new_cols):
                 if i < len(old) and j < len(old[i]):
                     row.append(old[i][j])
                 else:
                     row.append(1.0 if i == j else 0.0)
             new_matrix.append(tuple(row))
-        return replace(state, input_matrix=tuple(new_matrix), input_matrix_size=new_size)
+        matrix_tuple = tuple(new_matrix)
+        preview_vectors = compute_matrix_preview_vectors(matrix_tuple)
+        return replace(
+            state,
+            input_matrix=matrix_tuple,
+            input_matrix_rows=new_rows,
+            input_matrix_cols=new_cols,
+            input_matrix_preview_vectors=preview_vectors,
+        )
 
     if isinstance(action, SetInputMatrixLabel):
         return replace(state, input_matrix_label=action.label)
@@ -113,5 +137,73 @@ def reduce_inputs(state, action):
     if isinstance(action, SetImageNormalizeStd):
         safe_std = max(0.001, action.std)
         return replace(state, input_image_normalize_std=safe_std)
+
+    if isinstance(action, SetInputExpression):
+        expression = action.expression
+        stripped = expression.strip()
+        if not stripped:
+            return replace(state,
+                input_expression=expression,
+                input_expression_type="",
+                input_expression_error="",
+            )
+
+        if stripped.startswith("[") and stripped.endswith("]"):
+            stripped = stripped[1:-1].strip()
+
+        rows = []
+        normalized = stripped.replace("\n", ";")
+        for row_text in normalized.split(";"):
+            row_text = row_text.strip()
+            if not row_text:
+                continue
+            parts = [p for p in row_text.replace(",", " ").split(" ") if p]
+            try:
+                row = [float(p) for p in parts]
+            except Exception:
+                return replace(state,
+                    input_expression=expression,
+                    input_expression_type="error",
+                    input_expression_error="Invalid number in input.",
+                )
+            if row:
+                rows.append(row)
+
+        if not rows:
+            return replace(state,
+                input_expression=expression,
+                input_expression_type="error",
+                input_expression_error="No values found.",
+            )
+
+        if len(rows) == 1:
+            return replace(state,
+                input_expression=expression,
+                input_expression_type="vector",
+                input_expression_error="",
+                input_vector_coords=tuple(rows[0]),
+                input_matrix_preview_vectors=(),
+            )
+
+        col_count = len(rows[0])
+        for row in rows:
+            if len(row) != col_count:
+                return replace(state,
+                    input_expression=expression,
+                    input_expression_type="error",
+                    input_expression_error="Rows have different lengths.",
+                )
+
+        matrix_tuple = tuple(tuple(r) for r in rows)
+        preview_vectors = compute_matrix_preview_vectors(matrix_tuple)
+        return replace(state,
+            input_expression=expression,
+            input_expression_type="matrix",
+            input_expression_error="",
+            input_matrix=matrix_tuple,
+            input_matrix_rows=len(rows),
+            input_matrix_cols=col_count,
+            input_matrix_preview_vectors=preview_vectors,
+        )
 
     return None

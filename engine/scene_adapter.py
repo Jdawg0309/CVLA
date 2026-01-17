@@ -34,8 +34,13 @@ class RendererVector:
 
     @staticmethod
     def from_vector_data(v: VectorData) -> 'RendererVector':
+        coords = list(v.coords)
+        if len(coords) < 3:
+            coords = coords + [0.0] * (3 - len(coords))
+        elif len(coords) > 3:
+            coords = coords[:3]
         return RendererVector(
-            coords=np.array(v.coords, dtype=np.float32),
+            coords=np.array(coords, dtype=np.float32),
             color=v.color,
             label=v.label,
             visible=v.visible,
@@ -92,6 +97,20 @@ class SceneAdapter:
             RendererVector.from_vector_data(v)
             for v in state.vectors
         ]
+
+        if state.active_mode == "vectors" and state.input_matrix_preview_vectors:
+            preview_color = (0.4, 0.6, 0.9)
+            for idx, coords in enumerate(state.input_matrix_preview_vectors):
+                preview_vector = RendererVector(
+                    coords=np.array(
+                        (list(coords) + [0.0, 0.0, 0.0])[:3],
+                        dtype=np.float32,
+                    ),
+                    color=preview_color,
+                    label=f"preview_c{idx+1}",
+                    visible=True,
+                )
+                self._vectors.append(preview_vector)
 
         # Convert matrices to renderer format (dict-like for compatibility)
         self._matrices = [

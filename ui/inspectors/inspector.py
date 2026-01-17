@@ -23,7 +23,7 @@ from ui.panels.images.images_tab import (
     _render_image_render_options,
     _render_image_tab_selector,
 )
-from state.actions import UpdateMatrix, UpdateMatrixCell
+from state.actions import AddVector, UpdateMatrix, UpdateMatrixCell
 
 
 class Inspector:
@@ -79,7 +79,7 @@ class Inspector:
                 if self.show_computed_properties and imgui.collapsing_header("Computed", 0)[0]:
                     self._render_computed_properties(selected_vector, state, dispatch)
             else:
-                self._render_matrix_details(selected_matrix, dispatch)
+                self._render_matrix_details(selected_matrix, state, dispatch)
 
 
         imgui.end()
@@ -91,7 +91,7 @@ class Inspector:
     _render_transform_history = _render_transform_history
     _render_computed_properties = _render_computed_properties
 
-    def _render_matrix_details(self, selected_matrix, dispatch):
+    def _render_matrix_details(self, selected_matrix, state, dispatch):
         rows, cols = selected_matrix.shape
         imgui.text(f"Size: {rows}x{cols}")
         imgui.spacing()
@@ -132,6 +132,39 @@ class Inspector:
                     imgui.same_line()
             imgui.pop_id()
         imgui.pop_item_width()
+        imgui.spacing()
+        self._render_matrix_vectors(selected_matrix, state, dispatch)
+
+    def _render_matrix_vectors(self, selected_matrix, state, dispatch):
+        rows, cols = selected_matrix.shape
+        if rows == 0 or cols == 0:
+            return
+        imgui.text("Column Vectors:")
+        for c in range(cols):
+            col = [selected_matrix.values[r][c] for r in range(rows)]
+            display = ", ".join(f"{v:.2f}" for v in col[:4])
+            suffix = "..." if len(col) > 4 else ""
+            imgui.text(f"c{c+1} = [{display}{suffix}]")
+        imgui.spacing()
+        if imgui.button("Add Column Vectors", width=-1) and dispatch:
+            base_label = selected_matrix.label or "M"
+            for c in range(cols):
+                col = tuple(selected_matrix.values[r][c] for r in range(rows))
+                dispatch(AddVector(
+                    coords=col,
+                    color=(0.8, 0.2, 0.2),
+                    label=f"{base_label}_c{c+1}",
+                ))
+        if state and state.input_vector_coords:
+            v = state.input_vector_coords
+            if len(v) == cols:
+                result = []
+                for r in range(rows):
+                    value = sum(selected_matrix.values[r][c] * v[c] for c in range(cols))
+                    result.append(value)
+                preview = ", ".join(f"{val:.2f}" for val in result[:4])
+                suffix = "..." if len(result) > 4 else ""
+                imgui.text(f"M·v = [{preview}{suffix}]")
 
     def _render_image_inspector(self, state, dispatch):
         imgui.text("Image Inspector")

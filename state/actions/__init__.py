@@ -24,15 +24,13 @@ from state.actions.image_actions import (
 )
 from state.actions.pipeline_actions import StepForward, StepBackward, JumpToStep, ResetPipeline
 from state.actions.input_actions import (
-    SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetEquationCell, SetEquationCount,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
     ToggleImageDownsample, SetImagePreviewResolution, SetSelectedPixel,
-    SetImageNormalizeMean, SetImageNormalizeStd,
-    SetImageNormalizeMean, SetImageNormalizeStd,
-    SetImageNormalizeMean, SetImageNormalizeStd,
+    SetImageNormalizeMean, SetImageNormalizeStd, SetInputExpression,
 )
 from state.actions.navigation_actions import (
     SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
@@ -60,13 +58,13 @@ Action = Union[
     # Pipeline actions
     StepForward, StepBackward, JumpToStep, ResetPipeline,
     # UI input actions
-    SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetEquationCell, SetEquationCount,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
     ToggleImageDownsample, SetImagePreviewResolution, SetSelectedPixel,
-    SetImageNormalizeMean, SetImageNormalizeStd,
+    SetImageNormalizeMean, SetImageNormalizeStd, SetInputExpression,
     # Navigation actions
     SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
     TogglePreview, ClearSelection, SetTheme, SetActiveTool,

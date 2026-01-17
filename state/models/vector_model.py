@@ -14,13 +14,13 @@ class VectorData:
     Immutable vector representation.
     """
     id: str
-    coords: Tuple[float, float, float]
+    coords: Tuple[float, ...]
     color: Tuple[float, float, float]
     label: str
     visible: bool = True
 
     @staticmethod
-    def create(coords: Tuple[float, float, float],
+    def create(coords: Tuple[float, ...],
                color: Tuple[float, float, float],
                label: str) -> 'VectorData':
         """Factory method that generates a UUID."""

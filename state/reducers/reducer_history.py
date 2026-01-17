@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from state.app_state import AppState
 from state.actions import (
-    SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
@@ -18,7 +18,7 @@ from state.actions import (
     SetImageNormalizeMean, SetImageNormalizeStd, SetImageColorMode,
     SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
     ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
-    SetActiveImageTab, SetSelectedPixel,
+    SetActiveImageTab, SetSelectedPixel, SetInputExpression,
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
@@ -50,7 +50,7 @@ def reduce_history(state: "AppState", action):
 def should_record_history(action) -> bool:
     """Return True if the action should be recorded in history."""
     return not isinstance(action, (
-        SetInputVector, SetInputMatrixCell, SetInputMatrixSize,
+        SetInputVector, SetInputMatrixCell, SetInputMatrixShape,
         SetInputMatrixLabel, SetImagePath, SetSamplePattern,
         SetSampleSize, SetTransformRotation, SetTransformScale,
         SetSelectedKernel, SetActiveTab, SetActiveMode, ToggleMatrixEditor,
@@ -60,7 +60,7 @@ def should_record_history(action) -> bool:
         SetImageNormalizeMean, SetImageNormalizeStd, SetImageColorMode,
         SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
         ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
-        SetActiveImageTab, SetSelectedPixel,
+        SetActiveImageTab, SetSelectedPixel, SetInputExpression,
         SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
         SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
         SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,

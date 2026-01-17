@@ -110,6 +110,24 @@ def _input_float3(self, label, values, speed=0.1, format="%.2f"):
     return changed, values
 
 
+def _input_float_list(self, label, values, format="%.2f"):
+    """Render dynamic float inputs for vectors."""
+    changed = False
+    new_values = list(values)
+    for i, value in enumerate(values):
+        imgui.push_id(f"{label}_{i}")
+        imgui.push_item_width(80)
+        value_changed, new_value = imgui.input_float("##val", value, format=format)
+        imgui.pop_item_width()
+        imgui.pop_id()
+        if value_changed:
+            new_values[i] = new_value
+            changed = True
+        if i != len(values) - 1:
+            imgui.same_line()
+    return changed, new_values
+
+
 def _coerce_float(self, text):
     """Parse numeric text safely, allowing partial input."""
     if text is None:

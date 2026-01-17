@@ -45,8 +45,11 @@ def _render_computed_properties(self, vector, state, dispatch):
                 imgui.text(f"Angle: {angle_deg:.2f}°")
 
                 imgui.spacing()
+                cross_enabled = len(vector.coords) == 3 and len(current_other.coords) == 3
+                if not cross_enabled:
+                    imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
                 if imgui.button("Compute Cross Product", width=-1):
-                    if dispatch:
+                    if dispatch and cross_enabled:
                         ax, ay, az = vector.coords
                         bx, by, bz = current_other.coords
                         cross = (
@@ -59,6 +62,8 @@ def _render_computed_properties(self, vector, state, dispatch):
                             color=(0.2, 0.6, 0.9),
                             label=f"{vector.label}x{current_other.label}",
                         ))
+                if not cross_enabled:
+                    imgui.pop_style_var()
 
             else:
                 imgui.text_disabled("No other vectors to compare with")

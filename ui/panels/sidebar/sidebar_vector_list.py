@@ -71,7 +71,11 @@ def _render_vector_list(self):
                 is_selected = (vector.id == selected_id)
 
                 coords = vector.coords
-                coords_str = f"({coords[0]:.2f}, {coords[1]:.2f}, {coords[2]:.2f})"
+                if len(coords) <= 3:
+                    coords_str = "(" + ", ".join(f"{c:.2f}" for c in coords) + ")"
+                else:
+                    prefix = ", ".join(f"{c:.2f}" for c in coords[:3])
+                    coords_str = f"({prefix}, ...)"
                 label_text = f"{vector.label} {coords_str}"
 
                 imgui.push_style_color(imgui.COLOR_TEXT, *vector.color)

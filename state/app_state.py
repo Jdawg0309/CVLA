@@ -88,7 +88,8 @@ class AppState:
         (0.0, 0.0, 1.0),
     )
     input_matrix_label: str = "A"
-    input_matrix_size: int = 3
+    input_matrix_rows: int = 3
+    input_matrix_cols: int = 3
 
     input_equations: Tuple[Tuple[float, ...], ...] = (
         (1.0, 1.0, 1.0, 0.0),
@@ -105,6 +106,10 @@ class AppState:
     input_image_normalize_mean: float = 0.0
     input_image_normalize_std: float = 1.0
     active_image_tab: str = "raw"
+    input_expression: str = ""
+    input_expression_type: str = ""
+    input_expression_error: str = ""
+    input_matrix_preview_vectors: Tuple[Tuple[float, ...], ...] = ()
 
     # =========================================================================
     # UI VIEW STATE
@@ -161,15 +166,6 @@ def create_initial_state() -> AppState:
     This is called once at startup. This is the SINGLE SOURCE OF TRUTH
     for default vectors - do not duplicate elsewhere.
     """
-    # Default basis vectors + example vectors
-    initial_vectors = (
-        VectorData.create((2.0, 0.0, 0.0), (1.0, 0.25, 0.25), "i"),
-        VectorData.create((0.0, 2.0, 0.0), (0.25, 1.0, 0.25), "j"),
-        VectorData.create((0.0, 0.0, 2.0), (0.35, 0.55, 1.0), "k"),
-        VectorData.create((1.0, 1.0, 0.0), (0.8, 0.6, 0.2), "v1"),
-        VectorData.create((0.5, 1.0, 1.0), (0.6, 0.2, 0.8), "v2"),
-    )
-
     selected_kernel_matrix = None
     try:
         from domain.images import get_kernel_by_name
@@ -179,7 +175,7 @@ def create_initial_state() -> AppState:
         selected_kernel_matrix = None
 
     return AppState(
-        vectors=initial_vectors,
-        next_vector_id=6,  # Next ID after i, j, k, v1, v2
+        vectors=(),
+        next_vector_id=1,
         selected_kernel_matrix=selected_kernel_matrix,
     )

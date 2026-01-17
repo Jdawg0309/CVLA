@@ -84,11 +84,13 @@ def get_vector_dot_angle(vector_a: VectorData, vector_b: VectorData) -> Tuple[fl
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
         return cached
-    ax, ay, az = vector_a.coords
-    bx, by, bz = vector_b.coords
-    dot = (ax * bx) + (ay * by) + (az * bz)
-    norm_a = sqrt((ax * ax) + (ay * ay) + (az * az))
-    norm_b = sqrt((bx * bx) + (by * by) + (bz * bz))
+    if len(vector_a.coords) != len(vector_b.coords):
+        value = (0.0, 0.0)
+        _cache_set(_VECTOR_METRIC_CACHE, key, value)
+        return value
+    dot = sum(a * b for a, b in zip(vector_a.coords, vector_b.coords))
+    norm_a = sqrt(sum(a * a for a in vector_a.coords))
+    norm_b = sqrt(sum(b * b for b in vector_b.coords))
     angle_deg = 0.0
     if norm_a > 1e-10 and norm_b > 1e-10:
         cos_angle = max(-1.0, min(1.0, dot / (norm_a * norm_b)))
@@ -104,7 +106,10 @@ def get_vector_axis_projections(vector: VectorData) -> Tuple[float, float, float
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
         return cached
-    value = tuple(float(c) for c in vector.coords)
+    coords = list(vector.coords)
+    if len(coords) < 3:
+        coords += [0.0] * (3 - len(coords))
+    value = tuple(float(c) for c in coords[:3])
     _cache_set(_VECTOR_METRIC_CACHE, key, value)
     return value
 

@@ -77,8 +77,10 @@ def reduce_matrices(state, action, with_history):
         for v in state.vectors:
             if v.id == state.selected_id:
                 vec_np = v.to_numpy()
+                if mat_np.shape[1] != vec_np.shape[0]:
+                    return state
                 result = mat_np @ vec_np
-                new_coords = (float(result[0]), float(result[1]), float(result[2]))
+                new_coords = tuple(float(val) for val in result.tolist())
                 new_vectors.append(replace(v, coords=new_coords))
             else:
                 new_vectors.append(v)
@@ -100,9 +102,12 @@ def reduce_matrices(state, action, with_history):
         for v in state.vectors:
             if v.visible:
                 vec_np = v.to_numpy()
-                result = mat_np @ vec_np
-                new_coords = (float(result[0]), float(result[1]), float(result[2]))
-                new_vectors.append(replace(v, coords=new_coords))
+                if mat_np.shape[1] != vec_np.shape[0]:
+                    new_vectors.append(v)
+                else:
+                    result = mat_np @ vec_np
+                    new_coords = tuple(float(val) for val in result.tolist())
+                    new_vectors.append(replace(v, coords=new_coords))
             else:
                 new_vectors.append(v)
 

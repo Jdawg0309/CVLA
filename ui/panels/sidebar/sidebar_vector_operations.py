@@ -6,7 +6,6 @@ Reads from AppState.vectors when available.
 """
 
 import imgui
-import numpy as np
 from state.actions import AddVector, UpdateVector
 
 
@@ -35,10 +34,11 @@ def _render_vector_operations(self):
         # Normalize button
         if self._styled_button("Normalize", (0.3, 0.3, 0.6, 1.0), width=-1):
             if selected_vector:
-                coords = np.array(selected_vector.coords, dtype=np.float32)
-                norm = np.linalg.norm(coords)
-                if norm > 1e-10:
-                    new_coords = tuple((coords / norm).tolist())
+                coords = selected_vector.coords
+                norm_sq = sum(val * val for val in coords)
+                if norm_sq > 1e-10:
+                    norm = norm_sq ** 0.5
+                    new_coords = tuple(val / norm for val in coords)
                     self._dispatch(UpdateVector(id=selected_vector.id, coords=new_coords))
 
         imgui.next_column()
@@ -63,8 +63,8 @@ def _render_vector_operations(self):
 
         if self._styled_button("Apply Scale", (0.3, 0.5, 0.3, 1.0), width=-1):
             if selected_vector:
-                coords = np.array(selected_vector.coords, dtype=np.float32)
-                new_coords = tuple((coords * self.scale_factor).tolist())
+                coords = selected_vector.coords
+                new_coords = tuple(val * self.scale_factor for val in coords)
                 self._dispatch(UpdateVector(id=selected_vector.id, coords=new_coords))
 
         imgui.columns(1)
@@ -127,8 +127,14 @@ def _render_vector_operations(self):
 
             imgui.next_column()
 
+            cross_enabled = len(v1.coords) == 3 and len(v2.coords) == 3
+            if not cross_enabled:
+                imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
             if self._styled_button("Cross", (0.2, 0.2, 0.5, 1.0), width=-1):
-                self._do_vector_algebra(v1, v2, "cross")
+                if cross_enabled:
+                    self._do_vector_algebra(v1, v2, "cross")
+            if not cross_enabled:
+                imgui.pop_style_var()
 
             imgui.next_column()
 
@@ -148,20 +154,31 @@ def _do_vector_algebra(self, v1, v2, operation):
         v1, v2: VectorData objects
         operation: "add", "subtract", "cross", or "dot"
     """
-    coords1 = np.array(v1.coords, dtype=np.float32)
-    coords2 = np.array(v2.coords, dtype=np.float32)
+    if len(v1.coords) != len(v2.coords):
+        self.operation_result = {
+            'error': 'Vector dimensions must match.'
+        }
+        return
+    coords1 = v1.coords
+    coords2 = v2.coords
 
     if operation == "add":
-        result = coords1 + coords2
+        result = tuple(a + b for a, b in zip(coords1, coords2))
         label = f"{v1.label}+{v2.label}"
     elif operation == "subtract":
-        result = coords1 - coords2
+        result = tuple(a - b for a, b in zip(coords1, coords2))
         label = f"{v1.label}-{v2.label}"
     elif operation == "cross":
-        result = np.cross(coords1, coords2)
+        ax, ay, az = coords1
+        bx, by, bz = coords2
+        result = (
+            (ay * bz) - (az * by),
+            (az * bx) - (ax * bz),
+            (ax * by) - (ay * bx),
+        )
         label = f"{v1.label}x{v2.label}"
     elif operation == "dot":
-        dot = float(np.dot(coords1, coords2))
+        dot = float(sum(a * b for a, b in zip(coords1, coords2)))
         self.operation_result = {
             'type': 'dot_product',
             'value': dot,
@@ -172,7 +189,7 @@ def _do_vector_algebra(self, v1, v2, operation):
     # Dispatch new vector
     if self._dispatch:
         self._dispatch(AddVector(
-            coords=tuple(result.tolist()),
+            coords=tuple(result),
             color=self._get_next_color(),
             label=label
         ))

@@ -23,9 +23,10 @@ class SetInputMatrixCell:
 
 
 @dataclass(frozen=True)
-class SetInputMatrixSize:
+class SetInputMatrixShape:
     """Resize the matrix input form."""
-    size: int
+    rows: int
+    cols: int
 
 
 @dataclass(frozen=True)
@@ -137,3 +138,9 @@ class SetSelectedPixel:
     """Set the selected pixel coordinate (row, col)."""
     row: int
     col: int
+
+
+@dataclass(frozen=True)
+class SetInputExpression:
+    """Set raw input expression for vectors/matrices."""
+    expression: str

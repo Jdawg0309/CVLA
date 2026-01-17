@@ -3,7 +3,6 @@ Inspector coordinate editor.
 """
 
 import imgui
-import numpy as np
 from state.actions import UpdateVector
 
 
@@ -12,41 +11,41 @@ def _render_coordinate_editor(self, vector, dispatch):
     imgui.text_colored("Coordinates", 0.8, 0.8, 0.2, 1.0)
     imgui.spacing()
 
-    x, y, z = vector.coords
-    imgui.text(f"X: {x:.6f}")
-    imgui.same_line(100)
-    imgui.text(f"Y: {y:.6f}")
-    imgui.same_line(200)
-    imgui.text(f"Z: {z:.6f}")
+    coords = list(vector.coords)
+    for idx, value in enumerate(coords):
+        label = f"C{idx+1}" if idx > 2 else ["X", "Y", "Z"][idx]
+        imgui.text(f"{label}: {value:.6f}")
+        if idx % 3 != 2 and idx != len(coords) - 1:
+            imgui.same_line(100 + (idx % 3) * 100)
 
     imgui.spacing()
 
     imgui.push_item_width(80)
 
-    imgui.text("X:")
-    imgui.same_line()
-    x_changed, new_x = imgui.input_float("##edit_x", x, format="%.4f")
-    if x_changed and dispatch:
-        dispatch(UpdateVector(id=vector.id, coords=(new_x, y, z)))
-
-    imgui.same_line(120)
-
-    imgui.text("Y:")
-    imgui.same_line()
-    y_changed, new_y = imgui.input_float("##edit_y", y, format="%.4f")
-    if y_changed and dispatch:
-        dispatch(UpdateVector(id=vector.id, coords=(x, new_y, z)))
-
-    imgui.same_line(240)
-
-    imgui.text("Z:")
-    imgui.same_line()
-    z_changed, new_z = imgui.input_float("##edit_z", z, format="%.4f")
-    if z_changed and dispatch:
-        dispatch(UpdateVector(id=vector.id, coords=(x, y, new_z)))
+    for idx, value in enumerate(coords):
+        label = f"C{idx+1}" if idx > 2 else ["X", "Y", "Z"][idx]
+        imgui.text(f"{label}:")
+        imgui.same_line()
+        changed, new_val = imgui.input_float(f"##edit_{idx}", value, format="%.4f")
+        if changed and dispatch:
+            coords[idx] = new_val
+            dispatch(UpdateVector(id=vector.id, coords=tuple(coords)))
+        if idx % 3 != 2 and idx != len(coords) - 1:
+            imgui.same_line(120 + (idx % 3) * 120)
 
     imgui.pop_item_width()
 
+    imgui.spacing()
+    imgui.columns(2, "##dim_controls", border=False)
+    if imgui.button("+ Component", width=-1) and dispatch:
+        coords.append(0.0)
+        dispatch(UpdateVector(id=vector.id, coords=tuple(coords)))
+    imgui.next_column()
+    if imgui.button("- Component", width=-1) and dispatch:
+        if len(coords) > 1:
+            coords = coords[:-1]
+            dispatch(UpdateVector(id=vector.id, coords=tuple(coords)))
+    imgui.columns(1)
     imgui.spacing()
     imgui.columns(3, "##quick_edit", border=False)
 
@@ -74,15 +73,16 @@ def _render_coordinate_editor(self, vector, dispatch):
             if coords is not None:
                 dispatch(UpdateVector(id=vector.id, coords=tuple(coords)))
             elif label == "Normalize":
-                vec = np.array(vector.coords, dtype=np.float32)
-                norm = np.linalg.norm(vec)
-                if norm > 1e-10:
-                    dispatch(UpdateVector(
-                        id=vector.id,
-                        coords=tuple((vec / norm).tolist()),
-                    ))
+                norm_sq = sum(val * val for val in vector.coords)
+                if norm_sq > 1e-10:
+                    norm = norm_sq ** 0.5
+                    scaled = tuple(val / norm for val in vector.coords)
+                    dispatch(UpdateVector(id=vector.id, coords=scaled))
             elif label == "Reset":
-                dispatch(UpdateVector(id=vector.id, coords=(1.0, 0.0, 0.0)))
+                size = max(1, len(vector.coords))
+                reset = [0.0] * size
+                reset[0] = 1.0
+                dispatch(UpdateVector(id=vector.id, coords=tuple(reset)))
 
         imgui.pop_style_color(2)
 

@@ -10,7 +10,7 @@ import numpy as np
 from state.actions import (
     AddMatrix, DeleteMatrix, UpdateMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
-    SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel, SelectMatrix,
+    SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel, SelectMatrix,
     ToggleMatrixEditor, TogglePreview, ToggleMatrixPlot,
 )
 
@@ -29,7 +29,8 @@ def _render_matrix_operations(self):
 
         matrices = list(self._state.matrices)
         input_matrix = [list(row) for row in self._state.input_matrix]
-        matrix_size = self._state.input_matrix_size
+        matrix_rows = self._state.input_matrix_rows
+        matrix_cols = self._state.input_matrix_cols
         matrix_name = self._state.input_matrix_label
         show_matrix_editor = self._state.show_matrix_editor
         preview_enabled = self._state.preview_enabled
@@ -52,7 +53,7 @@ def _render_matrix_operations(self):
                 if imgui.selectable(selectable_label, is_selected)[0]:
                     self.selected_matrix_idx = i
                     self._dispatch(SelectMatrix(id=mat.id))
-                    self._dispatch(SetInputMatrixSize(size=rows))
+                    self._dispatch(SetInputMatrixShape(rows=rows, cols=cols))
                     for r in range(rows):
                         for c in range(cols):
                             self._dispatch(SetInputMatrixCell(
@@ -72,7 +73,7 @@ def _render_matrix_operations(self):
         imgui.end_child()
 
         imgui.spacing()
-        imgui.text(f"New Matrix Size: {matrix_size}x{matrix_size}")
+        imgui.text(f"New Matrix Size: {matrix_rows}x{matrix_cols}")
         if imgui.button("Open Matrix Editor", width=-1):
             self._dispatch(ToggleMatrixEditor())
 
@@ -83,18 +84,26 @@ def _render_matrix_operations(self):
 
             imgui.text("Matrix Size:")
             imgui.same_line()
-            imgui.push_item_width(100)
-            size_changed, new_size = imgui.slider_int(
-                "##matrix_size",
-                matrix_size,
-                2,
-                4
+            imgui.push_item_width(80)
+            rows_changed, new_rows = imgui.slider_int(
+                "Rows##matrix_rows",
+                matrix_rows,
+                1,
+                8
+            )
+            imgui.same_line()
+            cols_changed, new_cols = imgui.slider_int(
+                "Cols##matrix_cols",
+                matrix_cols,
+                1,
+                8
             )
             imgui.pop_item_width()
 
-            if size_changed:
-                self._dispatch(SetInputMatrixSize(size=new_size))
-                matrix_size = new_size
+            if rows_changed or cols_changed:
+                self._dispatch(SetInputMatrixShape(rows=new_rows, cols=new_cols))
+                matrix_rows = new_rows
+                matrix_cols = new_cols
 
             imgui.spacing()
             changed, new_matrix = self._matrix_input_widget(input_matrix)
