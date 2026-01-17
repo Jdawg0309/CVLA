@@ -75,6 +75,10 @@ class App:
         # -----------------------------
         # Core systems
         # -----------------------------
+        # NOTE: Camera and ViewConfig are intentionally outside Redux.
+        # Reason: High-frequency updates (orbit, zoom) would flood the reducer.
+        # These are "viewport state" not "document state" - they don't need undo/redo.
+        # CLI access: Use App.camera and App.view_config directly when headless.
         self.camera = Camera()
         
         # Initialize view configuration with cubic view
@@ -108,7 +112,6 @@ class App:
         self.store = Store(create_initial_state())
 
         # State
-        self.selected = None
         self.rotating = False
         self.last_mouse = None
         self._last_debug_time = 0.0

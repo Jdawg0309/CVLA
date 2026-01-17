@@ -17,7 +17,6 @@ ARCHITECTURE:
 from state.models import (
     VectorData,
     MatrixData,
-    PlaneData,
     ImageData,
     EducationalStep,
     PipelineOp,
@@ -52,6 +51,7 @@ from state.actions import (
     StepForward, StepBackward, JumpToStep, ResetPipeline,
     # UI input actions
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetEquationCell, SetEquationCount,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode, ToggleImageGridOverlay,
@@ -68,7 +68,7 @@ from state.reducers import reduce
 
 __all__ = [
     # Models
-    'VectorData', 'MatrixData', 'PlaneData', 'ImageData', 'EducationalStep', 'PipelineOp', 'MicroOp',
+    'VectorData', 'MatrixData', 'ImageData', 'EducationalStep', 'PipelineOp', 'MicroOp',
     # State
     'AppState', 'MAX_HISTORY', 'create_initial_state',
     'get_vector_by_id', 'get_matrix_by_id',
@@ -85,6 +85,7 @@ __all__ = [
     'FlipImageHorizontal', 'UseResultAsInput', 'ClearImage',
     'StepForward', 'StepBackward', 'JumpToStep', 'ResetPipeline',
     'SetInputVector', 'SetInputMatrixCell', 'SetInputMatrixSize', 'SetInputMatrixLabel',
+    'SetEquationCell', 'SetEquationCount',
     'SetImagePath', 'SetSamplePattern', 'SetSampleSize',
     'SetTransformRotation', 'SetTransformScale', 'SetSelectedKernel',
     'SetImageRenderScale', 'SetImageRenderMode', 'SetImageColorMode', 'ToggleImageGridOverlay',

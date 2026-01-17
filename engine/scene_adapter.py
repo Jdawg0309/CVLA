@@ -13,7 +13,7 @@ IMPORTANT:
 """
 
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Protocol
 from dataclasses import dataclass
 
 from state.app_state import AppState
@@ -73,7 +73,6 @@ class SceneAdapter:
     The renderer can access:
         scene.vectors - List of RendererVector
         scene.matrices - List of RendererMatrix (as dicts for compatibility)
-        scene.planes - List of plane dicts
         scene.selected_object - The selected object
         scene.selection_type - 'vector', 'matrix', etc.
         scene.preview_matrix - Preview transformation matrix
@@ -106,16 +105,6 @@ class SceneAdapter:
             for m in state.matrices
         ]
 
-        # Planes (if any)
-        self._planes = [
-            {
-                'equation': np.array(p.equation, dtype=np.float32),
-                'color': p.color,
-                'label': p.label,
-                'visible': p.visible,
-            }
-            for p in state.planes
-        ]
 
         # Selection
         self._selected_object = None
@@ -153,11 +142,6 @@ class SceneAdapter:
         return self._matrices
 
     @property
-    def planes(self) -> List[dict]:
-        """Get all planes for rendering."""
-        return self._planes
-
-    @property
     def selected_object(self):
         """Get currently selected object."""
         return self._selected_object
@@ -176,6 +160,28 @@ class SceneAdapter:
     def show_matrix_plot(self) -> bool:
         """Indicate whether the 3D matrix plot should render."""
         return self._show_matrix_plot
+
+
+class RendererSceneProtocol(Protocol):
+    """Protocol that renderers expect from scene adapters."""
+
+    @property
+    def vectors(self) -> List['RendererVector']: ...
+
+    @property
+    def matrices(self) -> List[dict]: ...
+
+    @property
+    def selected_object(self) -> Optional['RendererVector']: ...
+
+    @property
+    def selection_type(self) -> Optional[str]: ...
+
+    @property
+    def preview_matrix(self) -> Optional[np.ndarray]: ...
+
+    @property
+    def show_matrix_plot(self) -> bool: ...
 
 
 def create_scene_from_state(state: AppState) -> SceneAdapter:

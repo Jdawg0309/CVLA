@@ -4,6 +4,8 @@ Sidebar linear systems section.
 
 import imgui
 
+from state.actions import SetEquationCell, SetEquationCount
+
 
 def _render_linear_systems(self):
     """Render linear systems solver section."""
@@ -16,36 +18,43 @@ def _render_linear_systems(self):
         if self.show_equation_editor:
             imgui.begin_child("##equation_editor", 0, 300, border=True)
 
+            equation_count = self._state.input_equation_count
+            equation_input = self._state.input_equations
+
             imgui.text("Number of equations:")
             imgui.same_line()
             imgui.push_item_width(100)
-            count_changed, self.equation_count = imgui.slider_int("##eq_count",
-                                                                self.equation_count, 2, 4)
+            count_changed, new_count = imgui.slider_int(
+                "##eq_count",
+                equation_count,
+                2,
+                4,
+            )
             imgui.pop_item_width()
 
-            if count_changed:
-                self._resize_equations()
+            if count_changed and self._dispatch is not None:
+                self._dispatch(SetEquationCount(count=new_count))
 
             imgui.spacing()
             imgui.text("System Ax = b:")
 
-            for i in range(self.equation_count):
+            for i in range(equation_count):
                 imgui.push_id(str(i))
 
                 imgui.text(f"Eq {i+1}:")
                 imgui.same_line()
 
-                for j in range(self.equation_count):
+                for j in range(equation_count):
                     imgui.push_item_width(50)
                     coeff_changed, new_val = self._input_number_cell(
-                        f"eq_{i}_{j}", self.equation_input[i][j]
+                        f"eq_{i}_{j}", equation_input[i][j]
                     )
-                    if coeff_changed:
-                        self.equation_input[i][j] = new_val
+                    if coeff_changed and self._dispatch is not None:
+                        self._dispatch(SetEquationCell(row=i, col=j, value=new_val))
                     imgui.pop_item_width()
 
                     imgui.same_line()
-                    if j < self.equation_count - 1:
+                    if j < equation_count - 1:
                         imgui.text(f"x{j+1} +")
                     else:
                         imgui.text(f"x{j+1} =")
@@ -54,10 +63,10 @@ def _render_linear_systems(self):
 
                 imgui.push_item_width(50)
                 rhs_changed, new_rhs = self._input_number_cell(
-                    f"eq_rhs_{i}", self.equation_input[i][-1]
+                    f"eq_rhs_{i}", equation_input[i][-1]
                 )
-                if rhs_changed:
-                    self.equation_input[i][-1] = new_rhs
+                if rhs_changed and self._dispatch is not None:
+                    self._dispatch(SetEquationCell(row=i, col=equation_count, value=new_rhs))
                 imgui.pop_item_width()
 
                 imgui.pop_id()

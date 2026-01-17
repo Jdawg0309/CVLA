@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from state.actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetEquationCell, SetEquationCount,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
     SetImageNormalizeMean, SetImageNormalizeStd,
@@ -45,6 +46,36 @@ def reduce_inputs(state, action):
 
     if isinstance(action, SetInputMatrixLabel):
         return replace(state, input_matrix_label=action.label)
+
+    if isinstance(action, SetEquationCell):
+        equation_count = state.input_equation_count
+        new_equations = [list(row) for row in state.input_equations]
+        while len(new_equations) <= action.row:
+            new_equations.append([0.0] * (equation_count + 1))
+        while len(new_equations[action.row]) < equation_count + 1:
+            new_equations[action.row].append(0.0)
+        new_equations[action.row][action.col] = action.value
+        return replace(state, input_equations=tuple(tuple(row) for row in new_equations))
+
+    if isinstance(action, SetEquationCount):
+        old = state.input_equations
+        new_count = action.count
+        new_equations = []
+        for i in range(new_count):
+            if i < len(old):
+                row = list(old[i][:new_count + 1])
+                if len(row) < new_count + 1:
+                    row.extend([0.0] * (new_count + 1 - len(row)))
+                new_equations.append(row)
+            else:
+                row = [0.0] * (new_count + 1)
+                row[i] = 1.0
+                new_equations.append(row)
+        return replace(
+            state,
+            input_equations=tuple(tuple(row) for row in new_equations),
+            input_equation_count=new_count,
+        )
 
     if isinstance(action, SetImagePath):
         return replace(state, input_image_path=action.path)

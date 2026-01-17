@@ -7,8 +7,10 @@ import imgui
 
 def _get_next_color(self):
     """Get next color from palette."""
-    color = self.color_palette[self.next_color_idx]
-    self.next_color_idx = (self.next_color_idx + 1) % len(self.color_palette)
+    if self._state is None:
+        return (0.8, 0.2, 0.2)
+    from state.selectors import get_next_color
+    color, _ = get_next_color(self._state)
     return color
 
 

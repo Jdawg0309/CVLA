@@ -26,7 +26,6 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
         state: AppState (single source of truth)
         dispatch: Function to dispatch actions
     """
-    self.scene = None
     self._state = state
     self._dispatch = dispatch
 

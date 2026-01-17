@@ -3,39 +3,31 @@ Sidebar linear system helpers.
 """
 
 import numpy as np
-from state.actions import AddVector
+from state.actions import AddVector, SetEquationCount
 
 
 def _resize_equations(self):
     """Resize equation system."""
-    new_count = self.equation_count
-
-    new_equations = []
-    for i in range(new_count):
-        if i < len(self.equation_input):
-            row = self.equation_input[i][:new_count + 1]
-            if len(row) < new_count + 1:
-                row.extend([0.0] * (new_count + 1 - len(row)))
-            new_equations.append(row)
-        else:
-            row = [0.0] * (new_count + 1)
-            row[i] = 1.0
-            new_equations.append(row)
-
-    self.equation_input = new_equations
+    if self._state is None or self._dispatch is None:
+        return
+    self._dispatch(SetEquationCount(count=self._state.input_equation_count))
 
 
 def _solve_linear_system(self):
     """Solve linear system of equations."""
+    if self._state is None:
+        return
+
     try:
-        n = self.equation_count
+        n = self._state.input_equation_count
+        equations = self._state.input_equations
         A = np.zeros((n, n), dtype=np.float32)
         b = np.zeros(n, dtype=np.float32)
 
         for i in range(n):
             for j in range(n):
-                A[i, j] = self.equation_input[i][j]
-            b[i] = self.equation_input[i][-1]
+                A[i, j] = equations[i][j]
+            b[i] = equations[i][-1]
 
         solution = np.linalg.solve(A, b)
         self.operation_result = {

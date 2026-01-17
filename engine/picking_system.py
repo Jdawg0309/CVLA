@@ -69,33 +69,6 @@ def pick_object(screen_x, screen_y, width, height, camera, scene):
     return None, None
 
 
-def ray_intersect_plane(ray_origin, ray_dir, plane_eq):
-    """
-    Check if a ray intersects a plane.
-    
-    Args:
-        ray_origin: Ray starting point
-        ray_dir: Ray direction (normalized)
-        plane_eq: Plane equation [a, b, c, d]
-    
-    Returns:
-        Intersection point or None
-    """
-    a, b, c, d = plane_eq
-    normal = np.array([a, b, c])
-    
-    denom = np.dot(normal, ray_dir)
-    if abs(denom) < 1e-6:
-        return None  # Ray is parallel to plane
-    
-    # Distance from ray origin to plane
-    t = -(np.dot(normal, ray_origin) + d) / denom
-    
-    if t < 0:
-        return None  # Intersection behind ray origin
-    
-    return ray_origin + ray_dir * t
-
 
 def get_nearest_point_on_line(point, line_start, line_end):
     """

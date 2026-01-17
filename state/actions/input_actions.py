@@ -35,6 +35,20 @@ class SetInputMatrixLabel:
 
 
 @dataclass(frozen=True)
+class SetEquationCell:
+    """Update a cell in the linear equation input."""
+    row: int
+    col: int
+    value: float
+
+
+@dataclass(frozen=True)
+class SetEquationCount:
+    """Update the number of equations."""
+    count: int
+
+
+@dataclass(frozen=True)
 class SetImagePath:
     """Update the image path input field."""
     path: str
