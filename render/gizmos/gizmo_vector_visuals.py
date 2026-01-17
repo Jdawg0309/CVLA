@@ -23,7 +23,8 @@ def draw_vector_span(self, vp, vector1, vector2, color=(0.2, 0.4, 0.8, 0.3)):
     ]
 
     normal = np.cross(v1, v2)
-    normal = normal / np.linalg.norm(normal) if np.linalg.norm(normal) > 0 else [0, 0, 1]
+    norm = np.linalg.norm(normal)
+    normal = normal / norm if norm > 0 else np.array([0.0, 0.0, 1.0], dtype=np.float32)
     normals = [normal.tolist()] * 6
 
     colors = []
@@ -95,7 +96,8 @@ def draw_parallelepiped(self, vp, vectors, color=(0.3, 0.6, 0.9, 0.2)):
         ]
 
         normal = np.cross(face[1] - face[0], face[2] - face[0])
-        normal = normal / np.linalg.norm(normal) if np.linalg.norm(normal) > 0 else [0, 0, 1]
+        norm = np.linalg.norm(normal)
+        normal = normal / norm if norm > 0 else np.array([0.0, 0.0, 1.0], dtype=np.float32)
         normals = [normal.tolist()] * 6
 
         face_color = (color[0], color[1], color[2], color[3] * 0.15)
