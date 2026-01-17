@@ -16,12 +16,6 @@ class ToolPalette:
     def __init__(self):
         self._tools = [
             ("Select", "select", "V"),
-            ("Move", "move", "M"),
-            ("Rotate", "rotate", "R"),
-            ("Add Vector", "add_vector", "+V"),
-            ("Add Matrix", "add_matrix", "+M"),
-            ("Image", "image", "Img"),
-            ("Pipeline", "pipeline", "Pipe"),
         ]
 
     def render(self, rect, state, dispatch):
