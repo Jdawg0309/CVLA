@@ -98,7 +98,11 @@ class SceneAdapter:
             for v in state.vectors
         ]
 
-        if state.active_mode == "vectors" and state.input_matrix_preview_vectors:
+        if (
+            state.active_mode == "vectors"
+            and state.preview_enabled
+            and state.input_matrix_preview_vectors
+        ):
             preview_color = (0.4, 0.6, 0.9)
             for idx, coords in enumerate(state.input_matrix_preview_vectors):
                 preview_vector = RendererVector(

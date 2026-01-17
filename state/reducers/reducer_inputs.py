@@ -152,7 +152,14 @@ def reduce_inputs(state, action):
             stripped = stripped[1:-1].strip()
 
         rows = []
-        normalized = stripped.replace("\n", ";")
+        normalized = stripped.replace("\n", ";").replace("|", ";")
+        if "[" in normalized or "]" in normalized:
+            normalized = (
+                normalized.replace("][", ";")
+                .replace("],[", ";")
+                .replace("[", "")
+                .replace("]", "")
+            )
         for row_text in normalized.split(";"):
             row_text = row_text.strip()
             if not row_text:
