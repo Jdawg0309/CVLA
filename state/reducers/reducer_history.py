@@ -15,6 +15,10 @@ from state.actions import (
     ClearSelection, SetTheme, SetActiveTool,
     StepForward, StepBackward, JumpToStep,
     Undo, Redo,
+    SetImageNormalizeMean, SetImageNormalizeStd, SetImageColorMode,
+    SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
+    ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
+    SetActiveImageTab,
 )
 
 
@@ -49,4 +53,8 @@ def should_record_history(action) -> bool:
         ToggleMatrixValues, TogglePreview, ClearSelection,
         SetTheme, SetActiveTool,
         StepForward, StepBackward, JumpToStep,
+        SetImageNormalizeMean, SetImageNormalizeStd, SetImageColorMode,
+        SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
+        ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
+        SetActiveImageTab,
     ))
