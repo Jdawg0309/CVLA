@@ -3,7 +3,7 @@ Inspector panel for detailed object inspection and editing.
 """
 
 import imgui
-from state.selectors import get_selected_vector
+from state.selectors import get_selected_vector, get_selected_matrix
 
 from ui.utils import set_next_window_position, set_next_window_size
 
@@ -30,6 +30,7 @@ class Inspector:
             return
 
         selected_vector = get_selected_vector(state)
+        selected_matrix = get_selected_matrix(state)
 
         x, y, width, height = rect
         set_next_window_position(x, y, cond=_SET_WINDOW_POS_FIRST)
@@ -49,13 +50,16 @@ class Inspector:
             imgui.same_line()
             if selected_vector:
                 imgui.text_disabled(f"({selected_vector.label})")
+            elif selected_matrix:
+                label = selected_matrix.label or "Matrix"
+                imgui.text_disabled(f"({label})")
             else:
                 imgui.text_disabled("(No selection)")
             imgui.separator()
 
-            if not selected_vector:
-                imgui.text_wrapped("Select a vector to see detailed properties.")
-            else:
+            if not selected_vector and not selected_matrix:
+                imgui.text_wrapped("Select a vector or matrix to see detailed properties.")
+            elif selected_vector:
                 if imgui.collapsing_header("Coordinates", imgui.TREE_NODE_DEFAULT_OPEN)[0]:
                     self._render_coordinate_editor(selected_vector, dispatch)
                 if imgui.collapsing_header("Properties", imgui.TREE_NODE_DEFAULT_OPEN)[0]:
@@ -64,6 +68,8 @@ class Inspector:
                     self._render_transform_history(selected_vector, dispatch)
                 if self.show_computed_properties and imgui.collapsing_header("Computed", 0)[0]:
                     self._render_computed_properties(selected_vector, state, dispatch)
+            else:
+                self._render_matrix_details(selected_matrix)
 
         imgui.end()
         imgui.pop_style_var(2)
@@ -73,3 +79,11 @@ class Inspector:
     _render_properties = _render_properties
     _render_transform_history = _render_transform_history
     _render_computed_properties = _render_computed_properties
+
+    def _render_matrix_details(self, selected_matrix):
+        rows, cols = selected_matrix.shape
+        imgui.text(f"Size: {rows}x{cols}")
+        imgui.spacing()
+        for row in selected_matrix.values:
+            row_text = ", ".join(f"{value:.3f}" for value in row)
+            imgui.text(f"[{row_text}]")

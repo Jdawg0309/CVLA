@@ -10,7 +10,7 @@ import numpy as np
 from state.actions import (
     AddMatrix, DeleteMatrix, UpdateMatrix,
     ApplyMatrixToSelected, ApplyMatrixToAll,
-    SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
+    SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel, SelectMatrix,
     ToggleMatrixEditor, TogglePreview, ToggleMatrixPlot,
 )
 
@@ -51,6 +51,7 @@ def _render_matrix_operations(self):
                 selectable_label = f"{label} ({rows}x{cols})##mat_{i}"
                 if imgui.selectable(selectable_label, is_selected)[0]:
                     self.selected_matrix_idx = i
+                    self._dispatch(SelectMatrix(id=mat.id))
                     self._dispatch(SetInputMatrixSize(size=rows))
                     for r in range(rows):
                         for c in range(cols):
