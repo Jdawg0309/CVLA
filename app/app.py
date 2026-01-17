@@ -113,6 +113,7 @@ class App:
 
         # State
         self.rotating = False
+        self.panning = False
         self.last_mouse = None
         self._last_debug_time = 0.0
         # Runtime status
