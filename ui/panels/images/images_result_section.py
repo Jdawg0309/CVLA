@@ -20,6 +20,12 @@ def _render_result_section(state: AppState, dispatch: Callable[[Action], None]) 
         imgui.indent(10)
 
         result = state.processed_image
+        if result is None:
+            imgui.text("No processed image")
+            imgui.unindent(10)
+            imgui.spacing()
+            imgui.pop_style_color()
+            return
 
         imgui.text_colored(f"Output: {result.name}", 0.4, 1.0, 0.4, 1.0)
         imgui.text(f"Shape: {result.height} x {result.width}")

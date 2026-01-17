@@ -22,6 +22,12 @@ def _render_image_info_section(state: AppState, dispatch: Callable[[Action], Non
         imgui.indent(10)
 
         img = state.current_image
+        if img is None:
+            imgui.text("No image loaded")
+            imgui.unindent(10)
+            imgui.spacing()
+            imgui.pop_style_color()
+            return
 
         imgui.text_colored(img.name, 0.4, 0.8, 1.0, 1.0)
         imgui.text(f"Shape: {img.height} x {img.width}")
