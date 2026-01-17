@@ -191,4 +191,24 @@ def _render_matrix_operations(self):
 
             imgui.end_child()
 
+        if self.operation_result:
+            result = self.operation_result
+            if "error" in result:
+                imgui.text_colored(f"Error: {result['error']}", 0.9, 0.4, 0.4, 1.0)
+            elif result.get("type") in ("null_space", "column_space"):
+                title = "Null Space" if result["type"] == "null_space" else "Column Space"
+                imgui.text(f"{title} Basis:")
+                basis = result.get("basis") or []
+                if basis:
+                    imgui.begin_child("##basis_view", 0, 90, border=True)
+                    for vec in basis:
+                        row_str = ", ".join(f"{v:.3f}" for v in vec)
+                        imgui.text(f"[{row_str}]")
+                    imgui.end_child()
+                else:
+                    imgui.text_disabled("(No basis vectors)")
+                added = result.get("vectors") or []
+                if added:
+                    imgui.text(f"Added to scene: {', '.join(added)}")
+
         self._end_section()

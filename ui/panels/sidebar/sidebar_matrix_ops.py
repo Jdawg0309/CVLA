@@ -20,12 +20,14 @@ def _compute_null_space(self, matrix):
             return
 
         added = []
+        basis = []
         arr = np.array(ns)
         if arr.ndim == 1:
             arr = arr.reshape(1, -1)
 
         for i, vec in enumerate(arr):
             v_arr = np.array(vec, dtype=np.float32).flatten()
+            basis.append([float(v) for v in v_arr.tolist()])
             if v_arr.size == 3:
                 name = f"ns_{i+1}"
                 if self._dispatch:
@@ -36,7 +38,11 @@ def _compute_null_space(self, matrix):
                     ))
                 added.append(name)
 
-        self.operation_result = {'type': 'null_space', 'vectors': added}
+        self.operation_result = {
+            'type': 'null_space',
+            'vectors': added,
+            'basis': basis,
+        }
     except Exception as e:
         self.operation_result = {'error': str(e)}
 
@@ -55,10 +61,12 @@ def _compute_column_space(self, matrix):
             return
 
         added = []
+        basis = []
         cols = np.array(cs)
         if cols.ndim == 2:
             for i in range(cols.shape[1]):
                 v_arr = cols[:, i].astype(np.float32).flatten()
+                basis.append([float(v) for v in v_arr.tolist()])
                 if v_arr.size == 3:
                     name = f"cs_{i+1}"
                     if self._dispatch:
@@ -69,6 +77,10 @@ def _compute_column_space(self, matrix):
                         ))
                     added.append(name)
 
-        self.operation_result = {'type': 'column_space', 'vectors': added}
+        self.operation_result = {
+            'type': 'column_space',
+            'vectors': added,
+            'basis': basis,
+        }
     except Exception as e:
         self.operation_result = {'error': str(e)}
