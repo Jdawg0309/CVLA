@@ -23,6 +23,11 @@ class ToolPalette:
             ("Image", "image", "Img"),
             ("Pipeline", "pipeline", "Pipe"),
         ]
+        self._mode_tools = {
+            "vectors": {"select", "move", "rotate", "add_vector", "add_matrix"},
+            "images": {"select", "image", "pipeline"},
+            "visualize": {"select", "move", "rotate"},
+        }
 
     def render(self, rect, state, dispatch):
         x, y, width, height = rect
@@ -38,7 +43,11 @@ class ToolPalette:
             button_h = 40
             imgui.push_style_var(imgui.STYLE_FRAME_ROUNDING, 3.0)
             imgui.push_style_var(imgui.STYLE_ITEM_SPACING, (4, 8))
+            active_mode = state.active_mode if state else "vectors"
+            allowed = self._mode_tools.get(active_mode, {t[1] for t in self._tools})
             for label, tool_id, short in self._tools:
+                if tool_id not in allowed:
+                    continue
                 is_active = state is not None and state.active_tool == tool_id
                 if is_active:
                     imgui.push_style_color(imgui.COLOR_BUTTON, 0.3, 0.45, 0.7, 1.0)

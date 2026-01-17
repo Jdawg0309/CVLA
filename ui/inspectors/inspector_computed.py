@@ -3,8 +3,8 @@ Inspector computed properties section.
 """
 
 import imgui
-import numpy as np
 from state.actions import AddVector
+from state.selectors import get_vector_axis_projections, get_vector_dot_angle
 
 
 def _render_computed_properties(self, vector, state, dispatch):
@@ -40,25 +40,22 @@ def _render_computed_properties(self, vector, state, dispatch):
 
                 imgui.spacing()
 
-                vec_a = np.array(vector.coords, dtype=np.float32)
-                vec_b = np.array(current_other.coords, dtype=np.float32)
-                dot = float(np.dot(vec_a, vec_b))
+                dot, angle_deg = get_vector_dot_angle(vector, current_other)
                 imgui.text(f"Dot product: {dot:.6f}")
-
-                norm_a = np.linalg.norm(vec_a)
-                norm_b = np.linalg.norm(vec_b)
-                angle_deg = 0.0
-                if norm_a > 1e-10 and norm_b > 1e-10:
-                    cos_angle = np.clip(dot / (norm_a * norm_b), -1.0, 1.0)
-                    angle_deg = float(np.degrees(np.arccos(cos_angle)))
                 imgui.text(f"Angle: {angle_deg:.2f}°")
 
                 imgui.spacing()
                 if imgui.button("Compute Cross Product", width=-1):
                     if dispatch:
-                        cross = np.cross(vec_a, vec_b)
+                        ax, ay, az = vector.coords
+                        bx, by, bz = current_other.coords
+                        cross = (
+                            (ay * bz) - (az * by),
+                            (az * bx) - (ax * bz),
+                            (ax * by) - (ay * bx),
+                        )
                         dispatch(AddVector(
-                            coords=tuple(cross.tolist()),
+                            coords=cross,
                             color=(0.2, 0.6, 0.9),
                             label=f"{vector.label}x{current_other.label}",
                         ))
@@ -75,17 +72,7 @@ def _render_computed_properties(self, vector, state, dispatch):
 
         imgui.text("Projections onto axes:")
 
-        axes = [
-            ("X", np.array([1, 0, 0], dtype=np.float32)),
-            ("Y", np.array([0, 1, 0], dtype=np.float32)),
-            ("Z", np.array([0, 0, 1], dtype=np.float32))
-        ]
-
-        vec = np.array(vector.coords, dtype=np.float32)
-        for axis_name, axis_vec in axes:
-            axis_norm = np.linalg.norm(axis_vec)
-            proj_mag = 0.0
-            if axis_norm > 1e-10:
-                proj_mag = float(np.dot(vec, axis_vec) / axis_norm)
-
-            imgui.text(f"  {axis_name}-axis: {proj_mag:.6f}")
+        proj_x, proj_y, proj_z = get_vector_axis_projections(vector)
+        imgui.text(f"  X-axis: {proj_x:.6f}")
+        imgui.text(f"  Y-axis: {proj_y:.6f}")
+        imgui.text(f"  Z-axis: {proj_z:.6f}")

@@ -3,7 +3,6 @@ Images tab info section.
 """
 
 import imgui
-import numpy as np
 from typing import Callable
 
 from state import (
@@ -33,9 +32,14 @@ def _render_image_info_section(state: AppState, dispatch: Callable[[Action], Non
         imgui.text(f"Shape: {img.height} x {img.width}")
         imgui.text(f"Type: {'Grayscale' if img.is_grayscale else 'RGB'}")
 
-        matrix = img.as_matrix()
-        imgui.text(f"Mean: {np.mean(matrix):.3f}  Std: {np.std(matrix):.3f}")
-        imgui.text(f"Min: {np.min(matrix):.3f}  Max: {np.max(matrix):.3f}")
+        stats = state.current_image_stats
+        if stats is None:
+            imgui.text("Mean: N/A  Std: N/A")
+            imgui.text("Min: N/A  Max: N/A")
+        else:
+            mean, std, min_val, max_val = stats
+            imgui.text(f"Mean: {mean:.3f}  Std: {std:.3f}")
+            imgui.text(f"Min: {min_val:.3f}  Max: {max_val:.3f}")
 
         imgui.spacing()
         selected = state.selected_pixel
@@ -45,11 +49,15 @@ def _render_image_info_section(state: AppState, dispatch: Callable[[Action], Non
             if state.active_image_tab != "raw" and state.processed_image is not None:
                 image_for_pixel = state.processed_image
             if 0 <= row < image_for_pixel.height and 0 <= col < image_for_pixel.width:
+                pixels = image_for_pixel.pixels
                 if image_for_pixel.is_grayscale:
-                    value = float(image_for_pixel.as_matrix()[row, col])
+                    if len(pixels.shape) == 2:
+                        value = float(pixels[row, col])
+                    else:
+                        value = float(pixels[row, col, 0])
                     imgui.text(f"Selected Pixel: ({row}, {col}) = {value:.3f}")
                 else:
-                    rgb = image_for_pixel.data[row, col]
+                    rgb = pixels[row, col]
                     imgui.text(
                         f"Selected Pixel: ({row}, {col}) = "
                         f"({rgb[0]:.3f}, {rgb[1]:.3f}, {rgb[2]:.3f})"
@@ -66,14 +74,18 @@ def _render_image_info_section(state: AppState, dispatch: Callable[[Action], Non
 
         if state.show_matrix_values:
             imgui.begin_child("##matrix_view", 0, 120, border=True)
-            rows = min(8, matrix.shape[0])
-            cols = min(8, matrix.shape[1])
-            imgui.text_disabled(f"Preview ({rows}x{cols}):")
-            for i in range(rows):
-                row_str = " ".join(f"{matrix[i, j]:.2f}" for j in range(cols))
-                imgui.text(row_str)
-            if matrix.shape[0] > 8 or matrix.shape[1] > 8:
-                imgui.text_disabled("...")
+            preview = state.current_image_preview
+            if preview:
+                rows = len(preview)
+                cols = len(preview[0]) if rows else 0
+                imgui.text_disabled(f"Preview ({rows}x{cols}):")
+                for row in preview:
+                    row_str = " ".join(f"{value:.2f}" for value in row)
+                    imgui.text(row_str)
+                if img.height > rows or img.width > cols:
+                    imgui.text_disabled("...")
+            else:
+                imgui.text_disabled("Preview unavailable")
             imgui.end_child()
 
         imgui.spacing()

@@ -62,6 +62,11 @@ class AppState:
     image_downsample_enabled: bool = False
     image_preview_resolution: int = 128
     image_max_resolution: int = 512
+    current_image_stats: Optional[Tuple[float, float, float, float]] = None
+    processed_image_stats: Optional[Tuple[float, float, float, float]] = None
+    current_image_preview: Optional[Tuple[Tuple[float, ...], ...]] = None
+    processed_image_preview: Optional[Tuple[Tuple[float, ...], ...]] = None
+    selected_kernel_matrix: Optional[Tuple[Tuple[float, ...], ...]] = None
 
     # =========================================================================
     # EDUCATIONAL PIPELINE STATE
@@ -104,6 +109,7 @@ class AppState:
     # =========================================================================
     # UI VIEW STATE
     # =========================================================================
+    active_mode: str = "vectors"
     active_tab: str = "vectors"
     ui_theme: str = "dark"
     active_tool: str = "select"
@@ -113,6 +119,25 @@ class AppState:
     preview_enabled: bool = False
 
     matrix_plot_enabled: bool = False
+    view_preset: str = "cube"
+    view_up_axis: str = "z"
+    view_grid_mode: str = "cube"
+    view_grid_plane: str = "xy"
+    view_show_grid: bool = True
+    view_show_axes: bool = True
+    view_show_labels: bool = True
+    view_grid_size: int = 15
+    view_base_major_tick: int = 5
+    view_base_minor_tick: int = 1
+    view_major_tick: int = 5
+    view_minor_tick: int = 1
+    view_auto_rotate: bool = False
+    view_rotation_speed: float = 0.5
+    view_show_cube_faces: bool = True
+    view_show_cube_corners: bool = True
+    view_cubic_grid_density: float = 1.0
+    view_cube_face_opacity: float = 0.05
+    view_mode_2d: bool = False
 
     # =========================================================================
     # HISTORY (for undo/redo)
@@ -145,7 +170,16 @@ def create_initial_state() -> AppState:
         VectorData.create((0.5, 1.0, 1.0), (0.6, 0.2, 0.8), "v2"),
     )
 
+    selected_kernel_matrix = None
+    try:
+        from domain.images import get_kernel_by_name
+        kernel = get_kernel_by_name("sobel_x")
+        selected_kernel_matrix = tuple(tuple(float(v) for v in row) for row in kernel)
+    except Exception:
+        selected_kernel_matrix = None
+
     return AppState(
         vectors=initial_vectors,
         next_vector_id=6,  # Next ID after i, j, k, v1, v2
+        selected_kernel_matrix=selected_kernel_matrix,
     )

@@ -1293,15 +1293,12 @@ ui/panels/images/images_tab_constants.py
 ui/panels/images/images_convolution_section.py
 ui/panels/images/images_educational_section.py
 ui/panels/images/images_info_section.py
-ui/panels/images/images_pipeline_section.py
 ui/panels/images/images_result_section.py
 ui/panels/images/images_source_section.py
 ui/panels/images/images_transform_section.py
 ui/panels/sidebar/__init__.py
 ui/panels/sidebar/sidebar.py
 ui/panels/sidebar/sidebar_export.py
-ui/panels/sidebar/sidebar_images_convolution.py
-ui/panels/sidebar/sidebar_images_education.py
 ui/panels/sidebar/sidebar_images_info.py
 ui/panels/sidebar/sidebar_images_ops.py
 ui/panels/sidebar/sidebar_images_result.py

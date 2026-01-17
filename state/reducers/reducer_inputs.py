@@ -93,7 +93,19 @@ def reduce_inputs(state, action):
         return replace(state, input_transform_scale=action.scale)
 
     if isinstance(action, SetSelectedKernel):
-        return replace(state, selected_kernel=action.kernel_name)
+        if action.kernel_name == state.selected_kernel:
+            return state
+        kernel_matrix = None
+        try:
+            from domain.images import get_kernel_by_name
+            kernel = get_kernel_by_name(action.kernel_name)
+            kernel_matrix = tuple(tuple(float(v) for v in row) for row in kernel)
+        except Exception:
+            kernel_matrix = None
+        return replace(state,
+            selected_kernel=action.kernel_name,
+            selected_kernel_matrix=kernel_matrix,
+        )
 
     if isinstance(action, SetImageNormalizeMean):
         return replace(state, input_image_normalize_mean=action.mean)

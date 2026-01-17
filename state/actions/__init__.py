@@ -35,9 +35,13 @@ from state.actions.input_actions import (
     SetImageNormalizeMean, SetImageNormalizeStd,
 )
 from state.actions.navigation_actions import (
-    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
+    SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
     TogglePreview, ClearSelection, SetTheme, SetActiveTool,
     SetActiveImageTab,
+    SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
+    SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
+    SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
+    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
 )
 from state.actions.history_actions import Undo, Redo
 
@@ -64,8 +68,13 @@ Action = Union[
     ToggleImageDownsample, SetImagePreviewResolution, SetSelectedPixel,
     SetImageNormalizeMean, SetImageNormalizeStd,
     # Navigation actions
-    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
+    SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
     TogglePreview, ClearSelection, SetTheme, SetActiveTool,
+    SetActiveImageTab,
+    SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
+    SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
+    SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
+    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     # History actions
     Undo, Redo,
 ]

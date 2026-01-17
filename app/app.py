@@ -118,6 +118,8 @@ class App:
         self._last_debug_time = 0.0
         # Runtime status
         self.fps = 0.0
+        self._last_view_state = None
+        self._last_view_preset = None
 
         # -----------------------------
         # GLFW callbacks

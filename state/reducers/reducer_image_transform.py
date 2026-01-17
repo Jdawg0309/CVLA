@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from state.actions import ApplyTransform, FlipImageHorizontal
 from state.models import ImageData, EducationalStep
+from state.reducers.image_cache import compute_image_stats, compute_preview_matrix
 
 
 def reduce_image_transform(state, action, with_history):
@@ -54,10 +55,14 @@ def reduce_image_transform(state, action, with_history):
                 transform_matrix=transform.matrix,
             )
 
+            stats = compute_image_stats(result_data)
+            preview = compute_preview_matrix(result_data)
             new_state = replace(state,
                 processed_image=result_data,
                 pipeline_steps=state.pipeline_steps + (step,),
                 pipeline_step_index=len(state.pipeline_steps),
+                processed_image_stats=stats,
+                processed_image_preview=preview,
             )
             return with_history(new_state)
         except Exception as e:
@@ -98,6 +103,8 @@ def reduce_image_transform(state, action, with_history):
                 state.current_image.history + ("flip:horizontal",)
             )
 
+            stats = compute_image_stats(result_data)
+            preview = compute_preview_matrix(result_data)
             new_state = replace(state,
                 processed_image=result_data,
                 pipeline_steps=state.pipeline_steps + (EducationalStep.create(
@@ -108,6 +115,8 @@ def reduce_image_transform(state, action, with_history):
                     output_data=result_data,
                 ),),
                 pipeline_step_index=len(state.pipeline_steps),
+                processed_image_stats=stats,
+                processed_image_preview=preview,
             )
             return with_history(new_state)
         except Exception as e:

@@ -3,8 +3,8 @@ Inspector properties section.
 """
 
 import imgui
-import numpy as np
 from state.actions import UpdateVector
+from state.selectors import get_vector_magnitude
 
 
 def _render_properties(self, vector, dispatch):
@@ -12,7 +12,7 @@ def _render_properties(self, vector, dispatch):
     imgui.text_colored("Properties", 0.8, 0.8, 0.2, 1.0)
     imgui.spacing()
 
-    magnitude = float(np.linalg.norm(np.array(vector.coords, dtype=np.float32)))
+    magnitude = get_vector_magnitude(vector)
     imgui.text(f"Magnitude: {magnitude:.6f}")
 
     imgui.spacing()

@@ -39,17 +39,16 @@ def _render_convolution_section(state: AppState, dispatch: Callable[[Action], No
 
         imgui.spacing()
 
-        try:
-            from domain.images import get_kernel_by_name
-            kernel = get_kernel_by_name(state.selected_kernel)
+        kernel = state.selected_kernel_matrix
+        if kernel:
             imgui.text("Kernel Matrix:")
             imgui.begin_child("##kernel_view", 0, 70, border=True)
             for row in kernel:
                 row_str = "  ".join(f"{v:>6.2f}" for v in row)
                 imgui.text(row_str)
             imgui.end_child()
-        except Exception:
-            pass
+        else:
+            imgui.text_disabled("Kernel matrix unavailable")
 
         imgui.spacing()
 

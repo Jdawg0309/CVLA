@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from state.actions import LoadImage, CreateSampleImage
 from state.models import ImageData, EducationalStep
+from state.reducers.image_cache import compute_image_stats, compute_preview_matrix
 
 
 def _auto_fit_scale(image_data, grid_size=20.0, margin=0.9):
@@ -34,6 +35,8 @@ def reduce_image_load(state, action, with_history):
             render_scale = state.image_render_scale
             if state.image_auto_fit:
                 render_scale = _auto_fit_scale(image_data)
+            stats = compute_image_stats(image_data)
+            preview = compute_preview_matrix(image_data)
             new_state = replace(state,
                 current_image=image_data,
                 processed_image=None,
@@ -44,6 +47,10 @@ def reduce_image_load(state, action, with_history):
                 image_render_scale=render_scale,
                 show_image_on_grid=True,
                 selected_pixel=(0, 0),
+                current_image_stats=stats,
+                processed_image_stats=None,
+                current_image_preview=preview,
+                processed_image_preview=None,
             )
             return with_history(new_state)
         except Exception as e:
@@ -69,6 +76,8 @@ def reduce_image_load(state, action, with_history):
             if state.image_auto_fit:
                 render_scale = _auto_fit_scale(image_data)
 
+            stats = compute_image_stats(image_data)
+            preview = compute_preview_matrix(image_data)
             new_state = replace(state,
                 current_image=image_data,
                 processed_image=None,
@@ -79,6 +88,10 @@ def reduce_image_load(state, action, with_history):
                 image_render_scale=render_scale,
                 show_image_on_grid=True,
                 selected_pixel=(0, 0),
+                current_image_stats=stats,
+                processed_image_stats=None,
+                current_image_preview=preview,
+                processed_image_preview=None,
             )
             return with_history(new_state)
         except Exception:

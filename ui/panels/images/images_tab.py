@@ -25,21 +25,20 @@ from ui.panels.images.images_info_section import _render_image_info_section
 from ui.panels.images.images_convolution_section import _render_convolution_section
 from ui.panels.images.images_transform_section import _render_transform_section
 from ui.panels.images.images_result_section import _render_result_section
-from ui.panels.images.images_pipeline_section import _render_pipeline_section
 from ui.panels.images.images_educational_section import _render_educational_section
+
+try:
+    from domain.images import list_kernels, get_kernel_by_name  # noqa: F401
+    _VISION_AVAILABLE = True
+except Exception:
+    _VISION_AVAILABLE = False
 
 
 def render_images_tab(state: AppState, dispatch: Callable[[Action], None]) -> None:
     """
     Render the Images tab.
     """
-    try:
-        from domain.images import list_kernels, get_kernel_by_name
-        vision_available = True
-    except ImportError:
-        vision_available = False
-
-    if not vision_available:
+    if not _VISION_AVAILABLE:
         imgui.text_colored("Vision module not available", 0.8, 0.4, 0.4, 1.0)
         imgui.text_disabled("Install Pillow: pip install Pillow")
         return
@@ -57,13 +56,7 @@ def render_images_tab(state: AppState, dispatch: Callable[[Action], None]) -> No
     if state.current_image is None:
         return
 
-    _render_image_tab_selector(state, dispatch)
-
-    if state.active_image_tab == "raw":
-        _render_raw_tab(state, dispatch)
-    else:
-        _render_preprocess_tab(state, dispatch)
-
+    _render_preprocess_tab(state, dispatch)
     _render_educational_section(state)
 
 
@@ -104,8 +97,6 @@ def _render_preprocess_tab(state: AppState, dispatch: Callable[[Action], None]) 
     if state.processed_image is not None:
         _render_result_section(state, dispatch)
 
-    if state.pipeline_steps:
-        _render_pipeline_section(state, dispatch)
 
 
 def _render_color_mode_selector(state: AppState, dispatch: Callable[[Action], None]) -> None:

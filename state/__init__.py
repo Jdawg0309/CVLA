@@ -58,7 +58,7 @@ from state.actions import (
     ToggleImageDownsample, SetImagePreviewResolution, ToggleImageOnGrid, SetSelectedPixel,
     NormalizeImage, SetImageNormalizeMean, SetImageNormalizeStd,
     # Navigation actions
-    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
+    SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
     ClearSelection, SetTheme, SetActiveTool, SetActiveImageTab,
     # History actions
     Undo, Redo,
@@ -91,7 +91,7 @@ __all__ = [
     'SetImageRenderScale', 'SetImageRenderMode', 'SetImageColorMode', 'ToggleImageGridOverlay',
     'ToggleImageDownsample', 'SetImagePreviewResolution', 'ToggleImageOnGrid', 'SetSelectedPixel',
     'NormalizeImage', 'SetImageNormalizeMean', 'SetImageNormalizeStd',
-    'SetActiveTab', 'ToggleMatrixEditor', 'ToggleMatrixValues', 'TogglePreview',
+    'SetActiveTab', 'SetActiveMode', 'ToggleMatrixEditor', 'ToggleMatrixValues', 'TogglePreview',
     'ClearSelection', 'SetTheme', 'SetActiveTool', 'SetActiveImageTab',
     'Undo', 'Redo',
     # Scene adapter

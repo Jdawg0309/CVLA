@@ -19,6 +19,7 @@ _DOCK_SPACE = getattr(imgui, "dock_space", None)
 _GET_ID = getattr(imgui, "get_id", None)
 
 from ui.toolbars.toolbar import Toolbar
+from ui.panels.mode_selector.mode_selector import ModeSelector
 from ui.panels.sidebar.sidebar import Sidebar
 from ui.panels.tool_palette.tool_palette import ToolPalette
 from ui.inspectors.inspector import Inspector
@@ -29,6 +30,7 @@ from ui.themes.theme_manager import apply_theme
 class WorkspaceLayout:
     def __init__(self):
         self.toolbar = Toolbar()
+        self.mode_selector = ModeSelector()
         self.tool_palette = ToolPalette()
         self.operations_panel = Sidebar()
         self.inspector = Inspector()
@@ -58,21 +60,26 @@ class WorkspaceLayout:
                 _DOCK_SPACE(dockspace_id, 0, 0, _DOCK_PASSTHRU_FLAG)
             imgui.end()
 
-        top_h = 58
+        top_h = 40
         bottom_h = 120
-        tool_w = 64
+        rail_w = 120
+        mode_h = 190
         left_w = 320
         right_w = 320
 
         # Top toolbar
         self.toolbar.render(state, dispatch, camera, view_config, app)
 
+        # Left mode selector
+        mode_rect = (0, top_h, rail_w, mode_h)
+        self.mode_selector.render(mode_rect, state, dispatch)
+
         # Left tool palette
-        tool_rect = (0, top_h, tool_w, display.y - top_h - bottom_h)
+        tool_rect = (0, top_h + mode_h, rail_w, display.y - top_h - bottom_h - mode_h)
         self.tool_palette.render(tool_rect, state, dispatch)
 
         # Left operations panel
-        left_rect = (tool_w, top_h, left_w, display.y - top_h - bottom_h)
+        left_rect = (rail_w, top_h, left_w, display.y - top_h - bottom_h)
         self.operations_panel.render(left_rect, camera, view_config, state, dispatch)
 
         # Right inspector panel

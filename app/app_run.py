@@ -30,6 +30,61 @@ def run(self):
         self.ctx.viewport = (0, 0, fb_w, fb_h)
         self.camera.set_viewport(fb_w, fb_h)
 
+        state = self.store.get_state()
+        view_snapshot = (
+            state.view_preset,
+            state.view_up_axis,
+            state.view_grid_mode,
+            state.view_grid_plane,
+            state.view_show_grid,
+            state.view_show_axes,
+            state.view_show_labels,
+            state.view_grid_size,
+            state.view_base_major_tick,
+            state.view_base_minor_tick,
+            state.view_major_tick,
+            state.view_minor_tick,
+            state.view_auto_rotate,
+            state.view_rotation_speed,
+            state.view_show_cube_faces,
+            state.view_show_cube_corners,
+            state.view_cubic_grid_density,
+            state.view_cube_face_opacity,
+            state.view_mode_2d,
+        )
+        if view_snapshot != self._last_view_state:
+            if state.view_preset != self._last_view_preset:
+                self.camera.set_view_preset(state.view_preset)
+                self._last_view_preset = state.view_preset
+
+            self.view_config._base_major_tick = int(state.view_base_major_tick)
+            self.view_config._base_minor_tick = int(state.view_base_minor_tick)
+            self.view_config.update(
+                up_axis=state.view_up_axis,
+                grid_mode=state.view_grid_mode,
+                grid_plane=state.view_grid_plane,
+                grid_size=state.view_grid_size,
+                show_grid=state.view_show_grid,
+                show_axes=state.view_show_axes,
+                show_labels=state.view_show_labels,
+                show_cube_faces=state.view_show_cube_faces,
+                show_cube_corners=state.view_show_cube_corners,
+                cubic_grid_density=state.view_cubic_grid_density,
+                cube_face_opacity=state.view_cube_face_opacity,
+                auto_rotate=state.view_auto_rotate,
+                rotation_speed=state.view_rotation_speed,
+            )
+            self.view_config.major_tick = int(state.view_major_tick)
+            self.view_config.minor_tick = int(state.view_minor_tick)
+            self.view_config._base_major_tick = int(state.view_base_major_tick)
+            self.view_config._base_minor_tick = int(state.view_base_minor_tick)
+            self.view_config.cube_face_colors = [
+                (color[0], color[1], color[2], state.view_cube_face_opacity)
+                for color in self.view_config.cube_face_colors
+            ]
+            self.camera.mode_2d = state.view_mode_2d
+            self._last_view_state = view_snapshot
+
         if getattr(self.view_config, 'auto_rotate', False):
             speed = getattr(self.view_config, 'rotation_speed', 0.5)
             self.camera.cubic_view_rotation(auto_rotate=True, speed=speed)
@@ -37,8 +92,6 @@ def run(self):
         self.renderer.update_view(self.view_config)
         self.labels.update_view(self.view_config)
 
-        # Get current state and create scene adapter for rendering
-        state = self.store.get_state()
         scene_adapter = build_scene_adapter(state)
 
         imgui.new_frame()

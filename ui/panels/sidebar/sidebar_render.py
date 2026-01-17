@@ -45,9 +45,9 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
         "Operations Panel",
         flags=flags,
     ):
-        active_tab = state.active_tab if state is not None else self.active_tab
+        active_mode = state.active_mode if state is not None else self.active_tab
 
-        tab_label = active_tab.title() if active_tab else "Operations"
+        tab_label = active_mode.title() if active_mode else "Operations"
         imgui.text(tab_label)
         imgui.same_line()
         imgui.text_disabled("Panel")
@@ -64,36 +64,22 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
 
         imgui.separator()
 
-        if active_tab == "vectors":
+        if active_mode == "vectors":
             self._render_vector_creation()
             if state and state.selected_type == 'vector':
                 self._render_vector_operations()
             self._render_vector_list()
-
-        elif active_tab == "matrices":
             self._render_matrix_operations()
-
-        elif active_tab == "systems":
             self._render_linear_systems()
 
-        elif active_tab == "images":
+        elif active_mode == "images":
             if state is not None and dispatch is not None:
                 render_images_tab(state, dispatch)
             else:
                 imgui.text_disabled("Images panel unavailable (no state).")
 
-        elif active_tab == "visualize":
-            self._render_visualization_options(camera, view_config)
-
-        elif active_tab == "pipelines":
-            imgui.text("Pipelines")
-            imgui.spacing()
-            imgui.text_wrapped("Use the bottom timeline to step through educational pipelines.")
-
-        elif active_tab == "help":
-            imgui.text("Help")
-            imgui.spacing()
-            imgui.text_wrapped("Select tools on the left, inspect details on the right, and step through the timeline below.")
+        elif active_mode == "visualize":
+            self._render_visualization_options(state, dispatch)
 
         self._render_export_dialog()
 

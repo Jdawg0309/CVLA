@@ -2,6 +2,8 @@
 State query helpers and color palette.
 """
 
+from collections import OrderedDict
+from math import acos, degrees, sqrt
 from typing import Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -44,6 +46,67 @@ def get_current_step(state: "AppState") -> Optional[EducationalStep]:
     if 0 <= state.pipeline_step_index < len(state.pipeline_steps):
         return state.pipeline_steps[state.pipeline_step_index]
     return None
+
+
+_VECTOR_METRIC_CACHE = OrderedDict()
+_VECTOR_CACHE_MAX = 256
+
+
+def _cache_get(cache, key):
+    if key in cache:
+        value = cache.pop(key)
+        cache[key] = value
+        return value
+    return None
+
+
+def _cache_set(cache, key, value):
+    cache[key] = value
+    if len(cache) > _VECTOR_CACHE_MAX:
+        cache.popitem(last=False)
+
+
+def get_vector_magnitude(vector: VectorData) -> float:
+    """Get cached vector magnitude."""
+    key = ("mag", vector.id, vector.coords)
+    cached = _cache_get(_VECTOR_METRIC_CACHE, key)
+    if cached is not None:
+        return cached
+    x, y, z = vector.coords
+    value = sqrt((x * x) + (y * y) + (z * z))
+    _cache_set(_VECTOR_METRIC_CACHE, key, value)
+    return value
+
+
+def get_vector_dot_angle(vector_a: VectorData, vector_b: VectorData) -> Tuple[float, float]:
+    """Get cached dot product and angle between vectors."""
+    key = ("dot_angle", vector_a.id, vector_a.coords, vector_b.id, vector_b.coords)
+    cached = _cache_get(_VECTOR_METRIC_CACHE, key)
+    if cached is not None:
+        return cached
+    ax, ay, az = vector_a.coords
+    bx, by, bz = vector_b.coords
+    dot = (ax * bx) + (ay * by) + (az * bz)
+    norm_a = sqrt((ax * ax) + (ay * ay) + (az * az))
+    norm_b = sqrt((bx * bx) + (by * by) + (bz * bz))
+    angle_deg = 0.0
+    if norm_a > 1e-10 and norm_b > 1e-10:
+        cos_angle = max(-1.0, min(1.0, dot / (norm_a * norm_b)))
+        angle_deg = degrees(acos(cos_angle))
+    value = (float(dot), float(angle_deg))
+    _cache_set(_VECTOR_METRIC_CACHE, key, value)
+    return value
+
+
+def get_vector_axis_projections(vector: VectorData) -> Tuple[float, float, float]:
+    """Get cached projections onto axes."""
+    key = ("proj", vector.id, vector.coords)
+    cached = _cache_get(_VECTOR_METRIC_CACHE, key)
+    if cached is not None:
+        return cached
+    value = tuple(float(c) for c in vector.coords)
+    _cache_set(_VECTOR_METRIC_CACHE, key, value)
+    return value
 
 
 COLOR_PALETTE = (

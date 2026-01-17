@@ -11,7 +11,7 @@ from state.actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixSize, SetInputMatrixLabel,
     SetImagePath, SetSamplePattern, SetSampleSize,
     SetTransformRotation, SetTransformScale, SetSelectedKernel,
-    SetActiveTab, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
+    SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
     ClearSelection, SetTheme, SetActiveTool,
     StepForward, StepBackward, JumpToStep,
     Undo, Redo,
@@ -19,6 +19,10 @@ from state.actions import (
     SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
     ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
     SetActiveImageTab, SetSelectedPixel,
+    SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
+    SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
+    SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
+    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
 )
 
 
@@ -49,7 +53,7 @@ def should_record_history(action) -> bool:
         SetInputVector, SetInputMatrixCell, SetInputMatrixSize,
         SetInputMatrixLabel, SetImagePath, SetSamplePattern,
         SetSampleSize, SetTransformRotation, SetTransformScale,
-        SetSelectedKernel, SetActiveTab, ToggleMatrixEditor,
+        SetSelectedKernel, SetActiveTab, SetActiveMode, ToggleMatrixEditor,
         ToggleMatrixValues, TogglePreview, ClearSelection,
         SetTheme, SetActiveTool,
         StepForward, StepBackward, JumpToStep,
@@ -57,4 +61,8 @@ def should_record_history(action) -> bool:
         SetImageRenderScale, SetImageRenderMode, SetImagePreviewResolution,
         ToggleImageGridOverlay, ToggleImageDownsample, ToggleImageOnGrid,
         SetActiveImageTab, SetSelectedPixel,
+        SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
+        SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
+        SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
+        SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     ))
