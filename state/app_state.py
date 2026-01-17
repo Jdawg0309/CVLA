@@ -17,10 +17,8 @@ import numpy as np
 
 from state.models.vector_model import VectorData
 from state.models.matrix_model import MatrixData
-from state.models.plane_model import PlaneData
 from state.models.image_model import ImageData
 from state.models.educational_step import EducationalStep
-from state.models.pipeline_models import PipelineOp, MicroOp
 
 
 # Maximum undo history depth
@@ -40,7 +38,6 @@ class AppState:
     # =========================================================================
     vectors: Tuple[VectorData, ...] = ()
     matrices: Tuple[MatrixData, ...] = ()
-    planes: Tuple[PlaneData, ...] = ()
 
     # =========================================================================
     # SELECTION STATE
@@ -56,14 +53,7 @@ class AppState:
     selected_kernel: str = 'sobel_x'
     image_status: str = ""
     image_status_level: str = "info"  # "info" | "error"
-    image_pipeline: Tuple[PipelineOp, ...] = ()
-    active_pipeline_index: int = 0
-    micro_step_index: int = 0
-    micro_step_total: int = 0
-    micro_op: Optional[MicroOp] = None
     selected_pixel: Optional[Tuple[int, int]] = None
-    image_step_index: int = 0
-    image_step_total: int = 0
     image_render_mode: str = "plane"  # 'plane' | 'height-field'
     image_render_scale: float = 1.0
     image_color_mode: str = "rgb"  # 'rgb' | 'grayscale' | 'heatmap'
@@ -95,8 +85,14 @@ class AppState:
     input_matrix_label: str = "A"
     input_matrix_size: int = 3
 
+    input_equations: Tuple[Tuple[float, ...], ...] = (
+        (1.0, 1.0, 1.0, 0.0),
+        (2.0, -1.0, 0.0, 0.0),
+        (0.0, 1.0, -1.0, 0.0),
+    )
+    input_equation_count: int = 3
+
     input_image_path: str = ""
-    input_mnist_index: int = 0
     input_sample_pattern: str = "checkerboard"
     input_sample_size: int = 32
     input_transform_rotation: float = 0.0
@@ -109,13 +105,10 @@ class AppState:
     # UI VIEW STATE
     # =========================================================================
     active_tab: str = "vectors"
-    ribbon_tab: str = "File"
     ui_theme: str = "dark"
     active_tool: str = "select"
     show_matrix_editor: bool = False
     show_matrix_values: bool = False
-    show_heatmap: bool = True
-    show_channels: bool = False
     show_image_on_grid: bool = True
     preview_enabled: bool = False
 
