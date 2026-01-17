@@ -66,6 +66,8 @@ def run(self):
             image_render_scale=state.image_render_scale,
             image_color_mode=state.image_color_mode,
             image_color_source=color_source,
+            image_render_mode=state.image_render_mode,
+            show_image_grid_overlay=state.show_image_grid_overlay,
         )
 
         try:

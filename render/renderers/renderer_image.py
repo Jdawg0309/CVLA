@@ -68,11 +68,11 @@ def _image_color(self, intensity, color_mode):
     return (i, i, i, 1.0)
 
 
-def _cache_key(image_data, color_source, color_mode, scale):
+def _cache_key(image_data, color_source, color_mode, scale, render_mode):
     """Create a stable key for caching image batches."""
     image_id = getattr(image_data, "id", id(image_data))
     alt_id = getattr(color_source, "id", id(color_source)) if color_source is not None else None
-    return (image_id, alt_id, color_mode, float(scale))
+    return (image_id, alt_id, color_mode, float(scale), render_mode)
 
 
 def _make_batch(vertices, normals, colors):
@@ -84,7 +84,7 @@ def _make_batch(vertices, normals, colors):
 
 
 def _build_image_batches(self, matrix, channels, color_matrix, alt_channels,
-                         color_mode, scale, chunk_pixel_limit, half_w, half_h):
+                         color_mode, scale, chunk_pixel_limit, half_w, half_h, render_mode):
     """Build vertex, normal, and color batches that fit into the VBO."""
     vertices = []
     normals = []
@@ -103,6 +103,7 @@ def _build_image_batches(self, matrix, channels, color_matrix, alt_channels,
     h, w = matrix.shape[:2]
     for y in range(h):
         for x in range(w):
+            intensity = None
             if _is_rgb_display(color_mode, matrix, channels):
                 color = _rgb_color(matrix, channels, y, x)
             elif color_mode == "rgb" and color_matrix is not None and alt_channels >= 3:
@@ -112,18 +113,24 @@ def _build_image_batches(self, matrix, channels, color_matrix, alt_channels,
                 intensity = _get_intensity(matrix, y, x)
                 color = _image_color(self, intensity, color_mode)
 
+            height = 0.0
+            if render_mode == "height-field":
+                if intensity is None:
+                    intensity = _get_intensity(matrix, y, x)
+                height = float(intensity) * scale
+
             x0 = (x - half_w) * scale
             x1 = (x - half_w + 1.0) * scale
             y0 = (half_h - y) * scale
             y1 = (half_h - y - 1.0) * scale
 
             quad = [
-                [x0, y0, 0.0],
-                [x0, y1, 0.0],
-                [x1, y1, 0.0],
-                [x0, y0, 0.0],
-                [x1, y1, 0.0],
-                [x1, y0, 0.0],
+                [x0, y0, height],
+                [x0, y1, height],
+                [x1, y1, height],
+                [x0, y0, height],
+                [x1, y1, height],
+                [x1, y0, height],
             ]
 
             vertices.extend(quad)
@@ -137,7 +144,8 @@ def _build_image_batches(self, matrix, channels, color_matrix, alt_channels,
     return batches
 
 
-def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", color_source=None):
+def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", color_source=None,
+                     render_mode="plane"):
     """Render image pixels as filled squares on the XY plane (Z = 0)."""
     try:
         matrix, channels = _resolve_image_matrix(image_data)
@@ -165,14 +173,14 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
     chunk_pixel_limit = max(256, buffer_capacity // bytes_per_pixel)
     chunk_pixel_limit = max(chunk_pixel_limit, 1)
 
-    key = _cache_key(image_data, color_source, color_mode, scale)
+    key = _cache_key(image_data, color_source, color_mode, scale, render_mode)
     cache = getattr(self, "_image_plane_cache", None)
     if cache is None or cache["key"] != key:
         batches = _build_image_batches(
             self, matrix, channels,
             alt_matrix if alt_matrix is not None else None,
             alt_channels, color_mode, scale,
-            chunk_pixel_limit, half_w, half_h
+            chunk_pixel_limit, half_w, half_h, render_mode
         )
         self._image_plane_cache = {"key": key, "batches": batches}
     else:

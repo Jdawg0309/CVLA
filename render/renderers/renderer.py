@@ -14,7 +14,7 @@ from render.renderers.renderer_linear_algebra import (
     _render_matrix_3d_plot,
 )
 from render.renderers.renderer_vectors import _render_vectors_with_enhancements, _render_vector_projections, _render_selection_highlight
-from render.renderers.renderer_image import draw_image_plane, _image_color
+from render.renderers.renderer_image import draw_image_plane, _image_color, _resolve_image_matrix
 
 
 class Renderer:
@@ -76,7 +76,8 @@ class Renderer:
             pass
 
     def render(self, scene, image_data=None, show_image_on_grid=False, image_render_scale=1.0,
-               image_color_mode="grayscale", image_color_source=None):
+               image_color_mode="grayscale", image_color_source=None,
+               image_render_mode="plane", show_image_grid_overlay=False):
         """Main rendering method."""
         self._clear_with_gradient()
 
@@ -87,14 +88,30 @@ class Renderer:
         else:
             self._render_planar_environment(vp)
 
-        if image_data is not None:
+        if image_data is not None and show_image_on_grid:
             self.draw_image_plane(
                 image_data,
                 vp,
                 scale=image_render_scale,
                 color_mode=image_color_mode,
                 color_source=image_color_source,
+                render_mode=image_render_mode,
             )
+            if show_image_grid_overlay:
+                try:
+                    matrix, _ = _resolve_image_matrix(image_data)
+                    height, width = matrix.shape[:2]
+                    grid_size = int(max(1.0, max(width, height) * image_render_scale * 0.5))
+                    self.gizmos.draw_grid(
+                        vp,
+                        size=grid_size,
+                        step=1,
+                        plane="xy",
+                        color_major=(0.35, 0.35, 0.4, 0.6),
+                        color_minor=(0.22, 0.22, 0.25, 0.4),
+                    )
+                except Exception:
+                    pass
 
         self._render_linear_algebra_visuals(scene, vp)
         self._render_vectors_with_enhancements(scene, vp)

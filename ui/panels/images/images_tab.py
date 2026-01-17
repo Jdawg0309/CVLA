@@ -11,8 +11,14 @@ from state import (
     NormalizeImage,
     SetActiveImageTab,
     SetImageColorMode,
+    SetImageRenderMode,
+    SetImageRenderScale,
     SetImageNormalizeMean,
     SetImageNormalizeStd,
+    SetImagePreviewResolution,
+    ToggleImageDownsample,
+    ToggleImageGridOverlay,
+    ToggleImageOnGrid,
 )
 from ui.panels.images.images_source_section import _render_image_source_section
 from ui.panels.images.images_info_section import _render_image_info_section
@@ -64,6 +70,7 @@ def render_images_tab(state: AppState, dispatch: Callable[[Action], None]) -> No
 def _render_raw_tab(state: AppState, dispatch: Callable[[Action], None]) -> None:
     """Render the raw image tab with color mode controls."""
     _render_color_mode_selector(state, dispatch)
+    _render_image_render_options(state, dispatch)
     _render_image_info_section(state, dispatch)
 
 
@@ -150,6 +157,67 @@ def _render_normalization_section(state: AppState, dispatch: Callable[[Action], 
                 mean=state.input_image_normalize_mean,
                 std=state.input_image_normalize_std,
             ))
+
+        imgui.unindent(10)
+        imgui.spacing()
+    imgui.pop_style_color()
+
+
+def _render_image_render_options(state: AppState, dispatch: Callable[[Action], None]) -> None:
+    """Render image render options (mode, scale, and overlays)."""
+    imgui.push_style_color(imgui.COLOR_HEADER, 0.16, 0.16, 0.19, 0.75)
+    if imgui.collapsing_header("Render Options", imgui.TREE_NODE_DEFAULT_OPEN)[0]:
+        imgui.indent(10)
+
+        imgui.text("Render Mode:")
+        imgui.spacing()
+        modes = [("Plane", "plane"), ("Height Field", "height-field")]
+        for idx, (label, mode_id) in enumerate(modes):
+            selected = (state.image_render_mode == mode_id)
+            if imgui.radio_button(label, selected):
+                dispatch(SetImageRenderMode(mode=mode_id))
+            if idx < len(modes) - 1:
+                imgui.same_line()
+
+        imgui.spacing()
+        imgui.text("Render Scale:")
+        imgui.push_item_width(180)
+        changed, new_scale = imgui.slider_float(
+            "##image_render_scale",
+            state.image_render_scale,
+            0.1,
+            5.0,
+            format="%.2f",
+        )
+        imgui.pop_item_width()
+        if changed:
+            dispatch(SetImageRenderScale(scale=new_scale))
+
+        imgui.spacing()
+        changed, show_on_grid = imgui.checkbox("Show Image on Grid", state.show_image_on_grid)
+        if changed:
+            dispatch(ToggleImageOnGrid())
+
+        changed, overlay = imgui.checkbox("Pixel Grid Overlay", state.show_image_grid_overlay)
+        if changed:
+            dispatch(ToggleImageGridOverlay())
+
+        imgui.spacing()
+        changed, downsample = imgui.checkbox("Downsample on Load", state.image_downsample_enabled)
+        if changed:
+            dispatch(ToggleImageDownsample())
+
+        imgui.same_line()
+        imgui.push_item_width(120)
+        preview_changed, preview_size = imgui.slider_int(
+            "Preview Size",
+            state.image_preview_resolution,
+            32,
+            512,
+        )
+        imgui.pop_item_width()
+        if preview_changed:
+            dispatch(SetImagePreviewResolution(size=preview_size))
 
         imgui.unindent(10)
         imgui.spacing()
