@@ -11,6 +11,7 @@ import imgui
 from app.app_logging import dlog
 from app.app_state_bridge import build_scene_adapter
 from engine.execution_loop import FrameTimer
+from state import get_current_step
 
 
 def run(self):
@@ -59,6 +60,12 @@ def run(self):
         else:
             if state.current_image and state.image_color_mode == "rgb":
                 color_source = state.current_image
+            current_step = get_current_step(state)
+            if current_step is not None:
+                if current_step.output_data is not None:
+                    render_image = current_step.output_data
+                elif current_step.input_data is not None:
+                    render_image = current_step.input_data
         self.renderer.render(
             scene_adapter,
             image_data=render_image,
