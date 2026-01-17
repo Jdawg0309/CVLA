@@ -61,8 +61,10 @@ def reduce_image_transform(state, action, with_history):
             )
             return with_history(new_state)
         except Exception as e:
-            print(f"ApplyTransform error: {e}")
-            return state
+            return replace(state,
+                image_status=f"Transform failed: {e}",
+                image_status_level="error",
+            )
 
     if isinstance(action, FlipImageHorizontal):
         if state.current_image is None:
@@ -108,7 +110,10 @@ def reduce_image_transform(state, action, with_history):
                 pipeline_step_index=len(state.pipeline_steps),
             )
             return with_history(new_state)
-        except Exception:
-            return state
+        except Exception as e:
+            return replace(state,
+                image_status=f"Transform failed: {e}",
+                image_status_level="error",
+            )
 
     return None

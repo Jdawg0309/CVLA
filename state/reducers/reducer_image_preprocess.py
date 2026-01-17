@@ -52,5 +52,7 @@ def reduce_image_preprocess(state, action, with_history):
         )
         return with_history(new_state)
     except Exception as exc:
-        print(f"NormalizeImage error: {exc}")
-        return state
+        return replace(state,
+            image_status=f"Normalize failed: {exc}",
+            image_status_level="error",
+        )
