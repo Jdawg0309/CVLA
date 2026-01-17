@@ -80,7 +80,7 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
             if state is not None and dispatch is not None:
                 render_images_tab(state, dispatch)
             else:
-                self._render_image_operations()
+                imgui.text_disabled("Images panel unavailable (no state).")
 
         elif active_tab == "visualize":
             self._render_visualization_options(camera, view_config)

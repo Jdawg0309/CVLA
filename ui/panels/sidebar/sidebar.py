@@ -8,14 +8,6 @@ from ui.panels.sidebar.sidebar_export import (
     _export_csv,
     _export_python,
 )
-from ui.panels.sidebar.sidebar_images_convolution import _render_image_convolution_section
-from ui.panels.sidebar.sidebar_images_education import _render_image_education_section
-from ui.panels.sidebar.sidebar_images_info import _render_image_info_section
-from ui.panels.sidebar.sidebar_images_ops import _add_image_as_vectors
-from ui.panels.sidebar.sidebar_images_result import _render_image_result_section
-from ui.panels.sidebar.sidebar_images_section import _render_image_operations
-from ui.panels.sidebar.sidebar_images_source import _render_image_source_section
-from ui.panels.sidebar.sidebar_images_transform import _render_image_transform_section
 from ui.panels.sidebar.sidebar_linear_system_ops import (
     _resize_equations,
     _solve_linear_system,
@@ -78,14 +70,5 @@ class Sidebar:
     _export_json = _export_json
     _export_csv = _export_csv
     _export_python = _export_python
-
-    _render_image_operations = _render_image_operations
-    _render_image_source_section = _render_image_source_section
-    _render_image_info_section = _render_image_info_section
-    _render_image_convolution_section = _render_image_convolution_section
-    _render_image_transform_section = _render_image_transform_section
-    _render_image_result_section = _render_image_result_section
-    _render_image_education_section = _render_image_education_section
-    _add_image_as_vectors = _add_image_as_vectors
 
     render = render
