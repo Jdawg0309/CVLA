@@ -44,6 +44,10 @@ def _add_solution_vectors(self, solution):
     """Add solution as vectors to scene."""
     if self._dispatch is None:
         return
+    palette = None
+    if self._state is not None:
+        from state.selectors import COLOR_PALETTE
+        palette = COLOR_PALETTE
 
     if len(solution) == 3:
         coords = np.array(solution, dtype=np.float32)
@@ -57,9 +61,14 @@ def _add_solution_vectors(self, solution):
     for i, val in enumerate(solution):
         coords = np.zeros(3, dtype=np.float32)
         coords[i % 3] = val
+        color = None
+        if palette:
+            color = palette[i % len(palette)]
+        else:
+            color = (0.8, 0.2, 0.2)
 
         self._dispatch(AddVector(
             coords=tuple(coords.tolist()),
-            color=self.color_palette[i % len(self.color_palette)],
+            color=color,
             label=f"x{i+1}",
         ))
