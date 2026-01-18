@@ -2,7 +2,7 @@
 Sidebar vector list section.
 
 This module displays the list of vectors and handles selection/deletion.
-Reads from AppState.vectors and dispatches actions for state changes.
+Reads from tensors via selectors and dispatches actions for state changes.
 """
 
 import imgui
@@ -13,6 +13,7 @@ from state.actions import (
     ClearAllVectors,
     DeselectVector,
 )
+from state.selectors import get_vectors
 
 
 def _render_vector_list(self):
@@ -51,8 +52,8 @@ def _render_vector_list(self):
 
         imgui.begin_child("##vector_list", 0, 200, border=True)
 
-        all_vectors = list(self._state.vectors)
-        selected_id = self._state.selected_id
+        all_vectors = list(get_vectors(self._state))
+        selected_id = self._state.selected_tensor_id or self._state.selected_id
 
         # Apply filter
         filtered_vectors = all_vectors

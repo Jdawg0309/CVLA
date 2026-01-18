@@ -2,11 +2,12 @@
 Sidebar vector operations section.
 
 This module handles vector algebra operations (add, subtract, cross, dot).
-Reads from AppState.vectors when available.
+Reads vectors via selectors from tensors.
 """
 
 import imgui
 from state.actions import AddVector, UpdateVector
+from state.selectors import get_vectors
 
 
 def _render_vector_operations(self):
@@ -21,8 +22,8 @@ def _render_vector_operations(self):
             self._end_section()
             return
 
-        vectors = list(self._state.vectors)
-        selected_id = self._state.selected_id
+        vectors = list(get_vectors(self._state))
+        selected_id = self._state.selected_tensor_id or self._state.selected_id
         selected_vector = None
         for v in vectors:
             if v.id == selected_id:

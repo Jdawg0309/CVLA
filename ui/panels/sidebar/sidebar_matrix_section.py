@@ -2,7 +2,7 @@
 Sidebar matrix operations section.
 
 This module handles matrix operations UI.
-Reads from AppState.matrices when available.
+Reads matrices via selectors from tensors.
 """
 
 import imgui
@@ -13,6 +13,7 @@ from state.actions import (
     SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel, SelectMatrix,
     ToggleMatrixEditor, TogglePreview, ToggleMatrixPlot,
 )
+from state.selectors import get_matrices
 
 
 def _render_matrix_operations(self):
@@ -27,7 +28,7 @@ def _render_matrix_operations(self):
             self._end_section()
             return
 
-        matrices = list(self._state.matrices)
+        matrices = list(get_matrices(self._state))
         input_matrix = [list(row) for row in self._state.input_matrix]
         matrix_rows = self._state.input_matrix_rows
         matrix_cols = self._state.input_matrix_cols

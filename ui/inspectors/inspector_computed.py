@@ -4,7 +4,7 @@ Inspector computed properties section.
 
 import imgui
 from state.actions import AddVector
-from state.selectors import get_vector_axis_projections, get_vector_dot_angle
+from state.selectors import get_vector_axis_projections, get_vector_dot_angle, get_vectors
 
 
 def _render_computed_properties(self, vector, state, dispatch):
@@ -12,11 +12,12 @@ def _render_computed_properties(self, vector, state, dispatch):
     if imgui.collapsing_header("Computed Properties",
                               flags=imgui.TREE_NODE_DEFAULT_OPEN):
 
-        if len(state.vectors) > 1:
+        all_vectors = list(get_vectors(state))
+        if len(all_vectors) > 1:
             imgui.text("Compare with:")
             imgui.same_line()
 
-            other_vectors = [v for v in state.vectors if v.id != vector.id]
+            other_vectors = [v for v in all_vectors if v.id != vector.id]
             if other_vectors:
                 if not hasattr(self, "_compare_vector_id"):
                     self._compare_vector_id = other_vectors[0].id

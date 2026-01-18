@@ -70,13 +70,31 @@ def get_tensors_by_type(state: "AppState", tensor_type: str) -> Tuple["TensorDat
 
 
 def get_vectors(state: "AppState") -> Tuple["TensorData", ...]:
-    """Get all vector tensors."""
-    return get_tensors_by_type(state, 'vector')
+    """Get all vector tensors (includes legacy vectors converted to TensorData)."""
+    from state.models.tensor_compat import vector_to_tensor
+    # Get tensors from tensor store
+    tensor_vectors = get_tensors_by_type(state, 'vector')
+    tensor_ids = {t.id for t in tensor_vectors}
+    # Also include legacy vectors not already in tensor store
+    legacy_converted = tuple(
+        vector_to_tensor(v) for v in state.vectors if v.id not in tensor_ids
+    )
+    return tensor_vectors + legacy_converted
 
 
 def get_matrices(state: "AppState") -> Tuple["TensorData", ...]:
-    """Get all matrix tensors."""
-    return get_tensors_by_type(state, 'matrix')
+    """Get all matrix tensors (includes legacy matrices converted to TensorData)."""
+    from state.models.tensor_compat import matrix_to_tensor
+    # Get tensors from tensor store (non-image rank-2)
+    tensor_matrices = tuple(
+        t for t in state.tensors if t.rank == 2 and not t.is_image_dtype
+    )
+    tensor_ids = {t.id for t in tensor_matrices}
+    # Also include legacy matrices not already in tensor store
+    legacy_converted = tuple(
+        matrix_to_tensor(m) for m in state.matrices if m.id not in tensor_ids
+    )
+    return tensor_matrices + legacy_converted
 
 
 def get_images(state: "AppState") -> Tuple["TensorData", ...]:

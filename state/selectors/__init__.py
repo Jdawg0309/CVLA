@@ -4,11 +4,12 @@ State query helpers and color palette.
 
 from collections import OrderedDict
 from math import acos, degrees, sqrt
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from state.app_state import AppState
-from state.models import VectorData, MatrixData, EducationalStep
+from state.models import VectorData, MatrixData, EducationalStep, TensorData
+from state.models.tensor_compat import tensor_to_vector, tensor_to_matrix
 
 # Import tensor selectors
 from state.selectors.tensor_selectors import (
@@ -52,32 +53,54 @@ from state.selectors.tensor_selectors import (
 
 
 def get_vector_by_id(state: "AppState", id: str) -> Optional[VectorData]:
-    """Find a vector by ID."""
+    """Find a vector by ID (checks both legacy vectors and tensors)."""
+    # Check legacy vectors first
     for v in state.vectors:
         if v.id == id:
             return v
+    # Check tensors (rank-1 = vector)
+    for t in state.tensors:
+        if t.id == id and t.rank == 1:
+            return tensor_to_vector(t)
     return None
 
 
 def get_matrix_by_id(state: "AppState", id: str) -> Optional[MatrixData]:
-    """Find a matrix by ID."""
+    """Find a matrix by ID (checks both legacy matrices and tensors)."""
+    # Check legacy matrices first
     for m in state.matrices:
         if m.id == id:
             return m
+    # Check tensors (rank-2, non-image = matrix)
+    for t in state.tensors:
+        if t.id == id and t.rank == 2 and not t.is_image_dtype:
+            return tensor_to_matrix(t)
     return None
 
 
 def get_selected_vector(state: "AppState") -> Optional[VectorData]:
-    """Get the currently selected vector, if any."""
+    """Get the currently selected vector, if any (checks both legacy and tensor selection)."""
+    # Check legacy selection first
     if state.selected_type == 'vector' and state.selected_id:
         return get_vector_by_id(state, state.selected_id)
+    # Check tensor selection (selected_tensor_id pointing to rank-1 tensor)
+    if state.selected_tensor_id:
+        for t in state.tensors:
+            if t.id == state.selected_tensor_id and t.rank == 1:
+                return tensor_to_vector(t)
     return None
 
 
 def get_selected_matrix(state: "AppState") -> Optional[MatrixData]:
-    """Get the currently selected matrix, if any."""
+    """Get the currently selected matrix, if any (checks both legacy and tensor selection)."""
+    # Check legacy selection first
     if state.selected_type == 'matrix' and state.selected_id:
         return get_matrix_by_id(state, state.selected_id)
+    # Check tensor selection (selected_tensor_id pointing to rank-2 non-image tensor)
+    if state.selected_tensor_id:
+        for t in state.tensors:
+            if t.id == state.selected_tensor_id and t.rank == 2 and not t.is_image_dtype:
+                return tensor_to_matrix(t)
     return None
 
 
@@ -106,31 +129,38 @@ def _cache_set(cache, key, value):
         cache.popitem(last=False)
 
 
-def get_vector_magnitude(vector: VectorData) -> float:
-    """Get cached vector magnitude."""
-    key = ("mag", vector.id, vector.coords)
+def get_vector_magnitude(vector: Union[VectorData, TensorData]) -> float:
+    """Get cached vector magnitude (accepts both VectorData and TensorData)."""
+    coords = vector.coords if hasattr(vector, 'coords') else vector.data
+    key = ("mag", vector.id, coords)
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
         return cached
-    x, y, z = vector.coords
+    # Pad to 3D if needed
+    c = list(coords)
+    while len(c) < 3:
+        c.append(0.0)
+    x, y, z = c[0], c[1], c[2]
     value = sqrt((x * x) + (y * y) + (z * z))
     _cache_set(_VECTOR_METRIC_CACHE, key, value)
     return value
 
 
-def get_vector_dot_angle(vector_a: VectorData, vector_b: VectorData) -> Tuple[float, float]:
-    """Get cached dot product and angle between vectors."""
-    key = ("dot_angle", vector_a.id, vector_a.coords, vector_b.id, vector_b.coords)
+def get_vector_dot_angle(vector_a: Union[VectorData, TensorData], vector_b: Union[VectorData, TensorData]) -> Tuple[float, float]:
+    """Get cached dot product and angle between vectors (accepts both VectorData and TensorData)."""
+    coords_a = vector_a.coords if hasattr(vector_a, 'coords') else vector_a.data
+    coords_b = vector_b.coords if hasattr(vector_b, 'coords') else vector_b.data
+    key = ("dot_angle", vector_a.id, coords_a, vector_b.id, coords_b)
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
         return cached
-    if len(vector_a.coords) != len(vector_b.coords):
+    if len(coords_a) != len(coords_b):
         value = (0.0, 0.0)
         _cache_set(_VECTOR_METRIC_CACHE, key, value)
         return value
-    dot = sum(a * b for a, b in zip(vector_a.coords, vector_b.coords))
-    norm_a = sqrt(sum(a * a for a in vector_a.coords))
-    norm_b = sqrt(sum(b * b for b in vector_b.coords))
+    dot = sum(a * b for a, b in zip(coords_a, coords_b))
+    norm_a = sqrt(sum(a * a for a in coords_a))
+    norm_b = sqrt(sum(b * b for b in coords_b))
     angle_deg = 0.0
     if norm_a > 1e-10 and norm_b > 1e-10:
         cos_angle = max(-1.0, min(1.0, dot / (norm_a * norm_b)))
@@ -140,13 +170,14 @@ def get_vector_dot_angle(vector_a: VectorData, vector_b: VectorData) -> Tuple[fl
     return value
 
 
-def get_vector_axis_projections(vector: VectorData) -> Tuple[float, float, float]:
-    """Get cached projections onto axes."""
-    key = ("proj", vector.id, vector.coords)
+def get_vector_axis_projections(vector: Union[VectorData, TensorData]) -> Tuple[float, float, float]:
+    """Get cached projections onto axes (accepts both VectorData and TensorData)."""
+    vec_coords = vector.coords if hasattr(vector, 'coords') else vector.data
+    key = ("proj", vector.id, vec_coords)
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
         return cached
-    coords = list(vector.coords)
+    coords = list(vec_coords)
     if len(coords) < 3:
         coords += [0.0] * (3 - len(coords))
     value = tuple(float(c) for c in coords[:3])
