@@ -17,8 +17,8 @@ from typing import List, Optional, Protocol, Tuple
 from dataclasses import dataclass
 
 from state.app_state import AppState
-from state.models import VectorData, MatrixData
 from state.models.tensor_model import TensorData, TensorDType
+from state.selectors import get_vectors, get_matrices
 
 
 def _build_tensor_faces(tensors: Tuple[TensorData, ...]) -> List[dict]:
@@ -90,7 +90,7 @@ class RendererVector:
     """
     Vector representation for the renderer.
 
-    Mirrors the old Vector3D interface but is derived from VectorData.
+    Converts TensorData (rank-1) to a format suitable for rendering.
     """
     id: str
     coords: np.ndarray
@@ -99,22 +99,8 @@ class RendererVector:
     visible: bool = True
 
     @staticmethod
-    def from_vector_data(v: VectorData) -> 'RendererVector':
-        coords = list(v.coords)
-        if len(coords) < 3:
-            coords = coords + [0.0] * (3 - len(coords))
-        elif len(coords) > 3:
-            coords = coords[:3]
-        return RendererVector(
-            id=v.id,
-            coords=np.array(coords, dtype=np.float32),
-            color=v.color,
-            label=v.label,
-            visible=v.visible,
-        )
-
-    @staticmethod
     def from_tensor_data(t: TensorData) -> 'RendererVector':
+        """Create RendererVector from TensorData (rank-1 tensor)."""
         coords = list(t.coords)
         if len(coords) < 3:
             coords = coords + [0.0] * (3 - len(coords))
@@ -133,6 +119,8 @@ class RendererVector:
 class RendererMatrix:
     """
     Matrix representation for the renderer.
+
+    Converts TensorData (rank-2, non-image) to a format suitable for rendering.
     """
     matrix: np.ndarray
     label: str
@@ -140,15 +128,8 @@ class RendererMatrix:
     color: tuple = (0.8, 0.5, 0.2, 0.6)
 
     @staticmethod
-    def from_matrix_data(m: MatrixData) -> 'RendererMatrix':
-        return RendererMatrix(
-            matrix=np.array(m.values, dtype=np.float32),
-            label=m.label,
-            visible=m.visible,
-        )
-
-    @staticmethod
     def from_tensor_data(t: TensorData) -> 'RendererMatrix':
+        """Create RendererMatrix from TensorData (rank-2 tensor)."""
         return RendererMatrix(
             matrix=np.array(t.values, dtype=np.float32),
             label=t.label,
@@ -182,13 +163,9 @@ class SceneAdapter:
         """
         self._state = state
 
-        # Convert legacy vectors to renderer format
-        self._vectors = [RendererVector.from_vector_data(v) for v in state.vectors]
-
-        # Convert tensor vectors to renderer format
-        for t in state.tensors:
-            if t.rank == 1:
-                self._vectors.append(RendererVector.from_tensor_data(t))
+        # Get all vectors via unified selector (includes both legacy and tensor store)
+        all_vectors = get_vectors(state)
+        self._vectors = [RendererVector.from_tensor_data(v) for v in all_vectors]
 
         # Operation step overlays (render hints)
         if getattr(state, "operations", None) and state.operations.steps:
@@ -224,16 +201,20 @@ class SceneAdapter:
                 )
                 self._vectors.append(preview_vector)
 
-        # Convert matrices to renderer format (dict-like for compatibility)
+        # Get all matrices via unified selector (includes both legacy and tensor store)
+        all_matrices = get_matrices(state)
         self._matrices = []
-        for m in state.matrices:
-            matrix_np = np.array(m.values, dtype=np.float32)
+        for m in all_matrices:
+            try:
+                matrix_np = np.array(m.values, dtype=np.float32)
+            except Exception:
+                continue
             self._matrices.append({
                 'id': m.id,
                 'matrix': matrix_np,
                 'label': m.label,
                 'visible': m.visible,
-                'color': (0.8, 0.5, 0.2, 0.6),
+                'color': tuple(m.color) + (0.6,) if len(m.color) == 3 else (0.8, 0.5, 0.2, 0.6),
                 'transformations': [],
             })
             # --- Workaround: render matrix columns as vectors for visibility ---
@@ -241,61 +222,32 @@ class SceneAdapter:
                 matrix_np,
                 matrix_id=m.id,
                 label=m.label,
-                color=(0.8, 0.5, 0.2),
+                color=m.color[:3] if len(m.color) >= 3 else (0.8, 0.5, 0.2),
                 visible=m.visible,
             ))
 
-        for t in state.tensors:
-            if t.rank == 2 and t.dtype not in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
-                try:
-                    matrix = np.array(t.values, dtype=np.float32)
-                except Exception:
-                    continue
-                self._matrices.append({
-                    'id': t.id,
-                    'matrix': matrix,
-                    'label': t.label,
-                    'visible': t.visible,
-                    'color': (0.4, 0.9, 0.6, 0.6),
-                    'transformations': [],
-                })
-                self._vectors.extend(_matrix_columns_as_vectors(
-                    matrix,
-                    matrix_id=t.id,
-                    label=t.label,
-                    color=t.color[:3] if len(t.color) >= 3 else (0.4, 0.9, 0.6),
-                    visible=t.visible,
-                ))
-
-        # Selection (prefer tensor selection when present)
+        # Selection - use selected_tensor_id as primary, fall back to legacy selection
         self._selected_object = None
         self._selection_type = None
 
         vector_by_id = {v.id: v for v in self._vectors}
         matrix_by_id = {m.get('id'): m for m in self._matrices}
 
-        if state.selected_tensor_id:
-            selected_tensor = next(
-                (t for t in state.tensors if t.id == state.selected_tensor_id),
-                None
-            )
-            if selected_tensor is not None:
-                if selected_tensor.is_image_dtype:
-                    self._selection_type = None
-                    self._selected_object = None
-                elif selected_tensor.rank == 1:
-                    self._selection_type = 'vector'
-                    self._selected_object = vector_by_id.get(selected_tensor.id)
-                elif selected_tensor.rank == 2:
-                    self._selection_type = 'matrix'
-                    self._selected_object = matrix_by_id.get(selected_tensor.id)
+        # Determine selection ID (prefer tensor selection)
+        selection_id = state.selected_tensor_id or state.selected_id
 
-        if self._selected_object is None:
-            self._selection_type = state.selected_type
-            if state.selected_id and state.selected_type == 'vector':
-                self._selected_object = vector_by_id.get(state.selected_id)
-            elif state.selected_id and state.selected_type == 'matrix':
-                self._selected_object = matrix_by_id.get(state.selected_id)
+        if selection_id:
+            # Check if it's a vector
+            if selection_id in vector_by_id:
+                self._selection_type = 'vector'
+                self._selected_object = vector_by_id[selection_id]
+            # Check if it's a matrix
+            elif selection_id in matrix_by_id:
+                self._selection_type = 'matrix'
+                self._selected_object = matrix_by_id[selection_id]
+            # Fall back to legacy selection type if ID not found
+            elif state.selected_type:
+                self._selection_type = state.selected_type
 
         # Preview matrix (from input_matrix if preview is enabled)
         self._preview_matrix = None
