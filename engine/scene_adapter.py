@@ -226,15 +226,15 @@ class SceneAdapter:
                 visible=m.visible,
             ))
 
-        # Selection - use selected_tensor_id as primary, fall back to legacy selection
+        # Selection - tensor-only
         self._selected_object = None
         self._selection_type = None
 
         vector_by_id = {v.id: v for v in self._vectors}
         matrix_by_id = {m.get('id'): m for m in self._matrices}
 
-        # Determine selection ID (prefer tensor selection)
-        selection_id = state.selected_tensor_id or state.selected_id
+        # Determine selection ID
+        selection_id = state.selected_tensor_id
 
         if selection_id:
             # Check if it's a vector
@@ -245,9 +245,6 @@ class SceneAdapter:
             elif selection_id in matrix_by_id:
                 self._selection_type = 'matrix'
                 self._selected_object = matrix_by_id[selection_id]
-            # Fall back to legacy selection type if ID not found
-            elif state.selected_type:
-                self._selection_type = state.selected_type
 
         # Preview matrix (from input_matrix if preview is enabled)
         self._preview_matrix = None

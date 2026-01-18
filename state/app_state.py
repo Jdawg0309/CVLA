@@ -221,19 +221,6 @@ class AppState:
     error_message: Optional[str] = None
     show_error_modal: bool = False
 
-    # ---------------------------------------------------------------------
-    # Temporary compatibility for frozen engine code (remove in Phase 7)
-    # ---------------------------------------------------------------------
-    @property
-    def selected_id(self) -> Optional[str]:
-        """Temporary engine compatibility: mirror selected_tensor_id (read-only)."""
-        return self.selected_tensor_id
-
-    @property
-    def selected_type(self) -> Optional[str]:
-        """Temporary engine compatibility: legacy selection type is not used."""
-        return None
-
 
 def create_initial_state() -> AppState:
     """
