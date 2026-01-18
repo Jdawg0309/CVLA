@@ -13,6 +13,7 @@ from render.renderers.renderer_linear_algebra import (
     _render_linear_algebra_visuals,
     _render_matrix_3d_plot,
 )
+from render.renderers.renderer_tensor_faces import _render_tensor_faces
 from render.renderers.renderer_vectors import _render_vectors_with_enhancements, _render_vector_projections, _render_selection_highlight
 from render.renderers.renderer_image import draw_image_plane, _image_color, _resolve_image_matrix
 
@@ -114,6 +115,7 @@ class Renderer:
                     pass
 
         self._render_linear_algebra_visuals(scene, vp)
+        self._render_tensor_faces(scene, vp)
         self._render_vectors_with_enhancements(scene, vp)
 
         if scene.selected_object and scene.selection_type == 'vector':
@@ -141,6 +143,7 @@ class Renderer:
     _render_3d_axes_with_depths = _render_3d_axes_with_depths
     _draw_axis_cones = _draw_axis_cones
     _render_linear_algebra_visuals = _render_linear_algebra_visuals
+    _render_tensor_faces = _render_tensor_faces
     _render_matrix_3d_plot = _render_matrix_3d_plot
     _render_vectors_with_enhancements = _render_vectors_with_enhancements
     _render_vector_projections = _render_vector_projections

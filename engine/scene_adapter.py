@@ -21,6 +21,70 @@ from state.models import VectorData, MatrixData
 from state.models.tensor_model import TensorData, TensorDType
 
 
+def _build_tensor_faces(tensors: Tuple[TensorData, ...]) -> List[dict]:
+    """Build triangle batches for rank-2 tensors shaped (N, 3)."""
+    try:
+        from scipy.spatial import ConvexHull
+        from scipy.spatial.qhull import QhullError
+    except Exception:
+        ConvexHull = None
+        QhullError = Exception
+
+    faces = []
+    for t in tensors:
+        if t.rank != 2 or len(t.shape) < 2:
+            continue
+        points = None
+        if t.shape[1] == 3 and t.shape[0] >= 3:
+            points = np.array(t.data, dtype=np.float32)
+        elif t.shape[0] == 3 and t.shape[1] >= 3:
+            points = np.array(t.data, dtype=np.float32).T
+        if points is None:
+            continue
+        if points.ndim != 2 or points.shape[1] != 3:
+            continue
+
+        triangles = []
+        if points.shape[0] == 3:
+            triangles = [(0, 1, 2)]
+        elif ConvexHull is not None:
+            try:
+                hull = ConvexHull(points)
+                triangles = [tuple(map(int, tri)) for tri in hull.simplices]
+            except QhullError:
+                triangles = []
+
+        if not triangles:
+            triangles = [(0, i, i + 1) for i in range(1, points.shape[0] - 1)]
+
+        vertices = []
+        normals = []
+        colors = []
+        base_color = t.color[:3] if len(t.color) >= 3 else (0.6, 0.7, 0.9)
+        alpha = 0.25
+        for tri in triangles:
+            v0, v1, v2 = points[tri[0]], points[tri[1]], points[tri[2]]
+            normal = np.cross(v1 - v0, v2 - v0)
+            norm = float(np.linalg.norm(normal))
+            if norm > 1e-6:
+                normal = normal / norm
+            else:
+                normal = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+            for v in (v0, v1, v2):
+                vertices.append(v)
+                normals.append(normal)
+                colors.append((base_color[0], base_color[1], base_color[2], alpha))
+
+        if vertices:
+            faces.append({
+                "vertices": np.array(vertices, dtype=np.float32),
+                "normals": np.array(normals, dtype=np.float32),
+                "colors": np.array(colors, dtype=np.float32),
+            })
+
+    return faces
+
+
 @dataclass
 class RendererVector:
     """
@@ -250,6 +314,10 @@ class SceneAdapter:
                 if v1 is not None and v2 is not None:
                     self._vector_span = (v1, v2)
 
+        self._tensor_faces = []
+        if getattr(state, "view_show_tensor_faces", False):
+            self._tensor_faces = _build_tensor_faces(state.tensors)
+
     @property
     def vectors(self) -> List[RendererVector]:
         """Get all vectors for rendering."""
@@ -285,6 +353,11 @@ class SceneAdapter:
         """Optional vector pair to visualize as a span/parallelogram."""
         return self._vector_span
 
+    @property
+    def tensor_faces(self) -> List[dict]:
+        """Triangle batches for tensor face rendering."""
+        return self._tensor_faces
+
 
 class RendererSceneProtocol(Protocol):
     """Protocol that renderers expect from scene adapters."""
@@ -309,6 +382,9 @@ class RendererSceneProtocol(Protocol):
 
     @property
     def vector_span(self) -> Optional[Tuple['RendererVector', 'RendererVector']]: ...
+
+    @property
+    def tensor_faces(self) -> List[dict]: ...
 
 
 def create_scene_from_state(state: AppState) -> SceneAdapter:

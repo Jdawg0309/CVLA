@@ -138,6 +138,12 @@ class ToggleViewCubeCorners:
 
 
 @dataclass(frozen=True)
+class ToggleViewTensorFaces:
+    """Toggle tensor face rendering."""
+    pass
+
+
+@dataclass(frozen=True)
 class SetViewCubicGridDensity:
     """Set cubic grid density."""
     density: float

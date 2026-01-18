@@ -14,7 +14,7 @@ from state.actions import (
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
-    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ToggleViewTensorFaces, SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     ShowError, DismissError,
 )
 
@@ -142,6 +142,9 @@ def reduce_navigation(state, action):
 
     if isinstance(action, ToggleViewCubeCorners):
         return replace(state, view_show_cube_corners=not state.view_show_cube_corners)
+
+    if isinstance(action, ToggleViewTensorFaces):
+        return replace(state, view_show_tensor_faces=not state.view_show_tensor_faces)
 
     if isinstance(action, SetViewCubicGridDensity):
         density = max(0.5, min(float(action.density), 3.0))

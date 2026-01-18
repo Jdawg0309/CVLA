@@ -24,6 +24,7 @@ from state.actions import (
     SetViewRotationSpeed,
     ToggleViewCubeFaces,
     ToggleViewCubeCorners,
+    ToggleViewTensorFaces,
     SetViewCubicGridDensity,
     SetViewCubeFaceOpacity,
 )
@@ -127,6 +128,10 @@ class ViewSettingsWidget:
         changed, _ = imgui.checkbox("Show Labels", state.view_show_labels)
         if changed:
             dispatch(ToggleViewLabels())
+
+        changed, _ = imgui.checkbox("Show Tensor Faces", state.view_show_tensor_faces)
+        if changed:
+            dispatch(ToggleViewTensorFaces())
 
         changed, _ = imgui.checkbox("2D Mode", state.view_mode_2d)
         if changed:

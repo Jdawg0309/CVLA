@@ -39,7 +39,7 @@ from state.actions.navigation_actions import (
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
-    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ToggleViewTensorFaces, SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     ShowError, DismissError,
 )
 from state.actions.history_actions import Undo, Redo
@@ -90,7 +90,7 @@ Action = Union[
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
-    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ToggleViewTensorFaces, SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     ShowError, DismissError,
     # History actions
     Undo, Redo,

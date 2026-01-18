@@ -22,7 +22,7 @@ from state.actions import (
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
-    SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ToggleViewTensorFaces, SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
 )
 
 
@@ -64,5 +64,5 @@ def should_record_history(action) -> bool:
         SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
         SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
         SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
-        SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+        ToggleViewTensorFaces, SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     ))
