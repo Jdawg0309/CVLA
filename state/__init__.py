@@ -15,8 +15,6 @@ ARCHITECTURE:
 """
 
 from state.models import (
-    VectorData,
-    MatrixData,
     ImageData,
     EducationalStep,
     PipelineOp,
@@ -68,7 +66,7 @@ from state.reducers import reduce
 
 __all__ = [
     # Models
-    'VectorData', 'MatrixData', 'ImageData', 'EducationalStep', 'PipelineOp', 'MicroOp',
+    'ImageData', 'EducationalStep', 'PipelineOp', 'MicroOp',
     # State
     'AppState', 'MAX_HISTORY', 'create_initial_state',
     'get_vector_by_id', 'get_matrix_by_id',

@@ -14,7 +14,7 @@ def _render_vector_operations(self):
     """
     Render vector operations section.
 
-    Uses state.vectors for reading, dispatches actions for results.
+    Uses tensor selectors for reading, dispatches actions for results.
     """
     if self._section("Vector Operations", "⚡"):
         if self._state is None or self._dispatch is None:
@@ -23,10 +23,10 @@ def _render_vector_operations(self):
             return
 
         vectors = list(get_vectors(self._state))
-        selected_id = self._state.selected_tensor_id or self._state.selected_id
+        selection_id = self._state.selected_tensor_id
         selected_vector = None
         for v in vectors:
-            if v.id == selected_id:
+            if selection_id and v.id == selection_id:
                 selected_vector = v
                 break
 
@@ -152,7 +152,7 @@ def _do_vector_algebra(self, v1, v2, operation):
     Perform vector algebra and dispatch result.
 
     Args:
-        v1, v2: VectorData objects
+        v1, v2: TensorData objects (rank-1)
         operation: "add", "subtract", "cross", or "dot"
     """
     if len(v1.coords) != len(v2.coords):

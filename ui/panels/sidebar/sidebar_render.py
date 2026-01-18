@@ -6,6 +6,7 @@ dispatches actions to modify state.
 """
 
 import imgui
+from state.selectors import get_selected_vector
 from ui.panels.images.images_tab import render_images_tab
 from ui.utils import set_next_window_position, set_next_window_size
 
@@ -69,7 +70,7 @@ def render(self, rect, camera, view_config, state=None, dispatch=None):
             if active_mode == "vectors":
                 self._render_input_section()
                 self._render_vector_creation()
-                if state and state.selected_type == 'vector':
+                if state and get_selected_vector(state) is not None:
                     self._render_vector_operations()
                 self._render_vector_list()
                 self._render_matrix_operations()

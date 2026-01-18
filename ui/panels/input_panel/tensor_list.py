@@ -56,11 +56,11 @@ class TensorListWidget:
         imgui.pop_item_width()
 
         imgui.spacing()
-        selected_id = state.selected_tensor_id
+        selection_id = state.selected_tensor_id
         selected_tensor = None
-        if selected_id:
+        if selection_id:
             for t in state.tensors:
-                if t.id == selected_id:
+                if t.id == selection_id:
                     selected_tensor = t
                     break
         if selected_tensor is not None:
@@ -76,7 +76,7 @@ class TensorListWidget:
         imgui.begin_child("tensor_list", width - 10, list_height, border=True)
 
         tensors = state.tensors
-        selected_id = state.selected_tensor_id
+        selection_id = state.selected_tensor_id
 
         # Filter tensors
         filtered = self._filter_tensors(tensors)
@@ -85,19 +85,19 @@ class TensorListWidget:
             imgui.text_colored("No tensors", 0.5, 0.5, 0.5, 1.0)
         else:
             for tensor in filtered:
-                self._render_tensor_item(tensor, selected_id, dispatch, width - 30)
+                self._render_tensor_item(tensor, selection_id, dispatch, width - 30)
 
         imgui.end_child()
 
         # Action buttons
         imgui.spacing()
-        if selected_id:
+        if selection_id:
             button_width = (width - 30) / 2
             if imgui.button("Deselect", button_width, 0):
                 dispatch(DeselectTensor())
             imgui.same_line()
             if imgui.button("Delete", button_width, 0):
-                dispatch(DeleteTensor(id=selected_id))
+                dispatch(DeleteTensor(id=selection_id))
 
     def _filter_tensors(self, tensors):
         """Filter tensors based on type and search text."""
@@ -121,9 +121,9 @@ class TensorListWidget:
             result.append(t)
         return result
 
-    def _render_tensor_item(self, tensor, selected_id, dispatch, width):
+    def _render_tensor_item(self, tensor, selection_id, dispatch, width):
         """Render a single tensor item in the list."""
-        is_selected = tensor.id == selected_id
+        is_selected = tensor.id == selection_id
         if tensor.rank == 1:
             tensor_type = "r1"
         elif tensor.rank == 2:

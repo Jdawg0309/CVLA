@@ -12,6 +12,7 @@ from engine.picking_system import pick_vector
 from app.app_logging import dlog, DEBUG
 from app.app_state_bridge import build_scene_adapter
 from state.actions import SelectVector, AddVector, AddMatrix, SetSelectedPixel, StepForward
+from state.selectors import get_vectors
 
 
 def on_key(self, win, key, scancode, action, mods):
@@ -81,7 +82,7 @@ def on_mouse_button(self, win, btn, action, mods):
                 self.camera.focus_on_vector(picked.coords)
 
                 # Find vector ID by label and dispatch selection
-                for v in state.vectors:
+                for v in get_vectors(state):
                     if v.label == picked.label:
                         self.store.dispatch(SelectVector(id=v.id))
                         break

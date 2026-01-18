@@ -423,7 +423,7 @@ def _handle_apply_operation(
             )
 
             new_tensors = state.tensors
-            selected_id = vector.id
+            selection_id = vector.id
             if len(steps) == 1:
                 result_tensor = TensorData(
                     id=result_id,
@@ -436,13 +436,13 @@ def _handle_apply_operation(
                     history=vector.history + ("matrix_multiply",)
                 )
                 new_tensors = state.tensors + (result_tensor,)
-                selected_id = result_id
+                selection_id = result_id
 
             new_state = replace(
                 state,
                 tensors=new_tensors,
                 operation_history=state.operation_history + (record,),
-                selected_tensor_id=selected_id,
+                selected_tensor_id=selection_id,
                 operations=replace(
                     state.operations,
                     current_operation="matrix_vector_multiply",
@@ -503,7 +503,7 @@ def _handle_apply_operation(
         processed_image = ImageData.create(img_np, first_image.label)
         current_image = current_image or processed_image
 
-    selected_id = result_tensors[-1].id if result_tensors else state.selected_tensor_id
+    selection_id = result_tensors[-1].id if result_tensors else state.selected_tensor_id
 
     new_state = replace(
         state,
@@ -517,7 +517,7 @@ def _handle_apply_operation(
             if processed_image is not None else state.image_status
         ),
         image_status_level="info" if processed_image is not None else state.image_status_level,
-        selected_tensor_id=selected_id,
+        selected_tensor_id=selection_id,
         show_image_on_grid=True if processed_image is not None else state.show_image_on_grid,
         operations=replace(
             state.operations,

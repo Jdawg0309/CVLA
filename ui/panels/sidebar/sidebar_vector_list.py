@@ -53,7 +53,7 @@ def _render_vector_list(self):
         imgui.begin_child("##vector_list", 0, 200, border=True)
 
         all_vectors = list(get_vectors(self._state))
-        selected_id = self._state.selected_tensor_id or self._state.selected_id
+        selection_id = self._state.selected_tensor_id
 
         # Apply filter
         filtered_vectors = all_vectors
@@ -69,7 +69,7 @@ def _render_vector_list(self):
             imgui.text_disabled("No vectors match filter")
         else:
             for i, vector in enumerate(filtered_vectors):
-                is_selected = (vector.id == selected_id)
+                is_selected = (vector.id == selection_id)
 
                 coords = vector.coords
                 if len(coords) <= 3:

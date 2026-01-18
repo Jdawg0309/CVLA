@@ -4,12 +4,11 @@ State query helpers and color palette.
 
 from collections import OrderedDict
 from math import acos, degrees, sqrt
-from typing import Optional, Tuple, Union, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from state.app_state import AppState
-from state.models import VectorData, MatrixData, EducationalStep, TensorData
-from state.models.tensor_compat import tensor_to_vector, tensor_to_matrix
+from state.models import EducationalStep, TensorData
 
 # Import tensor selectors
 from state.selectors.tensor_selectors import (
@@ -52,55 +51,37 @@ from state.selectors.tensor_selectors import (
 )
 
 
-def get_vector_by_id(state: "AppState", id: str) -> Optional[VectorData]:
-    """Find a vector by ID (checks both legacy vectors and tensors)."""
-    # Check legacy vectors first
-    for v in state.vectors:
-        if v.id == id:
-            return v
-    # Check tensors (rank-1 = vector)
+def get_vector_by_id(state: "AppState", id: str) -> Optional[TensorData]:
+    """Find a vector tensor by ID."""
     for t in state.tensors:
         if t.id == id and t.rank == 1:
-            return tensor_to_vector(t)
+            return t
     return None
 
 
-def get_matrix_by_id(state: "AppState", id: str) -> Optional[MatrixData]:
-    """Find a matrix by ID (checks both legacy matrices and tensors)."""
-    # Check legacy matrices first
-    for m in state.matrices:
-        if m.id == id:
-            return m
-    # Check tensors (rank-2, non-image = matrix)
+def get_matrix_by_id(state: "AppState", id: str) -> Optional[TensorData]:
+    """Find a matrix tensor by ID."""
     for t in state.tensors:
         if t.id == id and t.rank == 2 and not t.is_image_dtype:
-            return tensor_to_matrix(t)
+            return t
     return None
 
 
-def get_selected_vector(state: "AppState") -> Optional[VectorData]:
-    """Get the currently selected vector, if any (checks both legacy and tensor selection)."""
-    # Check legacy selection first
-    if state.selected_type == 'vector' and state.selected_id:
-        return get_vector_by_id(state, state.selected_id)
-    # Check tensor selection (selected_tensor_id pointing to rank-1 tensor)
+def get_selected_vector(state: "AppState") -> Optional[TensorData]:
+    """Get the currently selected vector tensor, if any."""
     if state.selected_tensor_id:
         for t in state.tensors:
             if t.id == state.selected_tensor_id and t.rank == 1:
-                return tensor_to_vector(t)
+                return t
     return None
 
 
-def get_selected_matrix(state: "AppState") -> Optional[MatrixData]:
-    """Get the currently selected matrix, if any (checks both legacy and tensor selection)."""
-    # Check legacy selection first
-    if state.selected_type == 'matrix' and state.selected_id:
-        return get_matrix_by_id(state, state.selected_id)
-    # Check tensor selection (selected_tensor_id pointing to rank-2 non-image tensor)
+def get_selected_matrix(state: "AppState") -> Optional[TensorData]:
+    """Get the currently selected matrix tensor, if any."""
     if state.selected_tensor_id:
         for t in state.tensors:
             if t.id == state.selected_tensor_id and t.rank == 2 and not t.is_image_dtype:
-                return tensor_to_matrix(t)
+                return t
     return None
 
 
@@ -129,9 +110,9 @@ def _cache_set(cache, key, value):
         cache.popitem(last=False)
 
 
-def get_vector_magnitude(vector: Union[VectorData, TensorData]) -> float:
-    """Get cached vector magnitude (accepts both VectorData and TensorData)."""
-    coords = vector.coords if hasattr(vector, 'coords') else vector.data
+def get_vector_magnitude(vector: TensorData) -> float:
+    """Get cached vector magnitude for a rank-1 tensor."""
+    coords = vector.coords
     key = ("mag", vector.id, coords)
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
@@ -146,10 +127,10 @@ def get_vector_magnitude(vector: Union[VectorData, TensorData]) -> float:
     return value
 
 
-def get_vector_dot_angle(vector_a: Union[VectorData, TensorData], vector_b: Union[VectorData, TensorData]) -> Tuple[float, float]:
-    """Get cached dot product and angle between vectors (accepts both VectorData and TensorData)."""
-    coords_a = vector_a.coords if hasattr(vector_a, 'coords') else vector_a.data
-    coords_b = vector_b.coords if hasattr(vector_b, 'coords') else vector_b.data
+def get_vector_dot_angle(vector_a: TensorData, vector_b: TensorData) -> Tuple[float, float]:
+    """Get cached dot product and angle between two rank-1 tensors."""
+    coords_a = vector_a.coords
+    coords_b = vector_b.coords
     key = ("dot_angle", vector_a.id, coords_a, vector_b.id, coords_b)
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:
@@ -170,9 +151,9 @@ def get_vector_dot_angle(vector_a: Union[VectorData, TensorData], vector_b: Unio
     return value
 
 
-def get_vector_axis_projections(vector: Union[VectorData, TensorData]) -> Tuple[float, float, float]:
-    """Get cached projections onto axes (accepts both VectorData and TensorData)."""
-    vec_coords = vector.coords if hasattr(vector, 'coords') else vector.data
+def get_vector_axis_projections(vector: TensorData) -> Tuple[float, float, float]:
+    """Get cached projections onto axes for a rank-1 tensor."""
+    vec_coords = vector.coords
     key = ("proj", vector.id, vec_coords)
     cached = _cache_get(_VECTOR_METRIC_CACHE, key)
     if cached is not None:

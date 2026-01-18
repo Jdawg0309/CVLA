@@ -4,6 +4,7 @@ Sidebar export helpers.
 
 import imgui
 import json
+from state.selectors import get_vectors
 
 
 def _render_export_dialog(self):
@@ -43,6 +44,7 @@ def _export_json(self):
         print("JSON Export unavailable (no state).")
         return
 
+    vectors = list(get_vectors(self._state))
     data = {
         'vectors': [
             {
@@ -51,11 +53,14 @@ def _export_json(self):
                 'color': v.color,
                 'visible': v.visible
             }
-            for v in self._state.vectors
+            for v in vectors
         ]
     }
 
-    print("JSON Export (first vector):", json.dumps(data['vectors'][0], indent=2))
+    if data['vectors']:
+        print("JSON Export (first vector):", json.dumps(data['vectors'][0], indent=2))
+    else:
+        print("JSON Export: No vectors to export")
 
 
 def _export_csv(self):
@@ -64,10 +69,14 @@ def _export_csv(self):
         print("CSV Export unavailable (no state).")
         return
 
+    vectors = list(get_vectors(self._state))
     csv_lines = ["Label,X,Y,Z,R,G,B"]
-    for v in self._state.vectors:
+    for v in vectors:
+        coords = list(v.coords)
+        while len(coords) < 3:
+            coords.append(0.0)
         csv_lines.append(
-            f'{v.label},{v.coords[0]},{v.coords[1]},{v.coords[2]},'
+            f'{v.label},{coords[0]},{coords[1]},{coords[2]},'
             f'{v.color[0]},{v.color[1]},{v.color[2]}'
         )
 
@@ -82,11 +91,12 @@ def _export_python(self):
         print("Python Export unavailable (no state).")
         return
 
+    vectors = list(get_vectors(self._state))
     python_code = "# CVLA Vector Export\n"
     python_code += "import numpy as np\n\n"
     python_code += "vectors = [\n"
 
-    for v in self._state.vectors:
+    for v in vectors:
         python_code += f"    # {v.label}\n"
         python_code += f"    np.array({list(v.coords)}, dtype=np.float32),\n"
 

@@ -15,15 +15,6 @@ from state.models.vector_space import VectorSpace, VectorSpaceRelationship, Vect
 from state.models.selection_state import SelectionState
 from state.models.render_state import RenderState
 from state.models.cache_state import CacheState
-from state.models.tensor_compat import (
-    vector_to_tensor, tensor_to_vector,
-    matrix_to_tensor, tensor_to_matrix,
-    image_to_tensor, tensor_to_image,
-    vectors_to_tensors, matrices_to_tensors,
-    tensors_to_vectors, tensors_to_matrices,
-    filter_tensors_by_type,
-)
-
 __all__ = [
     # Legacy models
     'VectorData',
@@ -45,16 +36,4 @@ __all__ = [
     'SelectionState',
     'RenderState',
     'CacheState',
-    # Compatibility functions
-    'vector_to_tensor',
-    'tensor_to_vector',
-    'matrix_to_tensor',
-    'tensor_to_matrix',
-    'image_to_tensor',
-    'tensor_to_image',
-    'vectors_to_tensors',
-    'matrices_to_tensors',
-    'tensors_to_vectors',
-    'tensors_to_matrices',
-    'filter_tensors_by_type',
 ]

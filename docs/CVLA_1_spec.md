@@ -288,9 +288,8 @@ class OperationRecord:
 ```
 
 ### Legacy Vector/Matrix Models
-`VectorData` and `MatrixData` remain for backward compatibility with
-pre-unified UI code. SceneAdapter merges them with `TensorData` so the renderer
-can treat all math objects uniformly.
+`VectorData` and `MatrixData` may temporarily exist only for frozen engine
+compatibility. State, reducers, selectors, and UI are tensor-only.
 
 ### Result Helper (optional)
 When an operation needs explicit success/failure, use a light-weight result:
@@ -710,7 +709,7 @@ CVLA/
 │   ├── actions/              # vectors, matrices, tensors, images, navigation, pipeline, history, input
 │   ├── reducers/             # reducer_vectors.py, reducer_matrices.py, reducer_images.py, reducer_pipeline.py, reducer_navigation.py, reducer_input_panel.py, ...
 │   ├── selectors/            # tensor_selectors.py, ...
-│   └── models/               # tensor_model.py, vector_model.py, matrix_model.py, image_model.py, educational_step.py, operation_record.py, pipeline_models.py, tensor_compat.py
+│   └── models/               # tensor_model.py, vector_model.py, matrix_model.py, image_model.py, educational_step.py, operation_record.py, pipeline_models.py
 ├── ui/                       # ImGui interface
 │   ├── layout/workspace.py
 │   ├── inspectors/
@@ -739,9 +738,7 @@ CVLA/
 ```python
 @dataclass(frozen=True)
 class AppState:
-    # Scene entities (legacy + unified)
-    vectors: Tuple[VectorData, ...] = ()
-    matrices: Tuple[MatrixData, ...] = ()
+    # Scene entities (unified)
     tensors: Tuple[TensorData, ...] = ()
     selected_tensor_id: Optional[str] = None
 
@@ -793,10 +790,6 @@ class AppState:
     operation_preview_tensor: Optional[TensorData] = None
     show_operation_preview: bool = True
     operation_history: Tuple[OperationRecord, ...] = ()
-
-    # Selection (legacy UI)
-    selected_id: Optional[str] = None
-    selected_type: Optional[str] = None  # 'vector', 'matrix', 'plane', 'image'
 
     # Image / vision state
     current_image: Optional[ImageData] = None
@@ -929,17 +922,20 @@ def test_dot_product():
 ```python
 from state import Store, create_initial_state
 from state.actions.vector_actions import AddVector, SelectVector
+from state.selectors import get_vectors
 
 def test_add_and_select_vector():
     store = Store(create_initial_state())
     store.dispatch(AddVector((1, 0, 0), (1.0, 0.0, 0.0), "v1"))
 
     state = store.get_state()
-    store.dispatch(SelectVector(state.vectors[0].id))
+    vectors = get_vectors(state)
+    store.dispatch(SelectVector(vectors[0].id))
 
     new_state = store.get_state()
-    assert len(new_state.vectors) == 1
-    assert new_state.selected_id == new_state.vectors[0].id
+    new_vectors = get_vectors(new_state)
+    assert len(new_vectors) == 1
+    assert new_state.selected_tensor_id == new_vectors[0].id
 ```
 
 ```python

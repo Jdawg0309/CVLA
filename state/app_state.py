@@ -15,8 +15,6 @@ from dataclasses import dataclass, replace, field
 from typing import Tuple, Optional, List
 import numpy as np
 
-from state.models.vector_model import VectorData
-from state.models.matrix_model import MatrixData
 from state.models.image_model import ImageData
 from state.models.educational_step import EducationalStep
 from state.models.tensor_model import TensorData
@@ -41,10 +39,8 @@ class AppState:
     """
 
     # =========================================================================
-    # SCENE STATE (domain data)
+    # SCENE STATE (domain data) - migrated to tensors
     # =========================================================================
-    vectors: Tuple[VectorData, ...] = ()
-    matrices: Tuple[MatrixData, ...] = ()
 
     # =========================================================================
     # VECTOR SPACE GRAPH (canonical, parallel migration)
@@ -102,10 +98,8 @@ class AppState:
     cache: CacheState = field(default_factory=CacheState)
 
     # =========================================================================
-    # SELECTION STATE
+    # SELECTION STATE - migrated to selected_tensor_id
     # =========================================================================
-    selected_id: Optional[str] = None
-    selected_type: Optional[str] = None  # 'vector', 'matrix', 'plane', 'image'
 
     # =========================================================================
     # IMAGE / VISION STATE
@@ -227,6 +221,19 @@ class AppState:
     error_message: Optional[str] = None
     show_error_modal: bool = False
 
+    # ---------------------------------------------------------------------
+    # Temporary compatibility for frozen engine code (do not persist)
+    # ---------------------------------------------------------------------
+    @property
+    def selected_id(self) -> Optional[str]:
+        """Temporary engine compatibility: mirror selected_tensor_id (read-only)."""
+        return self.selected_tensor_id
+
+    @property
+    def selected_type(self) -> Optional[str]:
+        """Temporary engine compatibility: legacy selection type is not used."""
+        return None
+
 
 def create_initial_state() -> AppState:
     """
@@ -244,7 +251,6 @@ def create_initial_state() -> AppState:
         selected_kernel_matrix = None
 
     return AppState(
-        vectors=(),
         next_vector_id=1,
         selected_kernel_matrix=selected_kernel_matrix,
     )

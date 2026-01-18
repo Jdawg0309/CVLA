@@ -20,7 +20,7 @@ def _render_matrix_operations(self):
     """
     Render matrix operations section.
 
-    Uses state.matrices for reading when available.
+    Uses tensor selectors for reading.
     """
     if self._section("Matrix Operations", "📐"):
         if self._state is None or self._dispatch is None:

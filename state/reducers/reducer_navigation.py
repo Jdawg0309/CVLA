@@ -69,7 +69,7 @@ def reduce_navigation(state, action):
         return replace(state, active_image_tab=tab)
 
     if isinstance(action, ClearSelection):
-        return replace(state, selected_id=None, selected_type=None)
+        return replace(state, selected_tensor_id=None)
 
     if isinstance(action, SetTheme):
         theme = action.theme if action.theme in ("dark", "light", "high-contrast") else "dark"

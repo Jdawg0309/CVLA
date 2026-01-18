@@ -64,14 +64,14 @@ def _sync_matrix_vector_result(state) -> Optional["AppState"]:
         return state
 
     new_tensors = tuple(t for t in state.tensors if t.id != result_id)
-    selected_id = state.selected_tensor_id
-    if selected_id == result_id:
+    selection_id = state.selected_tensor_id
+    if selection_id == result_id:
         vector_id = record.target_ids[1]
         if any(t.id == vector_id for t in new_tensors):
-            selected_id = vector_id
+            selection_id = vector_id
         else:
-            selected_id = None
-    return replace(state, tensors=new_tensors, selected_tensor_id=selected_id)
+            selection_id = None
+    return replace(state, tensors=new_tensors, selected_tensor_id=selection_id)
 
 
 def reduce_pipeline(state, action, with_history):
