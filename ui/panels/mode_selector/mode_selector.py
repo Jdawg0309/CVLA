@@ -16,7 +16,6 @@ class ModeSelector:
     def __init__(self):
         self._modes = [
             ("Algebra", "vectors"),
-            ("Vision", "images"),
             ("View", "visualize"),
         ]
 

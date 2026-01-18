@@ -42,7 +42,10 @@ def reduce_input_panel(
 
     # Text input actions
     if isinstance(action, SetTextInput):
-        parsed_type = _parse_input_type(action.content)
+        parsed_type = _parse_input_type(
+            action.content,
+            matrix_only=state.active_input_method == "matrix"
+        )
         return replace(
             state,
             input_text_content=action.content,
@@ -57,7 +60,10 @@ def reduce_input_panel(
         )
 
     if isinstance(action, ParseTextInput):
-        parsed_type = _parse_input_type(state.input_text_content)
+        parsed_type = _parse_input_type(
+            state.input_text_content,
+            matrix_only=state.active_input_method == "matrix"
+        )
         return replace(state, input_text_parsed_type=parsed_type)
 
     # File input actions
@@ -148,7 +154,7 @@ def reduce_input_panel(
     return None
 
 
-def _parse_input_type(content: str) -> str:
+def _parse_input_type(content: str, matrix_only: bool = False) -> str:
     """
     Parse text input to determine type.
 
@@ -160,6 +166,9 @@ def _parse_input_type(content: str) -> str:
     content = content.strip()
     if not content:
         return ""
+
+    if matrix_only:
+        return "matrix" if _try_parse_matrix(content) is not None else ""
 
     # Try to parse as vector: "1, 2, 3" or "[1, 2, 3]" or "1 2 3"
     # Try to parse as matrix: "1, 2; 3, 4" or "[[1, 2], [3, 4]]" or multi-line
@@ -487,34 +496,22 @@ def _load_matrix_from_file(path: str, file_type: str) -> Tuple[Tuple[float, ...]
 
 
 def _coerce_numeric(value) -> float:
-    """Coerce a value to float, treating empty values as 0.0."""
+    """Coerce a value to float."""
     if value is None:
-        return 0.0
+        raise ValueError("Empty cell")
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):
         stripped = value.strip()
         if stripped == "":
-            return 0.0
+            raise ValueError("Empty cell")
         return float(stripped)
     return float(value)
 
 
-def _parse_row_cells(cells) -> Tuple[List[float], bool, bool]:
-    """Parse a row of cells into floats, tracking numeric/text content."""
-    values: List[float] = []
-    had_numeric = False
-    had_text = False
-    for cell in cells:
-        try:
-            val = _coerce_numeric(cell)
-            values.append(val)
-            if cell is not None and not (isinstance(cell, str) and cell.strip() == ""):
-                had_numeric = True
-        except (ValueError, TypeError):
-            had_text = True
-            values.append(0.0)
-    return values, had_numeric, had_text
+def _parse_row_cells(cells) -> List[float]:
+    """Parse a row of cells into floats."""
+    return [_coerce_numeric(cell) for cell in cells]
 
 
 def _normalize_rows(rows: List[List[float]]) -> Tuple[Tuple[float, ...], ...]:
@@ -567,13 +564,7 @@ def _load_matrix_from_csv(path: str) -> Tuple[Tuple[float, ...], ...]:
         for row in reader:
             if not row or all(not cell.strip() for cell in row):
                 continue
-            values, had_numeric, had_text = _parse_row_cells(row)
-            if had_text and not had_numeric:
-                if not rows:
-                    continue
-                raise ValueError("CSV contains non-numeric data.")
-            if had_text and had_numeric:
-                raise ValueError("CSV row mixes text and numbers.")
+            values = _parse_row_cells(row)
             rows.append(values)
     return _normalize_rows(rows)
 
@@ -592,15 +583,9 @@ def _load_matrix_from_excel(path: str) -> Tuple[Tuple[float, ...], ...]:
         for row in sheet.iter_rows(values_only=True):
             if row is None:
                 continue
-            values, had_numeric, had_text = _parse_row_cells(row)
-            if not had_numeric and not had_text and all(v == 0.0 for v in values):
+            if all(cell is None or (isinstance(cell, str) and cell.strip() == "") for cell in row):
                 continue
-            if had_text and not had_numeric:
-                if not rows:
-                    continue
-                raise ValueError("Excel contains non-numeric data.")
-            if had_text and had_numeric:
-                raise ValueError("Excel row mixes text and numbers.")
+            values = _parse_row_cells(row)
             rows.append(values)
     finally:
         workbook.close()

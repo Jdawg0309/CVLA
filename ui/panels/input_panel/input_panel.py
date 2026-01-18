@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from state.app_state import AppState
 
 from state.actions.input_panel_actions import SetInputMethod
+from ui.panels.input_panel.text_input import TextInputWidget
 from ui.panels.input_panel.file_input import FileInputWidget
-from ui.panels.input_panel.grid_input import GridInputWidget
 from ui.panels.input_panel.tensor_list import TensorListWidget
 
 # ImGui flag constants
@@ -44,8 +44,8 @@ class InputPanel:
     ]
 
     def __init__(self):
+        self.text_widget = TextInputWidget()
         self.file_widget = FileInputWidget()
-        self.grid_widget = GridInputWidget()
         self.tensor_list = TensorListWidget()
         self._last_mode = None
 
@@ -153,11 +153,11 @@ class InputPanel:
         active_method = state.active_input_method
 
         if active_method == "matrix":
-            self.grid_widget.render(state, dispatch, width, matrix_only=True)
+            self.text_widget.render(state, dispatch, width, matrix_only=True)
         elif active_method in ("json", "csv", "excel", "image"):
             self.file_widget.render(state, dispatch, width, file_type=active_method)
         else:
-            self.grid_widget.render(state, dispatch, width, matrix_only=True)
+            self.text_widget.render(state, dispatch, width, matrix_only=True)
 
     def _render_standard_content(self, state: "AppState", dispatch, width: float, height: float):
         """Render standard input content (Algebra/Vision modes)."""

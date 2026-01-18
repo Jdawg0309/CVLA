@@ -39,7 +39,7 @@ def _render_cubic_environment(self, vp, scene):
         self._render_cube_corner_indicators(vp)
 
     if self.view.show_axes:
-        axis_len = float(min(25.0, max(8.0, getattr(self.camera, "radius", 10.0) * 0.7)))
+        axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
         self._render_3d_axes_with_depths(vp, length=axis_len)
 
 
@@ -71,5 +71,5 @@ def _render_planar_environment(self, vp):
         )
 
     if self.view.show_axes:
-        axis_len = float(min(25.0, max(8.0, getattr(self.camera, "radius", 10.0) * 0.7)))
+        axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
         self.gizmos.draw_axes(vp, length=axis_len, thickness=3.0)

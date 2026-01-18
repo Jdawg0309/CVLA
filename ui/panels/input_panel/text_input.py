@@ -15,7 +15,7 @@ from state.actions.input_panel_actions import (
 )
 from state.selectors import get_next_color
 from ui.panels.input_panel.input_parsers import (
-    parse_input, get_type_description, get_shape_string
+    parse_input, parse_matrix, get_type_description, get_shape_string
 )
 
 
@@ -26,9 +26,9 @@ class TextInputWidget:
         self._buffer = ""
         self._label_buffer = ""
 
-    def render(self, state: "AppState", dispatch, width: float):
+    def render(self, state: "AppState", dispatch, width: float, matrix_only: bool = False):
         """Render the text input widget."""
-        imgui.text("Enter vector or matrix:")
+        imgui.text("Enter matrix:" if matrix_only else "Enter vector or matrix:")
 
         # Text input area
         imgui.push_item_width(width - 20)
@@ -47,9 +47,13 @@ class TextInputWidget:
         # Show parsed type and shape
         parsed_type = state.input_text_parsed_type
         if parsed_type:
-            type_desc = get_type_description(parsed_type)
-            parsed = parse_input(state.input_text_content)
-            shape_str = get_shape_string(parsed_type, parsed[1])
+            if matrix_only and parsed_type != "matrix":
+                type_desc = "Invalid"
+                shape_str = ""
+            else:
+                type_desc = get_type_description(parsed_type)
+                parsed = parse_matrix(state.input_text_content) if matrix_only else parse_input(state.input_text_content)
+                shape_str = get_shape_string(parsed_type, parsed if matrix_only else parsed[1])
             imgui.text_colored(
                 f"Detected: {type_desc} {shape_str}",
                 0.4, 0.8, 0.4, 1.0
@@ -76,12 +80,13 @@ class TextInputWidget:
         imgui.spacing()
 
         # Action buttons
-        can_create = parsed_type in ("vector", "matrix")
+        can_create = parsed_type == "matrix" if matrix_only else parsed_type in ("vector", "matrix")
 
         if not can_create:
             imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
 
-        if imgui.button("Create Tensor", width - 20, 30):
+        button_label = "Create Matrix" if matrix_only else "Create Tensor"
+        if imgui.button(button_label, width - 20, 30):
             if can_create:
                 label = self._label_buffer.strip() or self._generate_label(state, parsed_type)
                 color, _ = get_next_color(state)
@@ -104,7 +109,8 @@ class TextInputWidget:
         imgui.separator()
         imgui.spacing()
         imgui.text_colored("Input formats:", 0.6, 0.6, 0.6, 1.0)
-        imgui.text_colored("  Vector: 1, 2, 3", 0.5, 0.5, 0.5, 1.0)
+        if not matrix_only:
+            imgui.text_colored("  Vector: 1, 2, 3", 0.5, 0.5, 0.5, 1.0)
         imgui.text_colored("  Matrix: 1, 2; 3, 4", 0.5, 0.5, 0.5, 1.0)
         imgui.text_colored("  Or multi-line entries", 0.5, 0.5, 0.5, 1.0)
 
