@@ -89,56 +89,53 @@ class OperationsPanel:
             # Panel header
             self._render_header(selected, width)
 
-            imgui.separator()
-            imgui.spacing()
-
             if selected is None:
+                imgui.separator()
+                imgui.spacing()
                 self._render_no_selection(width)
             else:
-                # Scrollable content area
-                if imgui.begin_child(
-                    "##ops_content",
-                    0, 0,
-                    border=False,
-                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                ):
-                    # Tensor info section
-                    self.tensor_info.render(selected, state, dispatch, width - 30)
+                imgui.separator()
+                imgui.spacing()
 
-                    imgui.spacing()
-                    imgui.separator()
-                    imgui.spacing()
+                if imgui.begin_tab_bar("##ops_tabs"):
+                    if imgui.begin_tab_item("Operations")[0]:
+                        if imgui.begin_child(
+                            "##ops_content",
+                            0, 0,
+                            border=False,
+                            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                        ):
+                            self.tensor_info.render(selected, state, dispatch, width - 30)
+                            imgui.spacing()
+                            imgui.separator()
+                            imgui.spacing()
+                            self._render_type_ops(selected, state, dispatch, width - 30)
+                        imgui.end_child()
+                        imgui.end_tab_item()
 
-                    # Type-specific operations
-                    self._render_type_ops(selected, state, dispatch, width - 30)
-
-                    # Preview section (collapsible)
-                    if self._show_preview:
-                        imgui.spacing()
-                        imgui.separator()
-                        imgui.spacing()
-
-                        expanded, _ = imgui.collapsing_header(
-                            "Preview",
-                            imgui.TREE_NODE_DEFAULT_OPEN
-                        )
-                        if expanded:
+                    if self._show_preview and imgui.begin_tab_item("Preview")[0]:
+                        if imgui.begin_child(
+                            "##preview_content",
+                            0, 0,
+                            border=False,
+                            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                        ):
                             self.preview.render(selected, state, dispatch, width - 30)
+                        imgui.end_child()
+                        imgui.end_tab_item()
 
-                    # History section (collapsible)
-                    if self._show_history:
-                        imgui.spacing()
-                        imgui.separator()
-                        imgui.spacing()
-
-                        expanded, _ = imgui.collapsing_header(
-                            "History",
-                            0  # Not open by default
-                        )
-                        if expanded:
+                    if self._show_history and imgui.begin_tab_item("History")[0]:
+                        if imgui.begin_child(
+                            "##history_content",
+                            0, 0,
+                            border=False,
+                            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                        ):
                             self.history.render(selected, state, dispatch, width - 30)
+                        imgui.end_child()
+                        imgui.end_tab_item()
 
-                imgui.end_child()
+                    imgui.end_tab_bar()
 
         imgui.end()
         imgui.pop_style_var(2)

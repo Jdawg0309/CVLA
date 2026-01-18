@@ -159,7 +159,7 @@ class AppState:
     show_image_on_grid: bool = True
     preview_enabled: bool = False
 
-    matrix_plot_enabled: bool = True
+    matrix_plot_enabled: bool = False
     view_preset: str = "cube"
     view_up_axis: str = "z"
     view_grid_mode: str = "cube"

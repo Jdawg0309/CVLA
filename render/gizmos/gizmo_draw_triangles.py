@@ -16,8 +16,13 @@ def _ensure_float_array(buffer, components):
 
 
 def draw_triangles(self, vertices, normals, colors, vp, model_matrix=None,
-                   light_pos=(20, 20, 20), view_pos=(0, 0, 20), use_lighting=True):
+                   light_pos=(20, 20, 20), view_pos=(0, 0, 20), use_lighting=True,
+                   depth=True):
     """Draw triangles with normals and colors."""
+    if depth:
+        self.ctx.enable(moderngl.DEPTH_TEST)
+    else:
+        self.ctx.disable(moderngl.DEPTH_TEST)
     vertices = _ensure_float_array(vertices, 3)
     if vertices.size == 0:
         return

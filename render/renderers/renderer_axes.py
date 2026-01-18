@@ -5,9 +5,10 @@ Axis rendering helpers.
 import numpy as np
 
 
-def _render_3d_axes_with_depths(self, vp):
+def _render_3d_axes_with_depths(self, vp, length=None):
     """Render 3D axes with depth cues."""
-    length = max(10.0, self.view.grid_size * 0.75)
+    if length is None:
+        length = max(10.0, self.view.grid_size * 0.75)
 
     axes = [
         {"points": [[0, 0, 0], [length, 0, 0]], "color": (0.95, 0.45, 0.45, 1.0)},

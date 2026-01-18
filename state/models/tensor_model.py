@@ -96,13 +96,14 @@ class TensorData:
         color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
     ) -> 'TensorData':
         """Create a matrix tensor."""
-        if not values:
+        normalized = _normalize_matrix_values(values)
+        if not normalized:
             shape = (0, 0)
         else:
-            shape = (len(values), len(values[0]))
+            shape = (len(normalized), len(normalized[0]))
         return TensorData(
             id=str(uuid4()),
-            data=tuple(tuple(float(v) for v in row) for row in values),
+            data=normalized,
             shape=shape,
             dtype=TensorDType.NUMERIC,
             label=label,
@@ -239,3 +240,23 @@ def _tuples_to_numpy(data: Tuple, shape: Tuple[int, ...]) -> np.ndarray:
     """Convert nested tuples back to numpy array."""
     arr = np.array(data, dtype=np.float32)
     return arr.reshape(shape) if arr.shape != shape else arr
+
+
+def _normalize_matrix_values(values: Tuple[Tuple[float, ...], ...]) -> Tuple[Tuple[float, ...], ...]:
+    """Ensure matrix rows are rectangular by padding with zeros."""
+    if not values:
+        return ()
+    rows = [tuple(float(v) for v in row) for row in values if row is not None]
+    if not rows:
+        return ()
+    max_cols = max((len(row) for row in rows), default=0)
+    if max_cols == 0:
+        return ()
+    normalized = []
+    for row in rows:
+        if len(row) < max_cols:
+            row = row + (0.0,) * (max_cols - len(row))
+        elif len(row) > max_cols:
+            row = row[:max_cols]
+        normalized.append(row)
+    return tuple(normalized)

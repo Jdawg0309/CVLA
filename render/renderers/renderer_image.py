@@ -190,4 +190,5 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
         return
 
     for verts, norms, colors in batches:
-        self.gizmos.draw_triangles(verts, norms, colors, vp, use_lighting=False)
+        # Draw images without depth so they stay visible atop grids.
+        self.gizmos.draw_triangles(verts, norms, colors, vp, use_lighting=False, depth=False)

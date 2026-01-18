@@ -6,6 +6,7 @@ Handles CRUD operations on the unified tensor model.
 
 from dataclasses import replace
 from typing import Optional, Callable, TYPE_CHECKING
+import numpy as np
 
 if TYPE_CHECKING:
     from state.app_state import AppState
@@ -293,8 +294,9 @@ def _handle_apply_operation(
     with_history: Callable
 ) -> "AppState":
     """Apply an operation to tensors."""
-    # Find target tensors
-    targets = [t for t in state.tensors if t.id in action.target_ids]
+    # Find target tensors (preserve action order)
+    tensor_by_id = {t.id: t for t in state.tensors}
+    targets = [tensor_by_id[tid] for tid in action.target_ids if tid in tensor_by_id]
     if not targets:
         return state
 
@@ -427,14 +429,32 @@ def _execute_operation(
     # Vector operations
     if operation_name == "normalize":
         return _op_normalize(targets, params, create_new)
+    if operation_name == "negate":
+        return _op_negate(targets, params, create_new)
     if operation_name == "scale":
         return _op_scale(targets, params, create_new)
+    if operation_name == "add":
+        return _op_add(targets, params, create_new)
+    if operation_name == "subtract":
+        return _op_subtract(targets, params, create_new)
+    if operation_name == "dot":
+        return _op_dot(targets, params, create_new)
+    if operation_name == "cross":
+        return _op_cross(targets, params, create_new)
+    if operation_name == "project":
+        return _op_project(targets, params, create_new)
 
     # Matrix operations
     if operation_name == "transpose":
         return _op_transpose(targets, params, create_new)
     if operation_name == "inverse":
         return _op_inverse(targets, params, create_new)
+    if operation_name == "determinant":
+        return _op_determinant(targets, params, create_new)
+    if operation_name == "trace":
+        return _op_trace(targets, params, create_new)
+    if operation_name == "matrix_multiply":
+        return _op_matrix_multiply(targets, params, create_new)
 
     # Image operations
     if operation_name == "apply_kernel":
@@ -472,6 +492,31 @@ def _op_normalize(targets: list, params: dict, create_new: bool) -> list:
     return results
 
 
+def _op_negate(targets: list, params: dict, create_new: bool) -> list:
+    """Negate vectors."""
+    results = []
+    for t in targets:
+        if not t.is_vector:
+            continue
+        arr = -t.to_numpy()
+        new_data = tuple(float(x) for x in arr)
+        if create_new:
+            new_t = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=t.shape,
+                dtype=t.dtype,
+                label=f"-{t.label}",
+                color=t.color,
+                visible=True,
+                history=t.history + ("negate",)
+            )
+        else:
+            new_t = replace(t, data=new_data, history=t.history + ("negate",))
+        results.append(new_t)
+    return results
+
+
 def _op_scale(targets: list, params: dict, create_new: bool) -> list:
     """Scale vectors/matrices."""
     import numpy as np
@@ -495,6 +540,146 @@ def _op_scale(targets: list, params: dict, create_new: bool) -> list:
             new_t = replace(t, data=new_data, history=t.history + (f"scale({factor})",))
         results.append(new_t)
     return results
+
+
+def _op_add(targets: list, params: dict, create_new: bool) -> list:
+    """Add two vectors."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (a.is_vector and b.is_vector):
+        return []
+    if len(a.coords) != len(b.coords):
+        return []
+    arr = a.to_numpy() + b.to_numpy()
+    new_data = tuple(float(x) for x in arr)
+    if create_new:
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=a.shape,
+            dtype=a.dtype,
+            label=f"{a.label}+{b.label}",
+            color=a.color,
+            visible=True,
+            history=a.history + ("add",)
+        )
+        return [new_t]
+    new_t = replace(a, data=new_data, history=a.history + ("add",))
+    return [new_t]
+
+
+def _op_subtract(targets: list, params: dict, create_new: bool) -> list:
+    """Subtract two vectors."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (a.is_vector and b.is_vector):
+        return []
+    if len(a.coords) != len(b.coords):
+        return []
+    arr = a.to_numpy() - b.to_numpy()
+    new_data = tuple(float(x) for x in arr)
+    if create_new:
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=a.shape,
+            dtype=a.dtype,
+            label=f"{a.label}-{b.label}",
+            color=a.color,
+            visible=True,
+            history=a.history + ("subtract",)
+        )
+        return [new_t]
+    new_t = replace(a, data=new_data, history=a.history + ("subtract",))
+    return [new_t]
+
+
+def _op_dot(targets: list, params: dict, create_new: bool) -> list:
+    """Dot product of two vectors."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (a.is_vector and b.is_vector):
+        return []
+    if len(a.coords) != len(b.coords):
+        return []
+    value = float(a.to_numpy().dot(b.to_numpy()))
+    new_data = (value,)
+    if create_new:
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=(1,),
+            dtype=a.dtype,
+            label=f"{a.label}dot{b.label}",
+            color=a.color,
+            visible=True,
+            history=a.history + ("dot",)
+        )
+        return [new_t]
+    new_t = replace(a, data=new_data, shape=(1,), history=a.history + ("dot",))
+    return [new_t]
+
+
+def _op_cross(targets: list, params: dict, create_new: bool) -> list:
+    """Cross product of two 3D vectors."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (a.is_vector and b.is_vector):
+        return []
+    if len(a.coords) != 3 or len(b.coords) != 3:
+        return []
+    arr = np.cross(a.to_numpy(), b.to_numpy())
+    new_data = tuple(float(x) for x in arr)
+    if create_new:
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=(3,),
+            dtype=a.dtype,
+            label=f"{a.label}x{b.label}",
+            color=a.color,
+            visible=True,
+            history=a.history + ("cross",)
+        )
+        return [new_t]
+    new_t = replace(a, data=new_data, shape=(3,), history=a.history + ("cross",))
+    return [new_t]
+
+
+def _op_project(targets: list, params: dict, create_new: bool) -> list:
+    """Project one vector onto another."""
+    if len(targets) < 2:
+        return []
+    v, onto = targets[0], targets[1]
+    if not (v.is_vector and onto.is_vector):
+        return []
+    if len(v.coords) != len(onto.coords):
+        return []
+    onto_arr = onto.to_numpy()
+    denom = float(np.dot(onto_arr, onto_arr))
+    if denom < 1e-10:
+        return []
+    scalar = float(np.dot(v.to_numpy(), onto_arr)) / denom
+    arr = onto_arr * scalar
+    new_data = tuple(float(x) for x in arr)
+    if create_new:
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=v.shape,
+            dtype=v.dtype,
+            label=f"proj_{onto.label}({v.label})",
+            color=v.color,
+            visible=True,
+            history=v.history + ("project",)
+        )
+        return [new_t]
+    new_t = replace(v, data=new_data, history=v.history + ("project",))
+    return [new_t]
 
 
 def _op_transpose(targets: list, params: dict, create_new: bool) -> list:
@@ -551,6 +736,109 @@ def _op_inverse(targets: list, params: dict, create_new: bool) -> list:
         except np.linalg.LinAlgError:
             pass  # Matrix not invertible
     return results
+
+
+def _op_determinant(targets: list, params: dict, create_new: bool) -> list:
+    """Compute matrix determinant."""
+    results = []
+    for t in targets:
+        if not t.is_matrix:
+            continue
+        if t.rows != t.cols:
+            continue
+        value = float(np.linalg.det(t.to_numpy()))
+        new_data = ((value,),)
+        if create_new:
+            new_t = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=(1, 1),
+                dtype=t.dtype,
+                label=f"det({t.label})",
+                color=t.color,
+                visible=True,
+                history=t.history + ("determinant",)
+            )
+        else:
+            new_t = replace(t, data=new_data, shape=(1, 1), history=t.history + ("determinant",))
+        results.append(new_t)
+    return results
+
+
+def _op_trace(targets: list, params: dict, create_new: bool) -> list:
+    """Compute matrix trace."""
+    results = []
+    for t in targets:
+        if not t.is_matrix:
+            continue
+        if t.rows != t.cols:
+            continue
+        value = float(np.trace(t.to_numpy()))
+        new_data = ((value,),)
+        if create_new:
+            new_t = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=(1, 1),
+                dtype=t.dtype,
+                label=f"tr({t.label})",
+                color=t.color,
+                visible=True,
+                history=t.history + ("trace",)
+            )
+        else:
+            new_t = replace(t, data=new_data, shape=(1, 1), history=t.history + ("trace",))
+        results.append(new_t)
+    return results
+
+
+def _op_matrix_multiply(targets: list, params: dict, create_new: bool) -> list:
+    """Matrix multiplication (matrix-matrix or matrix-vector)."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if a.is_matrix and b.is_vector:
+        if a.cols != len(b.coords):
+            return []
+        result = a.to_numpy() @ b.to_numpy()
+        new_data = tuple(float(x) for x in result)
+        if create_new:
+            new_t = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=(a.rows,),
+                dtype=a.dtype,
+                label=f"{a.label}*{b.label}",
+                color=b.color,
+                visible=True,
+                history=b.history + ("matrix_multiply",)
+            )
+        else:
+            new_t = replace(b, data=new_data, shape=(a.rows,), history=b.history + ("matrix_multiply",))
+        return [new_t]
+
+    if a.is_matrix and b.is_matrix:
+        if a.cols != b.rows:
+            return []
+        result = a.to_numpy() @ b.to_numpy()
+        new_data = _numpy_to_tuples(result)
+        new_shape = (a.rows, b.cols)
+        if create_new:
+            new_t = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=new_shape,
+                dtype=a.dtype,
+                label=f"{a.label}*{b.label}",
+                color=a.color,
+                visible=True,
+                history=a.history + ("matrix_multiply",)
+            )
+        else:
+            new_t = replace(a, data=new_data, shape=new_shape, history=a.history + ("matrix_multiply",))
+        return [new_t]
+
+    return []
 
 
 def _op_apply_kernel(targets: list, params: dict, create_new: bool) -> list:

@@ -17,7 +17,10 @@ def _render_linear_algebra_visuals(self, scene, vp):
             ]
             transformed_basis = []
             for basis in basis_vectors:
-                if matrix.shape == (3, 3):
+                if matrix.shape == (2, 2):
+                    vec2 = matrix @ np.array([basis[0], basis[1]], dtype='f4')
+                    transformed = np.array([vec2[0], vec2[1], basis[2]], dtype='f4')
+                elif matrix.shape == (3, 3):
                     transformed = matrix @ basis
                 elif matrix.shape == (4, 4):
                     point = np.array([basis[0], basis[1], basis[2], 1.0])
@@ -32,13 +35,16 @@ def _render_linear_algebra_visuals(self, scene, vp):
     except Exception:
         pass
 
-    if self.show_vector_spans and len(scene.vectors) >= 2:
+    if getattr(scene, 'vector_span', None) is not None:
+        v1, v2 = scene.vector_span
+        self.gizmos.draw_vector_span(vp, v1, v2)
+    elif self.show_vector_spans and len(scene.vectors) >= 2:
         self.gizmos.draw_vector_span(vp, scene.vectors[0], scene.vectors[1])
 
     if len(scene.vectors) >= 3:
         self.gizmos.draw_parallelepiped(vp, scene.vectors[:3])
 
-    self._render_matrix_3d_plot(scene, vp)
+    self._render_matrix_3d_plot(scene, vp, force=True)
 
     if not getattr(scene, 'show_matrix_plot', False):
         for matrix_dict in scene.matrices:
@@ -54,7 +60,10 @@ def _render_linear_algebra_visuals(self, scene, vp):
 
             transformed_basis = []
             for basis in basis_vectors:
-                if matrix.shape == (3, 3):
+                if matrix.shape == (2, 2):
+                    vec2 = matrix @ np.array([basis[0], basis[1]], dtype='f4')
+                    transformed = np.array([vec2[0], vec2[1], basis[2]], dtype='f4')
+                elif matrix.shape == (3, 3):
                     transformed = matrix @ basis
                 elif matrix.shape == (4, 4):
                     point = np.array([basis[0], basis[1], basis[2], 1.0])
@@ -73,9 +82,9 @@ def _render_linear_algebra_visuals(self, scene, vp):
             )
 
 
-def _render_matrix_3d_plot(self, scene, vp):
+def _render_matrix_3d_plot(self, scene, vp, force=False, only_nonsquare=False):
     """Render matrix values as a 3D point plot when enabled."""
-    if not getattr(scene, 'show_matrix_plot', False):
+    if not force and not getattr(scene, 'show_matrix_plot', False):
         return
 
     for matrix_dict in scene.matrices:
@@ -85,6 +94,8 @@ def _render_matrix_3d_plot(self, scene, vp):
         if matrix is None or matrix.ndim != 2:
             continue
         rows, cols = matrix.shape
+        if only_nonsquare and rows == cols:
+            continue
         if rows == 0 or cols == 0:
             continue
 
@@ -92,7 +103,9 @@ def _render_matrix_3d_plot(self, scene, vp):
         min_val = float(values.min())
         max_val = float(values.max())
         range_val = max(1e-5, max_val - min_val)
-        spacing = 1.25
+        max_abs = max(1e-5, float(np.max(np.abs(values))))
+        spacing = 1.6
+        z_scale = 1.2 / max(1.0, max_abs / 3.0)
 
         points = []
         colors = []
@@ -102,12 +115,12 @@ def _render_matrix_3d_plot(self, scene, vp):
                 norm = (value - min_val) / range_val
                 x = (j - (cols - 1) / 2.0) * spacing
                 y = (i - (rows - 1) / 2.0) * spacing
-                z = value * 0.5
+                z = value * z_scale
                 points.append([x, y, z])
                 colors.append(_matrix_point_color(norm))
 
         if points:
-            self.gizmos.draw_points(points, colors, vp, size=10.0, depth=True)
+            self.gizmos.draw_points(points, colors, vp, size=18.0, depth=True)
 
 
 def _matrix_point_color(t):

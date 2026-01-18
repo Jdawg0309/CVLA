@@ -6,7 +6,7 @@ import numpy as np
 
 
 def draw_vector_with_details(self, vp, vector, selected=False, scale=1.0,
-                            show_components=True, show_span=False):
+                            show_components=True, show_span=False, depth=True):
     """
     Draw a vector with enhanced visualizations.
     """
@@ -31,17 +31,17 @@ def draw_vector_with_details(self, vp, vector, selected=False, scale=1.0,
 
     shaft_verts = [[0, 0, 0], tip.tolist()]
     shaft_colors = [color, color]
-    self.draw_lines(shaft_verts, shaft_colors, vp, width=shaft_width)
+    self.draw_lines(shaft_verts, shaft_colors, vp, width=shaft_width, depth=depth)
 
-    self._draw_arrow_head(vp, tip, vector.coords, color, shaft_width)
+    self._draw_arrow_head(vp, tip, vector.coords, color, shaft_width, depth)
 
     if show_components:
-        self._draw_vector_components(vp, tip, color)
+        self._draw_vector_components(vp, tip, color, depth)
 
-    self.draw_points([tip.tolist()], [color], vp, size=12.0 if selected else 8.0)
+    self.draw_points([tip.tolist()], [color], vp, size=12.0 if selected else 8.0, depth=depth)
 
 
-def _draw_arrow_head(self, vp, tip, direction, color, shaft_width):
+def _draw_arrow_head(self, vp, tip, direction, color, shaft_width, depth=True):
     """Draw a 3D arrow head."""
     length = np.linalg.norm(tip)
     if length < 0.3:
@@ -84,21 +84,21 @@ def _draw_arrow_head(self, vp, tip, direction, color, shaft_width):
         head_verts.extend(p2.tolist())
         head_colors.extend([color, color])
 
-    self.draw_lines(head_verts, head_colors, vp, width=shaft_width)
+        self.draw_lines(head_verts, head_colors, vp, width=shaft_width, depth=depth)
 
 
-def _draw_vector_components(self, vp, tip, color):
+def _draw_vector_components(self, vp, tip, color, depth=True):
     """Draw projection lines to axes."""
     proj_color = (color[0], color[1], color[2], 0.4)
 
     xy_proj = [tip[0], tip[1], 0]
     vertices = [tip.tolist(), xy_proj]
     colors = [proj_color, proj_color]
-    self.draw_lines(vertices, colors, vp, width=1.0)
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
 
     xz_proj = [tip[0], 0, tip[2]]
     vertices = [tip.tolist(), xz_proj]
-    self.draw_lines(vertices, colors, vp, width=1.0)
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
 
     yz_proj = [0, tip[1], tip[2]]
     vertices = [tip.tolist(), yz_proj]

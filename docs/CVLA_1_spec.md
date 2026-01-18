@@ -195,102 +195,110 @@ These rules MUST hold. Violation = bug.
 
 ## DATA MODELS
 
-### TensorData (Unified Mathematical Object)
+### TensorDType (Data classification)
+```python
+class TensorDType(Enum):
+    NUMERIC = "numeric"          # vectors, matrices
+    IMAGE_RGB = "image_rgb"      # HxWx3 or HxWx4
+    IMAGE_GRAYSCALE = "image_grayscale"  # HxW or HxWx1
+```
+
+### TensorData (Unified, immutable)
 ```python
 @dataclass(frozen=True)
 class TensorData:
-    data: Tuple[float, ...]     # Flattened data
-    shape: Tuple[int, ...]      # Shape information
-    dtype: str = "float64"
-    label: str = ""
+    id: str
+    data: Tuple[Union[float, Tuple], ...]  # nested tuples for N-D
+    shape: Tuple[int, ...]
+    dtype: TensorDType
+    label: str
+    color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
+    visible: bool = True
+    history: Tuple[str, ...] = ()
 
-    # Factory methods
-    @staticmethod
-    def create_scalar(value: float, label: str = "") -> TensorData
-    @staticmethod
-    def create_vector(values: Tuple[float, ...], label: str = "") -> TensorData
-    @staticmethod
-    def create_matrix(values: Tuple[Tuple[float, ...], ...], label: str = "") -> TensorData
-    @staticmethod
-    def from_numpy(arr: np.ndarray, label: str = "") -> TensorData
-
-    def to_numpy(self) -> np.ndarray
-
+    # ---- classification ----
     @property
-    def tensor_type(self) -> TensorType  # SCALAR, VECTOR, MATRIX, TENSOR3
+    def rank(self) -> int: ...
+    @property
+    def tensor_type(self) -> str:  # 'vector' | 'matrix' | 'image'
+    @property
+    def is_vector(self) -> bool: ...
+    @property
+    def is_matrix(self) -> bool: ...
+    @property
+    def is_image(self) -> bool: ...
+
+    # ---- factories ----
+    @staticmethod
+    def create_vector(coords: Tuple[float, ...], label: str,
+                      color: Tuple[float, float, float] = (0.8, 0.8, 0.8)) -> TensorData
+    @staticmethod
+    def create_matrix(values: Tuple[Tuple[float, ...], ...], label: str,
+                      color: Tuple[float, float, float] = (0.8, 0.8, 0.8)) -> TensorData
+    @staticmethod
+    def create_image(pixels: np.ndarray, name: str,
+                     history: Tuple[str, ...] = ()) -> TensorData
+
+    # ---- helpers ----
+    def to_numpy(self) -> np.ndarray
+    def with_history(self, operation: str) -> TensorData
+    def with_data(self, new_data: Tuple, new_shape: Optional[Tuple[int, ...]] = None) -> TensorData
+    def with_label(self, label: str) -> TensorData
+    def with_color(self, color: Tuple[float, float, float]) -> TensorData
+    def with_visible(self, visible: bool) -> TensorData
+
+    # ---- numeric conveniences ----
+    @property
+    def coords(self) -> Tuple[float, ...]                  # vectors only
+    @property
+    def values(self) -> Tuple[Tuple[float, ...], ...]      # matrices only
+    @property
+    def rows(self) -> int
+    @property
+    def cols(self) -> int
 ```
 
-### TensorType (Classification)
+### EducationalStep (Pipeline narration)
 ```python
-class TensorType(Enum):
-    SCALAR = auto()      # 0-dimensional: single number
-    VECTOR = auto()      # 1-dimensional: (n,)
-    MATRIX = auto()      # 2-dimensional: (m, n)
-    TENSOR3 = auto()     # 3-dimensional: (d, m, n) - for images
-    IMAGE = auto()       # Special case with channel semantics
+@dataclass(frozen=True)
+class EducationalStep:
+    id: str
+    title: str
+    explanation: str
+    operation: str
+    input_data: Optional[ImageData] = None
+    output_data: Optional[ImageData] = None
+    kernel_name: Optional[str] = None
+    kernel_values: Optional[Tuple[Tuple[float, ...], ...]] = None
+    transform_matrix: Optional[Tuple[Tuple[float, ...], ...]] = None
+    kernel_position: Optional[Tuple[int, int]] = None
 ```
 
-### Step (Educational Trace)
+### OperationRecord (History log)
 ```python
 @dataclass(frozen=True)
-class Step:
-    step_index: int
-    math_expression: str          # LaTeX
-    description: str              # Plain English
-    numeric_values: Dict[str, Any]
-    geometric_change: GeometricDelta
-    reversible: bool = True
-    substeps: Tuple[Step, ...] = ()
+class OperationRecord:
+    id: str
+    operation_name: str
+    parameters: Tuple[Tuple[str, str], ...]
+    target_ids: Tuple[str, ...]
+    result_ids: Tuple[str, ...]
+    timestamp: float
+    description: str
 ```
 
-### GeometricDelta (Visualization Hint)
+### Legacy Vector/Matrix Models
+`VectorData` and `MatrixData` remain for backward compatibility with
+pre-unified UI code. SceneAdapter merges them with `TensorData` so the renderer
+can treat all math objects uniformly.
+
+### Result Helper (optional)
+When an operation needs explicit success/failure, use a light-weight result:
 ```python
 @dataclass(frozen=True)
-class GeometricDelta:
-    change_type: str  # 'scale', 'rotate', 'shear', 'translate', 'project', 'reflect', 'none'
-    scale_factor: Optional[Tuple[float, ...]] = None
-    rotation_axis: Optional[Tuple[float, float, float]] = None
-    rotation_angle: Optional[float] = None  # radians
-    translation: Optional[Tuple[float, ...]] = None
-    old_basis: Optional[Tuple[Tuple[float, ...], ...]] = None
-    new_basis: Optional[Tuple[Tuple[float, ...], ...]] = None
-    highlight_vectors: Tuple[str, ...] = ()
-```
-
-### RenderHints (How to Visualize)
-```python
+class Ok(Generic[T]): ...
 @dataclass(frozen=True)
-class RenderHints:
-    show_input_vectors: bool = True
-    show_output_vectors: bool = True
-    show_intermediate: bool = True
-    show_basis_change: bool = False
-    show_grid_deformation: bool = False
-    animate_transformation: bool = True
-    animation_duration: float = 0.5  # seconds
-    input_color: Tuple[float, float, float, float] = (0.2, 0.6, 1.0, 1.0)
-    output_color: Tuple[float, float, float, float] = (1.0, 0.4, 0.2, 1.0)
-    show_projection_line: bool = False
-    show_orthogonal_complement: bool = False
-    show_span: bool = False
-    show_kernel: bool = False
-    show_image_space: bool = False
-```
-
-### Result Type (Error Handling)
-```python
-@dataclass(frozen=True)
-class Ok(Generic[T]):
-    value: T
-    def is_ok(self) -> bool: return True
-    def unwrap(self) -> T: return self.value
-
-@dataclass(frozen=True)
-class Err(Generic[E]):
-    error: E
-    def is_ok(self) -> bool: return False
-    def unwrap(self): raise ValueError(self.error)
-
+class Err(Generic[E]): ...
 Result = Union[Ok[T], Err[E]]
 ```
 
@@ -298,36 +306,33 @@ Result = Union[Ok[T], Err[E]]
 
 ## OPERATION REGISTRY SYSTEM
 
-### OperationSpec (Interface)
-Every operation MUST implement this interface:
+*Status:* Not yet implemented in code; current math lives in `domain/vectors`, `domain/transforms`, and `domain/images`. This interface is the target for unifying operations and step traces.
 
+### OperationSpec (Interface)
 ```python
+TensorKind = Literal["vector", "matrix", "image"]
+
 class OperationSpec(ABC):
     # === METADATA ===
     @property
     @abstractmethod
-    def id(self) -> str:
-        """Unique identifier: 'dot_product', 'matrix_multiply'"""
+    def id(self) -> str: ...
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        """Display name: 'Dot Product', 'Matrix Multiplication'"""
+    def name(self) -> str: ...
 
     @property
     @abstractmethod
-    def category(self) -> str:
-        """Category: 'vector', 'matrix', 'transform', 'decomposition', 'image'"""
+    def category(self) -> str: ...  # 'vector' | 'matrix' | 'transform' | 'image'
 
     @property
     @abstractmethod
-    def inputs(self) -> Tuple[TensorType, ...]:
-        """Required input types"""
+    def inputs(self) -> Tuple[TensorKind, ...]: ...
 
     @property
     @abstractmethod
-    def outputs(self) -> Tuple[TensorType, ...]:
-        """Output types"""
+    def outputs(self) -> Tuple[TensorKind, ...]: ...
 
     @property
     def assumptions(self) -> Tuple[str, ...]:
@@ -337,40 +342,29 @@ class OperationSpec(ABC):
     # === EDUCATIONAL ===
     @property
     @abstractmethod
-    def description(self) -> str:
-        """What it does"""
+    def description(self) -> str: ...
 
     @property
     @abstractmethod
-    def intuition(self) -> str:
-        """Why it works"""
+    def intuition(self) -> str: ...
 
     @property
     def failure_modes(self) -> Tuple[str, ...]:
-        """When it fails"""
         return ()
 
     @property
     @abstractmethod
-    def geometric_meaning(self) -> str:
-        """What it represents geometrically"""
+    def geometric_meaning(self) -> str: ...
 
     # === CORE METHODS ===
     @abstractmethod
-    def validate(self, *tensors: TensorData) -> Result[None, str]:
-        """Validate inputs. Return Ok(None) or Err(message)."""
+    def validate(self, *tensors: TensorData) -> Result[None, str]: ...
 
     @abstractmethod
-    def compute(self, *tensors: TensorData) -> TensorData:
-        """Perform computation. Precondition: validate() returned Ok."""
+    def compute(self, *tensors: TensorData) -> TensorData: ...
 
     @abstractmethod
-    def steps(self, *tensors: TensorData) -> Tuple[Step, ...]:
-        """Generate step-by-step breakdown."""
-
-    def render_hints(self) -> RenderHints:
-        """Provide visualization hints."""
-        return RenderHints()
+    def steps(self, *tensors: TensorData) -> Tuple[EducationalStep, ...]: ...
 ```
 
 ### Operation Registry
@@ -617,103 +611,86 @@ class MyOperation(OperationSpec):
 
 ---
 
+## RENDERING SYSTEM
+
+**Pipeline**
+- Store state → `SceneAdapter` (`engine/scene_adapter.py`) → renderer-friendly scene objects.
+- `Renderer` (`render/renderers/renderer.py`) caches view-projection, clears with gradient, chooses environment (planar vs cubic grid), draws images, math visuals, vectors, and selection highlights.
+- `Gizmos` provide reusable GL primitives (grids, axes, basis transforms, spans, point clouds) and are the only place that touches ModernGL buffers.
+- `LabelRenderer` overlays text labels for vectors/axes.
+- `ViewConfig` controls render presets and sits outside Redux alongside the camera to avoid high-frequency reducer traffic.
+
+**Key behaviors**
+- Grid modes: `plane` (xy/xz/yz) and `cube`, both obey right/left-handed axis mapping and perspective/orthographic view modes.
+- Caching: view-projection matrix cached until camera/view config changes; image plane batches cached by `(resolution, render_mode, color_mode)`.
+- Image rendering: plane or height-field; optional grid overlay; uses `engine.image_adapter` downsampling before upload.
+- Linear algebra overlays: basis transform previews, vector span parallelograms, parallelepiped for 3 vectors, optional matrix 3D point plot.
+- Safety defaults: depth test + alpha blend on; back-face culling off so grids/images stay visible when orbiting.
+- Selection: ring/highlight when `scene.selection_type == 'vector'`.
+- Tunables: `vector_scale`, plane visuals toggle, cube face colors, cubic grid density, auto-rotate, label density.
+
+**Performance rules**
+- Renderer never mutates state; all math happens before render.
+- Keep per-frame CPU under 2 ms; reuse gizmo buffers and cached projections.
+- Heavy previews (matrix plots, image grids) must be explicitly toggled to avoid frame drops.
+
+---
+
 ## FILE STRUCTURE
 
 ```
 CVLA/
-├── main.py                          # Entry point
+├── main.py
+├── README.md
+├── requirements.txt
+├── imgui.ini
 ├── docs/
-│   └── CVLA_1_spec.md              # This specification
-│
-├── state/                           # Redux-like state management
-│   ├── __init__.py
-│   ├── app_state.py                 # AppState dataclass
-│   ├── store.py                     # Store with dispatch
-│   ├── actions/
-│   │   ├── __init__.py
-│   │   ├── tensor_actions.py        # AddTensor, DeleteTensor, etc.
-│   │   ├── operation_actions.py     # ExecuteOperation, etc.
-│   │   ├── step_actions.py          # StepForward, StepBackward, etc.
-│   │   └── ... (existing actions)
-│   ├── reducers/
-│   │   ├── __init__.py
-│   │   ├── reducer_tensors.py
-│   │   ├── reducer_operations.py
-│   │   ├── reducer_steps.py
-│   │   └── ... (existing reducers)
-│   └── selectors/
-│       ├── __init__.py
-│       └── tensor_selectors.py
-│
-├── domain/                          # Pure math, no UI
-│   ├── __init__.py
-│   ├── operations/
-│   │   ├── __init__.py
-│   │   ├── registry.py              # OperationSpec, registry
-│   │   ├── vector_ops.py            # VectorAddition, DotProduct, etc.
-│   │   ├── matrix_ops.py            # MatrixMultiply, Determinant, etc.
-│   │   ├── transform_ops.py         # RotationMatrix, Shear, etc.
-│   │   ├── eigen_ops.py             # Eigenvalues, Eigenvectors
-│   │   ├── system_ops.py            # GaussianElimination, LU
-│   │   ├── subspace_ops.py          # NullSpace, ColumnSpace
-│   │   └── conv_ops.py              # Convolution2D, SobelEdge
-│   └── models/
-│       ├── __init__.py
-│       ├── tensor.py                # TensorData, VisualTensor
-│       └── step.py                  # Step, StepSequence, StepState
-│
-├── engine/                          # Rendering bridge
-│   ├── __init__.py
-│   ├── scene_adapter.py             # State → renderable objects
-│   └── step_player.py               # Step animation controller
-│
-├── render/                          # OpenGL rendering
-│   ├── __init__.py
-│   ├── cameras/
-│   │   └── camera.py
-│   ├── renderers/
-│   │   ├── renderer.py              # Main renderer
-│   │   ├── renderer_vectors.py
-│   │   ├── renderer_axes.py
-│   │   └── ...
-│   ├── shaders/
-│   │   └── gizmo_programs.py
-│   └── viewconfigs/
-│       └── viewconfig.py
-│
-├── ui/                              # ImGui interface
-│   ├── __init__.py
-│   ├── layout/
-│   │   └── workspace.py             # Main layout
-│   ├── panels/
-│   │   ├── input_panel/
-│   │   │   ├── __init__.py
-│   │   │   ├── text_input.py
-│   │   │   └── grid_input.py
-│   │   ├── operations_panel/
-│   │   │   └── __init__.py
-│   │   ├── timeline/
-│   │   │   └── timeline_panel.py
-│   │   └── sidebar/
-│   │       └── ... (existing)
-│   └── toolbars/
-│       └── toolbar.py
-│
-├── app/                             # Application core
+│   └── CVLA_1_spec.md
+├── app/                      # Window + ImGui bootstrap and handlers
 │   ├── app.py
 │   ├── app_run.py
-│   └── ...
-│
-└── tests/                           # Test coverage
-    ├── __init__.py
-    ├── test_operations/
-    │   ├── test_vector_ops.py
-    │   ├── test_matrix_ops.py
-    │   └── ...
-    ├── test_reducers/
-    │   └── ...
-    └── test_integration/
-        └── ...
+│   ├── app_handlers.py
+│   ├── app_style.py
+│   └── app_logging.py
+├── domain/                   # Pure math helpers (no UI side effects)
+│   ├── vectors/              # vector_ops.py, vector3d.py
+│   ├── transforms/           # affine_matrices.py, affine_transform.py, affine_helpers.py, transforms.py
+│   └── images/               # image.py, image_matrix.py, image_samples.py
+├── engine/                   # State → render bridge + runtime helpers
+│   ├── scene_adapter.py
+│   ├── picking_system.py
+│   ├── history_manager.py
+│   ├── execution_loop.py
+│   └── image_adapter.py
+├── render/                   # ModernGL layer
+│   ├── cameras/              # camera.py + core/projection/controls modules
+│   ├── viewconfigs/          # viewconfig.py and helpers (core, axis, cubic, grid_basis)
+│   ├── gizmos/               # grid, vector visuals, draw_points, volume helpers
+│   ├── renderers/            # renderer.py, renderer_vectors.py, renderer_linear_algebra.py, renderer_image.py, labels/
+│   └── shaders/              # gizmo_programs.py
+├── state/                    # Redux-style store
+│   ├── app_state.py
+│   ├── store.py
+│   ├── actions/              # vectors, matrices, tensors, images, navigation, pipeline, history, input
+│   ├── reducers/             # reducer_vectors.py, reducer_matrices.py, reducer_images.py, reducer_pipeline.py, reducer_navigation.py, reducer_input_panel.py, ...
+│   ├── selectors/            # tensor_selectors.py, ...
+│   └── models/               # tensor_model.py, vector_model.py, matrix_model.py, image_model.py, educational_step.py, operation_record.py, pipeline_models.py, tensor_compat.py
+├── ui/                       # ImGui interface
+│   ├── layout/workspace.py
+│   ├── inspectors/
+│   ├── panels/
+│   │   ├── input_panel/
+│   │   ├── operations_panel/
+│   │   ├── timeline/
+│   │   ├── images/
+│   │   ├── sidebar/
+│   │   ├── mode_selector/
+│   │   └── tool_palette/
+│   ├── toolbars/
+│   ├── themes/
+│   └── utils/
+├── samples/                  # Demo assets and fixtures
+└── state/__init__.py, ui/__init__.py, domain/__init__.py, render/__init__.py
 ```
 
 ---
@@ -721,72 +698,151 @@ CVLA/
 ## STATE MANAGEMENT
 
 ### AppState (Single Source of Truth)
+`state/app_state.py` is canonical. Camera and `ViewConfig` live outside Redux for performance. High-level layout:
+
 ```python
 @dataclass(frozen=True)
 class AppState:
-    # Scene data
-    tensors: Tuple[VisualTensor, ...] = ()
-
-    # Selection
+    # Scene entities (legacy + unified)
+    vectors: Tuple[VectorData, ...] = ()
+    matrices: Tuple[MatrixData, ...] = ()
+    tensors: Tuple[TensorData, ...] = ()
     selected_tensor_id: Optional[str] = None
 
-    # Current operation
-    active_operation_id: Optional[str] = None
-    operation_result: Optional[TensorData] = None
-    operation_steps: Tuple[Step, ...] = ()
-    current_step_index: int = 0
+    # Input panel (text/file/grid + controlled inputs)
+    active_input_method: str = "text"
+    input_text_content: str = ""
+    input_text_parsed_type: str = ""
+    input_file_path: str = ""
+    input_grid_rows: int = 3
+    input_grid_cols: int = 3
+    input_grid_cells: Tuple[Tuple[float, ...], ...] = (
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+    )
+    input_vector_coords: Tuple[float, float, float] = (1.0, 0.0, 0.0)
+    input_vector_label: str = ""
+    input_vector_color: Tuple[float, float, float] = (0.8, 0.2, 0.2)
+    input_matrix: Tuple[Tuple[float, ...], ...] = (
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+    )
+    input_matrix_label: str = "A"
+    input_matrix_rows: int = 3
+    input_matrix_cols: int = 3
+    input_equations: Tuple[Tuple[float, ...], ...] = (
+        (1.0, 1.0, 1.0, 0.0),
+        (2.0, -1.0, 0.0, 0.0),
+        (0.0, 1.0, -1.0, 0.0),
+    )
+    input_equation_count: int = 3
+    input_image_path: str = ""
+    input_sample_pattern: str = "checkerboard"
+    input_sample_size: int = 32
+    input_transform_rotation: float = 0.0
+    input_transform_scale: float = 1.0
+    input_image_normalize_mean: float = 0.0
+    input_image_normalize_std: float = 1.0
+    active_image_tab: str = "raw"
+    input_expression: str = ""
+    input_expression_type: str = ""
+    input_expression_error: str = ""
+    input_matrix_preview_vectors: Tuple[Tuple[float, ...], ...] = ()
 
-    # Playback
-    is_playing: bool = False
-    playback_speed: float = 1.0
+    # Operations + preview + history
+    pending_operation: Optional[str] = None
+    pending_operation_params: Tuple[Tuple[str, str], ...] = ()
+    operation_preview_tensor: Optional[TensorData] = None
+    show_operation_preview: bool = True
+    operation_history: Tuple[OperationRecord, ...] = ()
 
-    # UI state
-    active_mode: str = "vector"  # vector, matrix, image
-    active_panel: str = "input"
+    # Selection (legacy UI)
+    selected_id: Optional[str] = None
+    selected_type: Optional[str] = None  # 'vector', 'matrix', 'plane', 'image'
 
-    # History
-    history: Tuple[AppState, ...] = ()
-    future: Tuple[AppState, ...] = ()
+    # Image / vision state
+    current_image: Optional[ImageData] = None
+    processed_image: Optional[ImageData] = None
+    selected_kernel: str = "sobel_x"
+    image_status: str = ""
+    image_status_level: str = "info"
+    selected_pixel: Optional[Tuple[int, int]] = None
+    image_render_mode: str = "plane"   # 'plane' | 'height-field'
+    image_render_scale: float = 1.0
+    image_color_mode: str = "rgb"
+    image_auto_fit: bool = True
+    show_image_grid_overlay: bool = False
+    image_downsample_enabled: bool = False
+    image_preview_resolution: int = 128
+    image_max_resolution: int = 512
+    current_image_stats: Optional[Tuple[float, float, float, float]] = None
+    processed_image_stats: Optional[Tuple[float, float, float, float]] = None
+    current_image_preview: Optional[Tuple[Tuple[float, ...], ...]] = None
+    processed_image_preview: Optional[Tuple[Tuple[float, ...], ...]] = None
+    selected_kernel_matrix: Optional[Tuple[Tuple[float, ...], ...]] = None
 
-    # Counters
-    next_tensor_id: int = 1
+    # Educational pipeline
+    pipeline_steps: Tuple[EducationalStep, ...] = ()
+    pipeline_step_index: int = 0
+
+    # UI view state
+    active_mode: str = "vectors"
+    active_tab: str = "vectors"
+    ui_theme: str = "dark"
+    active_tool: str = "select"
+    show_matrix_editor: bool = False
+    show_matrix_values: bool = False
+    show_image_on_grid: bool = True
+    preview_enabled: bool = False
+    matrix_plot_enabled: bool = False
+    view_preset: str = "cube"
+    view_up_axis: str = "z"
+    view_grid_mode: str = "cube"
+    view_grid_plane: str = "xy"
+    view_show_grid: bool = True
+    view_show_axes: bool = True
+    view_show_labels: bool = True
+    view_grid_size: int = 15
+    view_base_major_tick: int = 5
+    view_base_minor_tick: int = 1
+    view_major_tick: int = 5
+    view_minor_tick: int = 1
+    view_auto_rotate: bool = False
+    view_rotation_speed: float = 0.5
+    view_show_cube_faces: bool = True
+    view_show_cube_corners: bool = True
+    view_cubic_grid_density: float = 1.0
+    view_mode_2d: bool = False
+
+    # History and counters
+    history: Tuple['AppState', ...] = ()
+    future: Tuple['AppState', ...] = ()
+    next_vector_id: int = 1
+    next_matrix_id: int = 1
+    next_color_index: int = 0
 ```
 
-### Actions
-```python
-# Tensor actions
-AddTensor(data, shape, label, color)
-DeleteTensor(tensor_id)
-UpdateTensor(tensor_id, **updates)
-SelectTensor(tensor_id)
-DeselectTensor()
+`MAX_HISTORY = 20`; `create_initial_state()` seeds the Sobel kernel if available.
 
-# Operation actions
-ExecuteOperation(operation_id, input_tensor_ids)
-ClearOperationResult()
-SetActiveOperation(operation_id)
+### Actions (organized by folder)
+- `vector_actions.py`: AddVector, UpdateVector, DeleteVector, DuplicateVector, SelectVector, DeselectVector, ClearAllVectors
+- `matrix_actions.py`: AddMatrix, UpdateMatrix/Cell, DeleteMatrix, SelectMatrix, ApplyMatrixToSelected/All, ToggleMatrixPlot
+- `tensor_actions.py`: AddTensor, UpdateTensor, DeleteTensor, SelectTensor, DeselectTensor
+- `image_actions.py`: Load/Process/Normalize image, SelectPixel, SetRenderMode, ToggleGridOverlay
+- `input_actions.py` & `input_panel_actions.py`: maintain controlled inputs, parse text/file/grid
+- `navigation_actions.py`: SetActiveMode/Tab/Tool, TogglePreview, SetViewPreset
+- `pipeline_actions.py`: StepForward/Backward, JumpToStep, SetPipeline
+- `history_actions.py`: Undo, Redo (bounded by MAX_HISTORY)
+- `pipeline_actions.py` + `operation_history` combine to feed the timeline
 
-# Step actions
-StepForward()
-StepBackward()
-JumpToStep(step_index)
-ToggleStepPlayback()
-SetPlaybackSpeed(speed)
-
-# History actions
-Undo()
-Redo()
-```
-
-### Selectors
-```python
-def get_selected_tensor(state: AppState) -> Optional[VisualTensor]
-def get_tensors_by_type(state: AppState, tensor_type: TensorType) -> Tuple[VisualTensor, ...]
-def get_current_step(state: AppState) -> Optional[Step]
-def get_available_operations(state: AppState) -> List[OperationSpec]
-def can_undo(state: AppState) -> bool
-def can_redo(state: AppState) -> bool
-```
+### Selectors (state/selectors/)
+- `get_selected_tensor`, `get_selected_vector`, `get_selected_matrix`
+- `get_vectors_by_mode`, `get_visible_tensors`
+- `get_pipeline_step(index)`, `get_operation_history`
+- `can_undo`, `can_redo`
+- `get_view_settings` (derived view-related toggles)
 
 ---
 
@@ -795,141 +851,131 @@ def can_redo(state: AppState) -> bool
 ### Unit Test Coverage Targets
 | Category | Target | Priority |
 |----------|--------|----------|
-| Operations (domain/) | 100% | P0 |
-| Reducers (state/reducers/) | 100% | P0 |
-| Selectors (state/selectors/) | 90% | P1 |
-| Input parsers | 90% | P1 |
-| Step generation | 100% | P0 |
+| Domain math helpers (`domain/vectors`, `domain/transforms`, `domain/images`) | 100% | P0 |
+| Reducers (`state/reducers/`) | 100% | P0 |
+| Selectors (`state/selectors/`) | 90% | P1 |
+| Input parsers (`ui/panels/input_panel/input_parsers.py`) | 90% | P1 |
+| Scene adapter + history manager | 90% | P1 |
+| Renderer smoke tests (headless, no GL asserts) | 70% | P2 |
 
-### Test Pattern for Operations
+### Test Patterns
 ```python
+from domain.vectors import vector_ops
+import numpy as np
+
 def test_dot_product():
-    # Given
-    v1 = TensorData.create_vector((1, 2, 3), "v1")
-    v2 = TensorData.create_vector((4, 5, 6), "v2")
+    v1 = np.array([1, 2, 3], dtype=np.float32)
+    v2 = np.array([4, 5, 6], dtype=np.float32)
 
-    # When
-    op = registry.get("dot_product")
-    result = op.compute(v1, v2)
-    steps = op.steps(v1, v2)
-
-    # Then
-    assert result.data == (32.0,)  # 1*4 + 2*5 + 3*6
-    assert len(steps) >= 3  # At least 3 steps
-    assert steps[-1].numeric_values["result"] == 32.0
-
-def test_dot_product_validation():
-    # Given: vectors of different dimensions
-    v1 = TensorData.create_vector((1, 2, 3), "v1")
-    v2 = TensorData.create_vector((4, 5), "v2")
-
-    # When
-    op = registry.get("dot_product")
-    result = op.validate(v1, v2)
-
-    # Then
-    assert result.is_err()
-    assert "dimension" in result.error.lower()
+    assert vector_ops.dot(v1, v2) == 32.0
 ```
 
-### Integration Test Pattern
 ```python
-def test_operation_flow():
-    # Given: initial state with two vectors
-    state = create_initial_state()
-    store = Store(state)
+from state import Store, create_initial_state
+from state.actions.vector_actions import AddVector, SelectVector
 
-    # When: execute dot product
-    store.dispatch(ExecuteOperation("dot_product", ("v1", "v2")))
+def test_add_and_select_vector():
+    store = Store(create_initial_state())
+    store.dispatch(AddVector((1, 0, 0), (1.0, 0.0, 0.0), "v1"))
 
-    # Then: result is stored, steps are generated
+    state = store.get_state()
+    store.dispatch(SelectVector(state.vectors[0].id))
+
     new_state = store.get_state()
-    assert new_state.operation_result is not None
-    assert len(new_state.operation_steps) > 0
-    assert new_state.current_step_index == 0
+    assert len(new_state.vectors) == 1
+    assert new_state.selected_id == new_state.vectors[0].id
+```
+
+```python
+from engine.scene_adapter import create_scene_from_state
+from state.actions.vector_actions import AddVector
+
+def test_scene_adapter_produces_renderer_vectors():
+    store = Store(create_initial_state())
+    store.dispatch(AddVector((0, 1, 0), (0.2, 0.6, 1.0), "v"))
+
+    scene = create_scene_from_state(store.get_state())
+    assert len(scene.vectors) == 1
+    assert scene.vectors[0].coords.shape == (3,)
 ```
 
 ---
 
 ## IMPLEMENTATION ORDER
 
-### Phase 1: Core Infrastructure (Week 1)
-1. ✅ `domain/operations/registry.py` - OperationSpec, registry
-2. ✅ `domain/models/tensor.py` - TensorData
-3. ✅ `domain/models/step.py` - Step, StepBuilder
-4. ✅ Vector operations with steps
-5. ✅ Matrix operations with steps
-6. State actions for operations
-7. Reducers for operations
-8. Basic selectors
+*Updated Jan 18, 2026*
 
-### Phase 2: More Operations (Week 2)
-1. ✅ Transform operations
-2. ✅ Eigenvalue operations
-3. ✅ Linear system operations
-4. ✅ Subspace operations
-5. ✅ Convolution operations
-6. Unit tests for all operations
+### Current Status
+- ModernGL renderer with cube/plane grids, labels, and image planes is operational.
+- Redux-style AppState with unified `TensorData`; input/operations/timeline/images/sidebar panels exist.
+- Domain math helpers for vectors/matrices/transforms are present; no centralized operation registry yet.
+- Operation history and educational pipeline scaffolding exist; automated tests are minimal.
 
-### Phase 3: UI Integration (Week 3)
-1. Input panel (text/grid)
-2. Operations panel
-3. Timeline panel
-4. Step navigation
-5. Wire up to existing viewport
-
-### Phase 4: Polish (Week 4)
-1. Animation system
-2. Step playback
-3. Undo/redo
-4. Keyboard shortcuts
-5. Performance optimization
+### Next Milestones
+1. **Operation registry + step traces**
+   - Introduce `OperationSpec` + registry wrapping `vector_ops`, matrix helpers, and linear-system solvers.
+   - Emit `EducationalStep` and `OperationRecord` entries; hook previews into `SceneAdapter`.
+2. **Image & convolution pipeline**
+   - Normalize ingestion via `engine.image_adapter`; expose kernel presets and consistent downsampling.
+   - Generate stepped convolution/pooling outputs and link them to the timeline.
+3. **Timeline & playback**
+   - Connect `pipeline_actions` to UI timeline controls + keyboard shortcuts; keep undo/redo in sync with tensors/images.
+   - Enforce bounded history (MAX_HISTORY) with sensible coalescing for slider changes.
+4. **Performance + UX polish**
+   - Cache heavy overlays (matrix plots, image grids); expose toggles in inspector/sidebar.
+   - Profile frame time; guard against slow paths inside reducers and renderers.
+5. **Testing**
+   - Hit coverage targets above; add headless renderer smoke tests and regression tests for operation history.
 
 ---
 
 ## API REFERENCE
 
-### Quick Start
+### Quick Start (state + actions)
 ```python
-from domain.operations import registry, TensorData
+from state import Store, create_initial_state
+from state.actions.vector_actions import AddVector, SelectVector
+from engine.scene_adapter import create_scene_from_state
 
-# Create vectors
-v1 = TensorData.create_vector((1, 2, 3), "v1")
-v2 = TensorData.create_vector((4, 5, 6), "v2")
+store = Store(create_initial_state())
+store.dispatch(AddVector((1, 2, 3), (0.8, 0.2, 0.2), "v1"))
+store.dispatch(AddVector((4, 5, 6), (0.2, 0.6, 1.0), "v2"))
+store.dispatch(SelectVector(store.get_state().vectors[0].id))
 
-# Execute operation
-result = registry.execute("dot_product", v1, v2)
-if result.is_ok():
-    output, steps = result.unwrap()
-    print(f"Result: {output.data}")  # (32.0,)
-    for step in steps:
-        print(f"{step.step_index}: {step.description}")
+scene = create_scene_from_state(store.get_state())
+# renderer.render(scene)  # see rendering hook below
 ```
 
-### List All Operations
+### Tensor factories
 ```python
-from domain.operations import registry
+from state.models.tensor_model import TensorData
+import numpy as np
 
-for op in registry.list_all():
-    print(f"{op.id}: {op.name} ({op.category})")
-    print(f"  {op.description}")
-    print(f"  Inputs: {op.inputs}")
-    print(f"  Outputs: {op.outputs}")
+v = TensorData.create_vector((1, 0, 0), "v")
+m = TensorData.create_matrix(((1, 0), (0, 1)), "A")
+img = TensorData.create_image(np.zeros((64, 64, 3)), "blank")
 ```
 
-### Add Custom Operation
+### Math helpers
 ```python
-from domain.operations.registry import OperationSpec, register_operation
+from domain.vectors import vector_ops
+from domain.transforms import affine_matrices
 
-@register_operation
-class MyOperation(OperationSpec):
-    @property
-    def id(self): return "my_operation"
-    @property
-    def name(self): return "My Operation"
-    @property
-    def category(self): return "custom"
-    # ... implement all abstract methods
+dot = vector_ops.dot([1, 2, 3], [4, 5, 6])
+R = affine_matrices.rotation_matrix(axis="z", degrees=45)
+```
+
+### Rendering hook (headless)
+```python
+import moderngl
+from render.renderers.renderer import Renderer
+from render.cameras.camera import Camera
+from render.viewconfigs.viewconfig import ViewConfig
+from engine.scene_adapter import create_scene_from_state
+
+ctx = moderngl.create_standalone_context()
+renderer = Renderer(ctx, Camera(), ViewConfig())
+renderer.render(create_scene_from_state(store.get_state()))
 ```
 
 ---
@@ -996,5 +1042,5 @@ CVLA v1.0 is complete when:
 ---
 
 *Document Version: 1.0*
-*Last Updated: 2025*
+*Last Updated: 2026-01-18*
 *Target Implementation: Python 3.10+, ModernGL, ImGui*

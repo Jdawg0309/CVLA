@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from state.models.tensor_model import TensorData
 
 from state.actions.tensor_actions import ApplyOperation, DuplicateTensor
+from state.actions.matrix_actions import ToggleMatrixPlot
 from state.selectors import get_matrices, get_vectors
 
 
@@ -43,6 +44,20 @@ class MatrixOpsWidget:
             return
 
         imgui.text("MATRIX OPERATIONS")
+        imgui.spacing()
+        imgui.separator()
+        imgui.spacing()
+
+        # Visualization toggles
+        imgui.text("Visualization:")
+        imgui.spacing()
+        plot_enabled = getattr(state, "matrix_plot_enabled", False)
+        changed, plot_enabled = imgui.checkbox("3D Matrix Plot", plot_enabled)
+        if changed:
+            dispatch(ToggleMatrixPlot())
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Toggle 3D value plot (off shows basis transform)")
+
         imgui.spacing()
         imgui.separator()
         imgui.spacing()

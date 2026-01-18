@@ -3,7 +3,9 @@ Planar grid helpers.
 """
 
 
-def draw_grid(self, vp, size=10, step=1, plane='xy', color_major=(0.25, 0.27, 0.3, 0.9), color_minor=(0.15, 0.16, 0.18, 0.6)):
+def draw_grid(self, vp, size=10, step=1, plane='xy',
+              color_major=(0.28, 0.30, 0.34, 0.55),
+              color_minor=(0.18, 0.20, 0.22, 0.28)):
     """Draw a simple planar grid on specified plane ('xy','xz','yz')."""
     vertices = []
     colors = []

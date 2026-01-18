@@ -4,8 +4,8 @@ Cubic grid helpers.
 
 
 def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
-                   color_major=(0.25, 0.27, 0.3, 0.9),
-                   color_minor=(0.15, 0.16, 0.18, 0.6)):
+                   color_major=(0.28, 0.30, 0.34, 0.55),
+                   color_minor=(0.18, 0.20, 0.22, 0.28)):
     """Draw a beautiful 3D cubic grid."""
     vertices = []
     colors = []
@@ -33,7 +33,7 @@ def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
 
     self.draw_lines(vertices, colors, vp, width=1.0)
     self.draw_cube(vp, [-size, -size, -size], [size, size, size],
-                  (0.35, 0.35, 0.38, 0.8), width=2.0)
+                  (0.35, 0.35, 0.38, 0.35), width=2.0)
 
 
 def draw_cube(self, vp, min_corner, max_corner, color, width=2.0):

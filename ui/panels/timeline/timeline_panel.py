@@ -48,7 +48,13 @@ class TimelinePanel:
             imgui.pop_item_width()
 
             imgui.spacing()
-            imgui.begin_child("##timeline_steps", 0, height - 48, border=True)
+            imgui.begin_child(
+                "##timeline_steps",
+                0,
+                height - 48,
+                border=True,
+                flags=getattr(imgui, "WINDOW_ALWAYS_VERTICAL_SCROLLBAR", 0),
+            )
             for idx, step in enumerate(state.pipeline_steps):
                 if self._step_filter and self._step_filter.lower() not in step.title.lower():
                     continue

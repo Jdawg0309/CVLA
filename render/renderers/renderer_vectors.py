@@ -30,7 +30,8 @@ def _render_vectors_with_enhancements(self, scene, vp):
             self.gizmos.draw_vector_with_details(
                 vp, vector, is_selected, self.vector_scale,
                 show_components=self.show_vector_components,
-                show_span=False
+                show_span=False,
+                depth=False  # always on top of grids
             )
 
             if self.camera.mode_2d:
@@ -46,24 +47,24 @@ def _render_vector_projections(self, vector, vp):
         proj_color = (vector.color[0], vector.color[1], vector.color[2], 0.3)
 
         line = [[tip[0], tip[1], tip[2]], [proj_tip[0], proj_tip[1], proj_tip[2]]]
-        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0)
-        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0)
+        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0, depth=False)
+        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False)
 
     elif self.camera.view_preset == "xz":
         proj_tip = np.array([tip[0], 0, tip[2]])
         proj_color = (vector.color[0], vector.color[1], vector.color[2], 0.3)
 
         line = [[tip[0], tip[1], tip[2]], [proj_tip[0], proj_tip[1], proj_tip[2]]]
-        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0)
-        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0)
+        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0, depth=False)
+        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False)
 
     elif self.camera.view_preset == "yz":
         proj_tip = np.array([0, tip[1], tip[2]])
         proj_color = (vector.color[0], vector.color[1], vector.color[2], 0.3)
 
         line = [[tip[0], tip[1], tip[2]], [proj_tip[0], proj_tip[1], proj_tip[2]]]
-        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0)
-        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0)
+        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0, depth=False)
+        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False)
 
 
 def _render_selection_highlight(self, vector, vp):
@@ -97,4 +98,4 @@ def _render_selection_highlight(self, vector, vp):
     self.gizmos.draw_lines(origin_line, [highlight_color, highlight_color], vp, width=2.0, depth=False)
 
     sphere_color = (1.0, 1.0, 0.2, 0.9)
-    self.gizmos.draw_points([tip.tolist()], [sphere_color], vp, size=14.0)
+    self.gizmos.draw_points([tip.tolist()], [sphere_color], vp, size=14.0, depth=False)

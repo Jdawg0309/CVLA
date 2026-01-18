@@ -21,6 +21,9 @@ _WINDOW_NO_TITLE_BAR = getattr(imgui, "WINDOW_NO_TITLE_BAR", 0)
 _WINDOW_NO_RESIZE = getattr(imgui, "WINDOW_NO_RESIZE", 0)
 _WINDOW_NO_MOVE = getattr(imgui, "WINDOW_NO_MOVE", 0)
 _WINDOW_NO_COLLAPSE = getattr(imgui, "WINDOW_NO_COLLAPSE", 0)
+_WINDOW_ALWAYS_VERTICAL_SCROLLBAR = getattr(
+    imgui, "WINDOW_ALWAYS_VERTICAL_SCROLLBAR", 0
+)
 
 
 class InputPanel:
@@ -68,30 +71,40 @@ class InputPanel:
 
         if imgui.begin("Input Panel", flags=flags):
             self._render_header(state, dispatch, width)
-            imgui.spacing()
             imgui.separator()
             imgui.spacing()
 
-            # Calculate heights
-            input_height = height * 0.55  # 55% for input widget
-            list_height = height * 0.35   # 35% for tensor list
-            # Remaining 10% for headers/separators
+            if imgui.begin_child(
+                "##input_scroll",
+                0,
+                0,
+                border=False,
+                flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+            ):
+                # Input method tabs and widget
+                self._render_input_tabs(state, dispatch, width)
+                imgui.spacing()
 
-            # Input method tabs and widget
-            self._render_input_tabs(state, dispatch, width)
-            imgui.spacing()
+                expanded, _ = imgui.collapsing_header(
+                    "Create",
+                    imgui.TREE_NODE_DEFAULT_OPEN
+                )
+                if expanded:
+                    self._render_active_input(state, dispatch, width - 20)
 
-            # Active input widget
-            imgui.begin_child("input_widget", width - 10, input_height, border=False)
-            self._render_active_input(state, dispatch, width - 20)
+                imgui.spacing()
+
+                expanded, _ = imgui.collapsing_header(
+                    "Tensors",
+                    imgui.TREE_NODE_DEFAULT_OPEN
+                )
+                if expanded:
+                    list_height = max(220, height * 0.35)
+                    self.tensor_list.render(state, dispatch, width - 10, list_height)
+
+                imgui.spacing()
+
             imgui.end_child()
-
-            imgui.spacing()
-            imgui.separator()
-            imgui.spacing()
-
-            # Tensor list
-            self.tensor_list.render(state, dispatch, width - 10, list_height)
 
         imgui.end()
 

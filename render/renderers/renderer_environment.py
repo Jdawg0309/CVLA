@@ -6,16 +6,20 @@ Environment rendering helpers.
 def _render_cubic_environment(self, vp, scene):
     """Render a beautiful 3D cubic environment."""
     if self.view.show_grid:
+        radius = getattr(self.camera, "radius", 15.0)
+        base_size = getattr(self.view, "grid_size", 15)
+        size = int(max(6, min(base_size, radius * 0.7)))
+
         major_step = max(1, int(getattr(self.view, 'major_tick', 5)))
         minor_step = max(1, int(getattr(self.view, 'minor_tick', 1)))
 
         self.gizmos.draw_cubic_grid(
             vp,
-            size=self.view.grid_size,
+            size=size,
             major_step=major_step,
             minor_step=minor_step,
-            color_major=(0.35, 0.37, 0.4, 0.9),
-            color_minor=(0.2, 0.22, 0.25, 0.6)
+            color_major=(0.35, 0.37, 0.4, 0.55),
+            color_minor=(0.22, 0.24, 0.28, 0.28)
         )
 
         if self.show_plane_visuals:
@@ -24,18 +28,26 @@ def _render_cubic_environment(self, vp, scene):
         self._render_cube_corner_indicators(vp)
 
     if self.view.show_axes:
-        self._render_3d_axes_with_depths(vp)
+        axis_len = float(min(25.0, max(8.0, getattr(self.camera, "radius", 10.0) * 0.7)))
+        self._render_3d_axes_with_depths(vp, length=axis_len)
 
 
 def _render_planar_environment(self, vp):
     """Render planar grid environment."""
     if self.view.show_grid:
+        radius = getattr(self.camera, "radius", 15.0)
+        base_size = getattr(self.view, "grid_size", 15)
+        size = int(max(6, min(base_size, radius * 0.7)))
+
         self.gizmos.draw_grid(
             vp,
-            size=self.view.grid_size,
+            size=size,
             step=self.view.minor_tick,
-            plane=self.view.grid_plane
+            plane=self.view.grid_plane,
+            color_major=(0.35, 0.37, 0.4, 0.55),
+            color_minor=(0.22, 0.24, 0.28, 0.28)
         )
 
     if self.view.show_axes:
-        self.gizmos.draw_axes(vp, length=6.0, thickness=3.0)
+        axis_len = float(min(25.0, max(8.0, getattr(self.camera, "radius", 10.0) * 0.7)))
+        self.gizmos.draw_axes(vp, length=axis_len, thickness=3.0)
