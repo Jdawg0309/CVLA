@@ -1,7 +1,7 @@
 """
 Text input widget for the input panel.
 
-Provides a multiline text area for entering vectors and matrices.
+Provides a multiline text area for entering rank-1 or rank-2 tensors.
 """
 
 import imgui
@@ -28,7 +28,7 @@ class TextInputWidget:
 
     def render(self, state: "AppState", dispatch, width: float, matrix_only: bool = False):
         """Render the text input widget."""
-        imgui.text("Enter matrix:" if matrix_only else "Enter vector or matrix:")
+        imgui.text("Enter tensor data:")
 
         # Text input area
         imgui.push_item_width(width - 20)
@@ -80,12 +80,17 @@ class TextInputWidget:
         imgui.spacing()
 
         # Action buttons
-        can_create = parsed_type == "matrix" if matrix_only else parsed_type in ("vector", "matrix")
+        can_create = parsed_type in ("vector", "matrix")
+        if matrix_only and parsed_type not in ("vector", "matrix"):
+            can_create = False
 
         if not can_create:
             imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
 
-        button_label = "Create Matrix" if matrix_only else "Create Tensor"
+        button_label = "Create Tensor"
+        if parsed_type in ("vector", "matrix"):
+            type_desc = get_type_description(parsed_type)
+            button_label = f"Create {type_desc}"
         if imgui.button(button_label, width - 20, 30):
             if can_create:
                 label = self._label_buffer.strip() or self._generate_label(state, parsed_type)
@@ -110,17 +115,13 @@ class TextInputWidget:
         imgui.spacing()
         imgui.text_colored("Input formats:", 0.6, 0.6, 0.6, 1.0)
         if not matrix_only:
-            imgui.text_colored("  Vector: 1, 2, 3", 0.5, 0.5, 0.5, 1.0)
-        imgui.text_colored("  Matrix: 1, 2; 3, 4", 0.5, 0.5, 0.5, 1.0)
+            imgui.text_colored("  Rank-1: [1, 2, 3]", 0.5, 0.5, 0.5, 1.0)
+            imgui.text_colored("  Rank-2 (1x3): 1, 2, 3", 0.5, 0.5, 0.5, 1.0)
+        imgui.text_colored("  Rank-2: 1, 2; 3, 4", 0.5, 0.5, 0.5, 1.0)
         imgui.text_colored("  Or multi-line entries", 0.5, 0.5, 0.5, 1.0)
 
     def _generate_label(self, state: "AppState", tensor_type: str) -> str:
         """Generate an automatic label for the tensor."""
-        from state.selectors import get_tensor_count_by_type
-        if tensor_type == "vector":
-            count = get_tensor_count_by_type(state, "vector")
-            return f"v{count + 1}"
-        elif tensor_type == "matrix":
-            count = get_tensor_count_by_type(state, "matrix")
-            return f"M{count + 1}"
-        return "tensor"
+        from state.selectors import get_tensor_count
+        count = get_tensor_count(state)
+        return f"T{count + 1}"

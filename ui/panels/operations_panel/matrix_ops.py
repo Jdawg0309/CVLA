@@ -1,7 +1,7 @@
 """
-Matrix operations widget for the operations panel.
+Rank-2 tensor operations widget for the operations panel.
 
-Provides UI for matrix-specific operations.
+Provides UI for rank-2 operations.
 """
 
 import imgui
@@ -40,10 +40,10 @@ class MatrixOpsWidget:
 
     def render(self, tensor: "TensorData", state: "AppState", dispatch, width: float):
         """Render matrix operations UI."""
-        if tensor is None or not tensor.is_matrix:
+        if tensor is None or tensor.rank != 2:
             return
 
-        imgui.text("MATRIX OPERATIONS")
+        imgui.text("RANK-2 OPERATIONS")
         imgui.spacing()
         imgui.separator()
         imgui.spacing()
@@ -52,7 +52,7 @@ class MatrixOpsWidget:
         imgui.text("Visualization:")
         imgui.spacing()
         plot_enabled = getattr(state, "matrix_plot_enabled", False)
-        changed, plot_enabled = imgui.checkbox("3D Matrix Plot", plot_enabled)
+        changed, plot_enabled = imgui.checkbox("3D Rank-2 Plot", plot_enabled)
         if changed:
             dispatch(ToggleMatrixPlot())
         if imgui.is_item_hovered():
@@ -155,19 +155,19 @@ class MatrixOpsWidget:
             imgui.spacing()
 
         # Matrix-vector multiplication
-        imgui.text("Apply to Vector:")
+        imgui.text("Multiply by Rank-1 Tensor:")
         imgui.spacing()
 
         vectors = list(get_vectors(state))
         if not vectors:
-            imgui.text_colored("No vectors available", 0.5, 0.5, 0.5, 1.0)
+            imgui.text_colored("No rank-1 tensors available", 0.5, 0.5, 0.5, 1.0)
         else:
             # Filter vectors with compatible dimensions
             compatible = [v for v in vectors if len(v.coords) == tensor.cols]
 
             if not compatible:
                 imgui.text_colored(
-                    f"No vectors with {tensor.cols} dimensions",
+                    f"No rank-1 tensors with {tensor.cols} dimensions",
                     0.5, 0.5, 0.5, 1.0
                 )
             else:
@@ -185,7 +185,7 @@ class MatrixOpsWidget:
 
                 imgui.spacing()
 
-                if imgui.button("Transform Vector", width - 20, 25):
+                if imgui.button("Apply Rank-2 x Rank-1", width - 20, 25):
                     target_vec = compatible[self._selected_vector_idx]
                     dispatch(ApplyOperation(
                         operation_name="matrix_multiply",
@@ -199,18 +199,18 @@ class MatrixOpsWidget:
         imgui.spacing()
 
         # Matrix-matrix multiplication
-        imgui.text("Matrix Multiply:")
+        imgui.text("Rank-2 Multiply:")
         imgui.spacing()
 
         matrices = [m for m in get_matrices(state) if m.id != tensor.id]
         if not matrices:
-            imgui.text_colored("No other matrices available", 0.5, 0.5, 0.5, 1.0)
+            imgui.text_colored("No other rank-2 tensors available", 0.5, 0.5, 0.5, 1.0)
         else:
             # Filter compatible matrices (cols == other.rows)
             compatible = [m for m in matrices if tensor.cols == m.rows]
 
             if not compatible:
-                imgui.text_colored("No compatible matrices", 0.5, 0.5, 0.5, 1.0)
+                imgui.text_colored("No compatible rank-2 tensors", 0.5, 0.5, 0.5, 1.0)
                 imgui.text_colored(
                     f"(need {tensor.cols} rows)",
                     0.4, 0.4, 0.4, 1.0
@@ -234,7 +234,7 @@ class MatrixOpsWidget:
                 result_shape = f"Result: {tensor.rows} x {other.cols}"
                 imgui.text_colored(result_shape, 0.5, 0.5, 0.5, 1.0)
 
-                if imgui.button("Multiply Matrices", width - 20, 25):
+                if imgui.button("Multiply Rank-2 Tensors", width - 20, 25):
                     dispatch(ApplyOperation(
                         operation_name="matrix_multiply",
                         parameters=(),

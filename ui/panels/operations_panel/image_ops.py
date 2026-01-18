@@ -1,7 +1,7 @@
 """
-Image operations widget for the operations panel.
+Image dtype operations widget for the operations panel.
 
-Provides UI for image-specific operations (convolution, transforms, etc.).
+Provides UI for image-dtype tensor operations (convolution, transforms, etc.).
 """
 
 import imgui
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from state.models.tensor_model import TensorData
 
 from state.actions.tensor_actions import ApplyOperation, PreviewOperation
+from state.models.tensor_model import TensorDType
 
 
 # Available kernels with display names and descriptions
@@ -45,10 +46,10 @@ class ImageOpsWidget:
 
     def render(self, tensor: "TensorData", state: "AppState", dispatch, width: float):
         """Render image operations UI."""
-        if tensor is None or not tensor.is_image:
+        if tensor is None or tensor.dtype not in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
             return
 
-        imgui.text("IMAGE OPERATIONS")
+        imgui.text("IMAGE DTYPE OPS")
         imgui.spacing()
         imgui.separator()
         imgui.spacing()
@@ -316,7 +317,7 @@ class ImageOpsWidget:
 
         imgui.spacing()
 
-        if imgui.button("Export as Matrix", width - 20, 25):
+        if imgui.button("Export as Rank-2", width - 20, 25):
             dispatch(ApplyOperation(
                 operation_name="to_matrix",
                 parameters=(),

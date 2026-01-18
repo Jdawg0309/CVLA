@@ -4,7 +4,7 @@ Sidebar linear systems section.
 
 import imgui
 
-from state.actions import SetEquationCell, SetEquationCount, StepBackward, StepForward
+from state.actions import SetEquationCell, SetEquationCount
 
 
 def _render_linear_systems(self):
@@ -125,14 +125,6 @@ def _render_linear_systems(self):
                 imgui.text(f"Step {step_index + 1} / {len(steps)}: {step['title']}")
                 if step.get('description'):
                     imgui.text_wrapped(step['description'])
-
-                imgui.spacing()
-                if self._dispatch is not None:
-                    if imgui.small_button("Prev Step"):
-                        self._dispatch(StepBackward())
-                    imgui.same_line()
-                    if imgui.small_button("Next Step"):
-                        self._dispatch(StepForward())
 
                 imgui.spacing()
                 matrix = step.get('matrix')

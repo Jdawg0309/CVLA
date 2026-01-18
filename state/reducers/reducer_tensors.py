@@ -20,6 +20,19 @@ from state.actions.tensor_actions import (
 )
 from state.models.tensor_model import TensorData, TensorDType
 from state.models.operation_record import OperationRecord
+from domain.operations.operation_registry import registry
+
+
+def _is_rank1(t: TensorData) -> bool:
+    return t.rank == 1
+
+
+def _is_rank2(t: TensorData) -> bool:
+    return t.rank == 2
+
+
+def _is_image_dtype(t: TensorData) -> bool:
+    return t.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE)
 
 
 def reduce_tensors(
@@ -121,7 +134,7 @@ def _handle_delete_tensor(
     new_selected = state.selected_tensor_id if state.selected_tensor_id != action.id else None
 
     # If an image tensor is deleted, also clear current/processed images so it disappears from view.
-    if removed and removed.is_image:
+    if removed and _is_image_dtype(removed):
         new_state = replace(
             state,
             tensors=new_tensors,
@@ -324,6 +337,121 @@ def _handle_apply_operation(
     if not targets:
         return state
 
+    if action.operation_name == "dot":
+        op = registry.get("dot")
+        if op is None:
+            return state
+        if len(targets) < 2:
+            return state
+        a, b = targets[0], targets[1]
+        if not (_is_rank1(a) and _is_rank1(b)):
+            return state
+        try:
+            result_value = op.compute({"vectors": (a, b)}, dict(action.parameters))
+            steps = tuple(op.steps({"vectors": (a, b)}, dict(action.parameters), result_value))
+        except Exception as e:
+            return replace(state,
+                error_message=str(e),
+                show_error_modal=True,
+            )
+
+        new_data = (float(result_value),)
+        if action.create_new:
+            result_tensor = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=(1,),
+                dtype=a.dtype,
+                label=f"{a.label}dot{b.label}",
+                color=a.color,
+                visible=True,
+                history=a.history + ("dot",)
+            )
+        else:
+            result_tensor = replace(a, data=new_data, shape=(1,), history=a.history + ("dot",))
+
+        record = OperationRecord.create(
+            operation_name=action.operation_name,
+            parameters=action.parameters,
+            target_ids=action.target_ids,
+            result_ids=(result_tensor.id,) if action.create_new else (),
+        )
+
+        if action.create_new:
+            new_tensors = state.tensors + (result_tensor,)
+        else:
+            new_tensors = tuple(result_tensor if t.id == result_tensor.id else t for t in state.tensors)
+
+        new_state = replace(
+            state,
+            tensors=new_tensors,
+            operation_history=state.operation_history + (record,),
+            selected_tensor_id=result_tensor.id,
+            operations=replace(
+                state.operations,
+                current_operation="dot",
+                steps=steps,
+                step_index=0,
+            ),
+        )
+        return with_history(new_state)
+
+    if action.operation_name == "matrix_multiply":
+        if len(targets) >= 2 and _is_rank2(targets[0]) and _is_rank1(targets[1]):
+            op = registry.get("matrix_vector_multiply")
+            if op is None:
+                return state
+            matrix = targets[0]
+            vector = targets[1]
+            try:
+                result_value = op.compute({"matrix": matrix, "vector": vector}, dict(action.parameters))
+                steps = tuple(op.steps({"matrix": matrix, "vector": vector}, dict(action.parameters), result_value))
+            except Exception as e:
+                return replace(state,
+                    error_message=str(e),
+                    show_error_modal=True,
+                )
+
+            result_id = _generate_id()
+            new_data = tuple(float(x) for x in result_value)
+
+            record = OperationRecord.create(
+                operation_name=action.operation_name,
+                parameters=action.parameters,
+                target_ids=action.target_ids,
+                result_ids=(result_id,),
+            )
+
+            new_tensors = state.tensors
+            selected_id = vector.id
+            if len(steps) == 1:
+                result_tensor = TensorData(
+                    id=result_id,
+                    data=new_data,
+                    shape=(matrix.rows,),
+                    dtype=TensorDType.NUMERIC,
+                    label=f"{matrix.label}*{vector.label}",
+                    color=vector.color,
+                    visible=True,
+                    history=vector.history + ("matrix_multiply",)
+                )
+                new_tensors = state.tensors + (result_tensor,)
+                selected_id = result_id
+
+            new_state = replace(
+                state,
+                tensors=new_tensors,
+                operation_history=state.operation_history + (record,),
+                selected_tensor_id=selected_id,
+                operations=replace(
+                    state.operations,
+                    current_operation="matrix_vector_multiply",
+                    steps=steps,
+                    step_index=0,
+                ),
+            )
+            return with_history(new_state)
+
     # Apply operation (placeholder - actual implementation depends on operation)
     try:
         result_tensors = _execute_operation(
@@ -367,8 +495,8 @@ def _handle_apply_operation(
     # If any result is an image tensor, sync to processed_image for rendering.
     processed_image = state.processed_image
     current_image = state.current_image
-    if any(getattr(t, "is_image", False) for t in result_tensors):
-        first_image = next(t for t in result_tensors if t.is_image)
+    if any(_is_image_dtype(t) for t in result_tensors):
+        first_image = next(t for t in result_tensors if _is_image_dtype(t))
         import numpy as np
         from state.models.image_model import ImageData
         img_np = np.array(first_image.data)
@@ -391,6 +519,12 @@ def _handle_apply_operation(
         image_status_level="info" if processed_image is not None else state.image_status_level,
         selected_tensor_id=selected_id,
         show_image_on_grid=True if processed_image is not None else state.show_image_on_grid,
+        operations=replace(
+            state.operations,
+            current_operation=None,
+            steps=(),
+            step_index=0,
+        ),
     )
     return with_history(new_state)
 
@@ -479,7 +613,7 @@ def _execute_operation(
     """
     # Convert parameters to dict for easier access
     params = dict(parameters)
-    has_image = any(getattr(t, "is_image", False) for t in targets)
+    has_image = any(_is_image_dtype(t) for t in targets)
 
     # Image-first handlers for shared names
     if operation_name == "normalize" and has_image:
@@ -555,7 +689,7 @@ def _op_normalize(targets: list, params: dict, create_new: bool) -> list:
     import numpy as np
     results = []
     for t in targets:
-        if not t.is_vector:
+        if not _is_rank1(t):
             continue
         arr = t.to_numpy()
         norm = np.linalg.norm(arr)
@@ -583,7 +717,7 @@ def _op_negate(targets: list, params: dict, create_new: bool) -> list:
     """Negate vectors."""
     results = []
     for t in targets:
-        if not t.is_vector:
+        if not _is_rank1(t):
             continue
         arr = -t.to_numpy()
         new_data = tuple(float(x) for x in arr)
@@ -634,7 +768,7 @@ def _op_add(targets: list, params: dict, create_new: bool) -> list:
     if len(targets) < 2:
         return []
     a, b = targets[0], targets[1]
-    if not (a.is_vector and b.is_vector):
+    if not (_is_rank1(a) and _is_rank1(b)):
         return []
     if len(a.coords) != len(b.coords):
         return []
@@ -661,7 +795,7 @@ def _op_subtract(targets: list, params: dict, create_new: bool) -> list:
     if len(targets) < 2:
         return []
     a, b = targets[0], targets[1]
-    if not (a.is_vector and b.is_vector):
+    if not (_is_rank1(a) and _is_rank1(b)):
         return []
     if len(a.coords) != len(b.coords):
         return []
@@ -688,7 +822,7 @@ def _op_dot(targets: list, params: dict, create_new: bool) -> list:
     if len(targets) < 2:
         return []
     a, b = targets[0], targets[1]
-    if not (a.is_vector and b.is_vector):
+    if not (_is_rank1(a) and _is_rank1(b)):
         return []
     if len(a.coords) != len(b.coords):
         return []
@@ -715,7 +849,7 @@ def _op_cross(targets: list, params: dict, create_new: bool) -> list:
     if len(targets) < 2:
         return []
     a, b = targets[0], targets[1]
-    if not (a.is_vector and b.is_vector):
+    if not (_is_rank1(a) and _is_rank1(b)):
         return []
     if len(a.coords) != 3 or len(b.coords) != 3:
         return []
@@ -742,7 +876,7 @@ def _op_project(targets: list, params: dict, create_new: bool) -> list:
     if len(targets) < 2:
         return []
     v, onto = targets[0], targets[1]
-    if not (v.is_vector and onto.is_vector):
+    if not (_is_rank1(v) and _is_rank1(onto)):
         return []
     if len(v.coords) != len(onto.coords):
         return []
@@ -778,7 +912,7 @@ def _op_to_origin(targets: list, params: dict, create_new: bool) -> list:
     """
     results = []
     for t in targets:
-        if not t.is_vector:
+        if not _is_rank1(t):
             continue
         # Vector data already represents position from origin
         # This operation confirms/resets the vector to origin-based
@@ -805,7 +939,7 @@ def _op_transpose(targets: list, params: dict, create_new: bool) -> list:
     import numpy as np
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         arr = t.to_numpy().T
         new_data = _numpy_to_tuples(arr)
@@ -839,7 +973,7 @@ def _op_inverse(targets: list, params: dict, create_new: bool) -> list:
     import numpy as np
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         # Check if matrix is square
         if t.rows != t.cols:
@@ -870,7 +1004,7 @@ def _op_determinant(targets: list, params: dict, create_new: bool) -> list:
     """Compute matrix determinant."""
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         if t.rows != t.cols:
             continue
@@ -897,7 +1031,7 @@ def _op_trace(targets: list, params: dict, create_new: bool) -> list:
     """Compute matrix trace."""
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         if t.rows != t.cols:
             continue
@@ -925,7 +1059,7 @@ def _op_matrix_multiply(targets: list, params: dict, create_new: bool) -> list:
     if len(targets) < 2:
         return []
     a, b = targets[0], targets[1]
-    if a.is_matrix and b.is_vector:
+    if _is_rank2(a) and _is_rank1(b):
         if a.cols != len(b.coords):
             return []
         result = a.to_numpy() @ b.to_numpy()
@@ -935,7 +1069,7 @@ def _op_matrix_multiply(targets: list, params: dict, create_new: bool) -> list:
                 id=_generate_id(),
                 data=new_data,
                 shape=(a.rows,),
-                dtype=a.dtype,
+                dtype=TensorDType.NUMERIC,
                 label=f"{a.label}*{b.label}",
                 color=b.color,
                 visible=True,
@@ -945,7 +1079,7 @@ def _op_matrix_multiply(targets: list, params: dict, create_new: bool) -> list:
             new_t = replace(b, data=new_data, shape=(a.rows,), history=b.history + ("matrix_multiply",))
         return [new_t]
 
-    if a.is_matrix and b.is_matrix:
+    if _is_rank2(a) and _is_rank2(b):
         if a.cols != b.rows:
             return []
         result = a.to_numpy() @ b.to_numpy()
@@ -973,7 +1107,7 @@ def _op_eigen(targets: list, params: dict, create_new: bool) -> list:
     """Eigendecomposition: returns eigenvalues as vector and eigenvectors as matrix."""
     results = []
     for t in targets:
-        if not t.is_matrix or t.rows != t.cols:
+        if not _is_rank2(t) or t.rows != t.cols:
             continue
         try:
             vals, vecs = np.linalg.eig(t.to_numpy())
@@ -1009,7 +1143,7 @@ def _op_svd(targets: list, params: dict, create_new: bool) -> list:
     """Singular Value Decomposition."""
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         try:
             U, S, Vt = np.linalg.svd(t.to_numpy(), full_matrices=False)
@@ -1053,7 +1187,7 @@ def _op_qr(targets: list, params: dict, create_new: bool) -> list:
     """QR decomposition."""
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         try:
             Q, R = np.linalg.qr(t.to_numpy())
@@ -1087,7 +1221,7 @@ def _op_lu(targets: list, params: dict, create_new: bool) -> list:
     """LU decomposition (simple Doolittle via numpy)."""
     results = []
     for t in targets:
-        if not t.is_matrix:
+        if not _is_rank2(t):
             continue
         A = t.to_numpy()
         n, m = A.shape
@@ -1137,7 +1271,7 @@ def _op_apply_kernel(targets: list, params: dict, create_new: bool) -> list:
     kernel_name = params.get("kernel", "identity")
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         from domain.images.convolution.convolution import apply_kernel
         from domain.images.image_matrix import ImageMatrix
@@ -1165,7 +1299,7 @@ def _op_rotate_image(targets: list, params: dict, create_new: bool) -> list:
     k = int(round(angle / 90.0)) % 4  # quarter turns
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = t.to_numpy()
         rotated = np.rot90(arr, k=k, axes=(0, 1))
@@ -1185,7 +1319,7 @@ def _op_scale_image(targets: list, params: dict, create_new: bool) -> list:
     factor = max(0.01, float(params.get("factor", 1.0)))
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = t.to_numpy()
         new_h = max(1, int(round(arr.shape[0] * factor)))
@@ -1209,7 +1343,7 @@ def _op_flip_image(targets: list, params: dict, axis: int, create_new: bool) -> 
     results = []
     flip_type = "horizontal" if axis == 1 else "vertical"
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = np.flip(t.to_numpy(), axis=axis)
         new_t = TensorData.create_image(
@@ -1231,7 +1365,7 @@ def _op_normalize_image(targets: list, params: dict, create_new: bool) -> list:
         std = 1.0
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = t.to_numpy().astype(float)
         normed = (arr - mean) / std
@@ -1252,7 +1386,7 @@ def _op_to_grayscale(targets: list, params: dict, create_new: bool) -> list:
     """Convert RGB image to grayscale."""
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = t.to_numpy().astype(float)
         if arr.ndim == 3 and arr.shape[2] >= 3:
@@ -1275,7 +1409,7 @@ def _op_invert_image(targets: list, params: dict, create_new: bool) -> list:
     """Invert image colors."""
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = t.to_numpy().astype(float)
         inv = 1.0 - arr
@@ -1295,7 +1429,7 @@ def _op_image_to_matrix(targets: list, params: dict, create_new: bool) -> list:
     """Convert image to numeric matrix tensor (grayscale)."""
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         arr = t.to_numpy()
         if arr.ndim == 3 and arr.shape[2] >= 3:
@@ -1321,7 +1455,7 @@ def _op_reset_image(targets: list, params: dict, create_new: bool) -> list:
     """Reset image to its original state."""
     results = []
     for t in targets:
-        if not t.is_image:
+        if not _is_image_dtype(t):
             continue
         # Check if we have original data stored
         if t.original_data is not None:

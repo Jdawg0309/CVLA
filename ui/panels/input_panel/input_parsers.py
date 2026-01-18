@@ -1,7 +1,7 @@
 """
 Input parsing utilities for the input panel.
 
-Provides functions to parse user text input into vectors and matrices.
+Provides functions to parse user text input into rank-1 or rank-2 tensors.
 """
 
 import re
@@ -24,18 +24,14 @@ def parse_input(content: str) -> Tuple[str, Optional[Union[Tuple, Tuple[Tuple, .
     if not content:
         return ("", None)
 
-    # Check for matrix indicators first
-    if ";" in content or "\n" in content or "[[" in content:
-        data = parse_matrix(content)
+    # Rank-1 tensors require explicit brackets: [1, 2, 3]
+    if _is_rank1_bracketed(content):
+        data = parse_vector(content)
         if data is not None:
-            return ("matrix", data)
+            return ("vector", data)
+        return ("", None)
 
-    # Try as vector
-    data = parse_vector(content)
-    if data is not None:
-        return ("vector", data)
-
-    # Try as matrix (single row)
+    # Everything else parses as rank-2 if valid
     data = parse_matrix(content)
     if data is not None:
         return ("matrix", data)
@@ -48,18 +44,19 @@ def parse_vector(content: str) -> Optional[Tuple[float, ...]]:
     Parse text as a vector.
 
     Supported formats:
-    - "1, 2, 3"
     - "[1, 2, 3]"
-    - "(1, 2, 3)"
-    - "1 2 3"
 
     Returns:
         Tuple of floats or None if parsing fails.
     """
     content = content.strip()
 
+    # Require single bracket pair
+    if not _is_rank1_bracketed(content):
+        return None
+
     # Remove brackets
-    content = content.strip("[]()").strip()
+    content = content.strip()[1:-1].strip()
 
     # Split by comma or whitespace
     if "," in content:
@@ -100,7 +97,8 @@ def parse_matrix(content: str) -> Optional[Tuple[Tuple[float, ...], ...]]:
     if "\n" in content:
         return _parse_newline_matrix(content)
 
-    return None
+    # Handle single-row rank-2 input
+    return _parse_single_row_matrix(content)
 
 
 def _parse_python_matrix(content: str) -> Optional[Tuple[Tuple[float, ...], ...]]:
@@ -159,6 +157,37 @@ def _parse_newline_matrix(content: str) -> Optional[Tuple[Tuple[float, ...], ...
         return None
 
 
+def _parse_single_row_matrix(content: str) -> Optional[Tuple[Tuple[float, ...], ...]]:
+    """Parse a single-row rank-2 tensor."""
+    row = content.strip().strip("[]()").strip()
+    if not row:
+        return None
+    try:
+        if "," in row:
+            values = [float(v.strip()) for v in row.split(",") if v.strip()]
+        else:
+            values = [float(v.strip()) for v in row.split() if v.strip()]
+        if not values:
+            return None
+        return (tuple(values),)
+    except ValueError:
+        return None
+
+
+def _is_rank1_bracketed(content: str) -> bool:
+    """Detect explicit rank-1 syntax: single bracket pair with no nesting."""
+    text = content.strip()
+    if not (text.startswith("[") and text.endswith("]")):
+        return False
+    if text.startswith("[["):
+        return False
+    if text.count("[") != 1 or text.count("]") != 1:
+        return False
+    if ";" in text or "\n" in text:
+        return False
+    return True
+
+
 def format_vector(coords: Tuple[float, ...], precision: int = 3) -> str:
     """Format vector as string."""
     formatted = [f"{v:.{precision}g}" for v in coords]
@@ -177,8 +206,8 @@ def format_matrix(values: Tuple[Tuple[float, ...], ...], precision: int = 3) -> 
 def get_type_description(type_name: str) -> str:
     """Get human-readable description of type."""
     descriptions = {
-        "vector": "1D Vector",
-        "matrix": "2D Matrix",
+        "vector": "Rank-1 Tensor",
+        "matrix": "Rank-2 Tensor",
         "": "Unknown",
     }
     return descriptions.get(type_name, type_name)

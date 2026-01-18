@@ -143,10 +143,8 @@ class CreateTensorFromGridInput:
     Create a tensor from the current grid input.
 
     Args:
-        tensor_type: "vector" (uses first row), "matrix" (uses full grid)
         label: Label for the tensor
         color: Color for the tensor
     """
-    tensor_type: str  # "vector" or "matrix"
     label: str
     color: Tuple[float, float, float] = (0.8, 0.8, 0.8)

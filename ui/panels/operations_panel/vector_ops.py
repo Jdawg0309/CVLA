@@ -1,7 +1,7 @@
 """
-Vector operations widget for the operations panel.
+Rank-1 tensor operations widget for the operations panel.
 
-Provides UI for vector-specific operations.
+Provides UI for rank-1 operations.
 """
 
 import imgui
@@ -41,10 +41,10 @@ class VectorOpsWidget:
 
     def render(self, tensor: "TensorData", state: "AppState", dispatch, width: float):
         """Render vector operations UI."""
-        if tensor is None or not tensor.is_vector:
+        if tensor is None or tensor.rank != 1:
             return
 
-        imgui.text("VECTOR OPERATIONS")
+        imgui.text("RANK-1 OPERATIONS")
         imgui.spacing()
         imgui.separator()
         imgui.spacing()
@@ -95,15 +95,15 @@ class VectorOpsWidget:
         imgui.separator()
         imgui.spacing()
 
-        # Binary operations (need another vector)
-        imgui.text("With Another Vector:")
+        # Binary operations (need another rank-1 tensor)
+        imgui.text("With Another Rank-1 Tensor:")
         imgui.spacing()
 
         # Get other vectors
         other_vectors = [v for v in get_vectors(state) if v.id != tensor.id]
 
         if not other_vectors:
-            imgui.text_colored("No other vectors available", 0.5, 0.5, 0.5, 1.0)
+            imgui.text_colored("No other rank-1 tensors available", 0.5, 0.5, 0.5, 1.0)
         else:
             # Vector selector
             vector_names = [v.label for v in other_vectors]

@@ -2,10 +2,7 @@
 Unified Tensor data model for CVLA.
 
 TensorData represents vectors, matrices, and images in a unified structure.
-The tensor_type is determined by shape:
-- Rank 1 (1D): vector
-- Rank 2 (2D, not image): matrix
-- Rank 2 or 3 (with image dtype): image
+Semantic behavior is derived from rank and dtype.
 """
 
 from dataclasses import dataclass, replace
@@ -45,32 +42,8 @@ class TensorData:
         return len(self.shape)
 
     @property
-    def tensor_type(self) -> str:
-        """
-        Determine the semantic type based on shape and dtype.
-
-        Returns:
-            'vector': 1D numeric data
-            'matrix': 2D numeric data
-            'image': 2D/3D image data
-        """
-        if self.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
-            return 'image'
-        if self.rank == 1:
-            return 'vector'
-        return 'matrix'
-
-    @property
-    def is_vector(self) -> bool:
-        return self.tensor_type == 'vector'
-
-    @property
-    def is_matrix(self) -> bool:
-        return self.tensor_type == 'matrix'
-
-    @property
-    def is_image(self) -> bool:
-        return self.tensor_type == 'image'
+    def is_image_dtype(self) -> bool:
+        return self.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE)
 
     @staticmethod
     def create_vector(
@@ -180,7 +153,7 @@ class TensorData:
     @property
     def coords(self) -> Tuple[float, ...]:
         """Get vector coordinates (only valid for vectors)."""
-        if not self.is_vector:
+        if self.rank != 1:
             raise ValueError("coords only valid for vectors")
         return self.data
 
@@ -188,7 +161,7 @@ class TensorData:
     @property
     def values(self) -> Tuple[Tuple[float, ...], ...]:
         """Get matrix values (only valid for matrices)."""
-        if not self.is_matrix:
+        if self.rank != 2:
             raise ValueError("values only valid for matrices")
         return self.data
 
@@ -210,21 +183,21 @@ class TensorData:
     @property
     def height(self) -> int:
         """Get image height (only valid for images)."""
-        if not self.is_image:
+        if not self.is_image_dtype:
             raise ValueError("height only valid for images")
         return self.shape[0]
 
     @property
     def width(self) -> int:
         """Get image width (only valid for images)."""
-        if not self.is_image:
+        if not self.is_image_dtype:
             raise ValueError("width only valid for images")
         return self.shape[1]
 
     @property
     def channels(self) -> int:
         """Get number of channels (only valid for images)."""
-        if not self.is_image:
+        if not self.is_image_dtype:
             raise ValueError("channels only valid for images")
         return self.shape[2] if len(self.shape) > 2 else 1
 

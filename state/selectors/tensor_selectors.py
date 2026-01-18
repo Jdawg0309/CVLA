@@ -10,6 +10,7 @@ from collections import OrderedDict
 if TYPE_CHECKING:
     from state.app_state import AppState
     from state.models.tensor_model import TensorData
+from state.models.tensor_model import TensorDType
 
 
 # Cache for computed values
@@ -59,7 +60,13 @@ def get_tensors_by_type(state: "AppState", tensor_type: str) -> Tuple["TensorDat
     Returns:
         Tuple of matching tensors
     """
-    return tuple(t for t in state.tensors if t.tensor_type == tensor_type)
+    if tensor_type == "vector":
+        return tuple(t for t in state.tensors if t.rank == 1)
+    if tensor_type == "matrix":
+        return tuple(t for t in state.tensors if t.rank == 2)
+    if tensor_type == "image":
+        return tuple(t for t in state.tensors if t.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE))
+    return ()
 
 
 def get_vectors(state: "AppState") -> Tuple["TensorData", ...]:
@@ -84,17 +91,20 @@ def get_visible_tensors(state: "AppState") -> Tuple["TensorData", ...]:
 
 def get_visible_vectors(state: "AppState") -> Tuple["TensorData", ...]:
     """Get all visible vector tensors."""
-    return tuple(t for t in state.tensors if t.tensor_type == 'vector' and t.visible)
+    return tuple(t for t in state.tensors if t.rank == 1 and t.visible)
 
 
 def get_visible_matrices(state: "AppState") -> Tuple["TensorData", ...]:
     """Get all visible matrix tensors."""
-    return tuple(t for t in state.tensors if t.tensor_type == 'matrix' and t.visible)
+    return tuple(t for t in state.tensors if t.rank == 2 and t.visible)
 
 
 def get_visible_images(state: "AppState") -> Tuple["TensorData", ...]:
     """Get all visible image tensors."""
-    return tuple(t for t in state.tensors if t.tensor_type == 'image' and t.visible)
+    return tuple(
+        t for t in state.tensors
+        if t.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE) and t.visible
+    )
 
 
 def get_tensor_count(state: "AppState") -> int:
@@ -104,7 +114,7 @@ def get_tensor_count(state: "AppState") -> int:
 
 def get_tensor_count_by_type(state: "AppState", tensor_type: str) -> int:
     """Get count of tensors of a specific type."""
-    return sum(1 for t in state.tensors if t.tensor_type == tensor_type)
+    return len(get_tensors_by_type(state, tensor_type))
 
 
 def get_tensor_labels(state: "AppState") -> Tuple[str, ...]:
@@ -129,24 +139,24 @@ def has_tensors(state: "AppState") -> bool:
 
 def has_vectors(state: "AppState") -> bool:
     """Check if there are any vector tensors."""
-    return any(t.tensor_type == 'vector' for t in state.tensors)
+    return any(t.rank == 1 for t in state.tensors)
 
 
 def has_matrices(state: "AppState") -> bool:
     """Check if there are any matrix tensors."""
-    return any(t.tensor_type == 'matrix' for t in state.tensors)
+    return any(t.rank == 2 for t in state.tensors)
 
 
 def has_images(state: "AppState") -> bool:
     """Check if there are any image tensors."""
-    return any(t.tensor_type == 'image' for t in state.tensors)
+    return any(t.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE) for t in state.tensors)
 
 
 # Computed properties with caching
 
 def get_tensor_magnitude(tensor: "TensorData") -> float:
     """Get magnitude for vector tensors (cached)."""
-    if not tensor.is_vector:
+    if tensor.rank != 1:
         return 0.0
 
     key = ("mag", tensor.id, tensor.data)
@@ -163,8 +173,8 @@ def get_tensor_magnitude(tensor: "TensorData") -> float:
 
 def get_tensor_norm(tensor: "TensorData") -> float:
     """Get Frobenius norm for matrix tensors (cached)."""
-    if not tensor.is_matrix:
-        return get_tensor_magnitude(tensor) if tensor.is_vector else 0.0
+    if tensor.rank != 2:
+        return get_tensor_magnitude(tensor) if tensor.rank == 1 else 0.0
 
     key = ("norm", tensor.id, tensor.data)
     cached = _cache_get(key)

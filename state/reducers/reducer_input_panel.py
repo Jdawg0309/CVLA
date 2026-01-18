@@ -168,7 +168,11 @@ def _parse_input_type(content: str, matrix_only: bool = False) -> str:
         return ""
 
     if matrix_only:
-        return "matrix" if _try_parse_matrix(content) is not None else ""
+        if _try_parse_matrix(content) is not None:
+            return "matrix"
+        if _try_parse_vector(content) is not None:
+            return "vector"
+        return ""
 
     # Try to parse as vector: "1, 2, 3" or "[1, 2, 3]" or "1 2 3"
     # Try to parse as matrix: "1, 2; 3, 4" or "[[1, 2], [3, 4]]" or multi-line
@@ -432,9 +436,16 @@ def _create_tensor_from_file(
             return state
 
     try:
-        matrix = _load_matrix_from_file(path, file_type)
         label = action.label.strip() if action.label else Path(path).stem
-        tensor = TensorData.create_matrix(values=matrix, label=label, color=action.color)
+        if file_type == "json":
+            data = _load_matrix_from_json(path)
+            if _is_rank1_data(data):
+                tensor = TensorData.create_vector(coords=data, label=label, color=action.color)
+            else:
+                tensor = TensorData.create_matrix(values=data, label=label, color=action.color)
+        else:
+            matrix = _load_matrix_from_file(path, file_type)
+            tensor = TensorData.create_matrix(values=matrix, label=label, color=action.color)
         new_state = replace(
             state,
             tensors=state.tensors + (tensor,),
@@ -444,7 +455,7 @@ def _create_tensor_from_file(
         return with_history(new_state)
     except Exception as exc:
         return replace(state,
-            error_message=f"Failed to load {file_type.upper()} matrix: {exc}",
+            error_message=f"Failed to load {file_type.upper()} tensor: {exc}",
             show_error_modal=True,
         )
 
@@ -456,20 +467,17 @@ def _create_tensor_from_grid(
 ) -> Optional["AppState"]:
     """Create a tensor from grid input."""
     cells = state.input_grid_cells
+    if not cells:
+        return state
 
-    if action.tensor_type == "vector":
-        # Use first row as vector
-        if cells and cells[0]:
-            data = cells[0]
-            tensor = TensorData.create_vector(
-                coords=data,
-                label=action.label,
-                color=action.color
-            )
-        else:
-            return state
+    # Infer rank from shape: single row -> vector, otherwise matrix.
+    if len(cells) == 1 and cells[0]:
+        tensor = TensorData.create_vector(
+            coords=cells[0],
+            label=action.label,
+            color=action.color
+        )
     else:
-        # Use full grid as matrix
         tensor = TensorData.create_matrix(
             values=cells,
             label=action.label,
@@ -485,7 +493,7 @@ def _create_tensor_from_grid(
 
 
 def _load_matrix_from_file(path: str, file_type: str) -> Tuple[Tuple[float, ...], ...]:
-    """Load a numeric matrix from a supported file type."""
+    """Load a numeric rank-2 tensor from a supported file type."""
     if file_type == "json":
         return _load_matrix_from_json(path)
     if file_type == "csv":
@@ -529,8 +537,8 @@ def _normalize_rows(rows: List[List[float]]) -> Tuple[Tuple[float, ...], ...]:
     return tuple(normalized)
 
 
-def _load_matrix_from_json(path: str) -> Tuple[Tuple[float, ...], ...]:
-    """Load matrix from a JSON file."""
+def _load_matrix_from_json(path: str):
+    """Load tensor data from a JSON file."""
     with open(path, "r", encoding="utf-8") as handle:
         data = json.load(handle)
 
@@ -543,17 +551,25 @@ def _load_matrix_from_json(path: str) -> Tuple[Tuple[float, ...], ...]:
     if not isinstance(data, list) or not data:
         raise ValueError("JSON must contain a non-empty array.")
 
-    rows: List[List[float]] = []
     if all(isinstance(row, (list, tuple)) for row in data):
+        rows: List[List[float]] = []
         for row in data:
             rows.append([_coerce_numeric(v) for v in row])
-    else:
-        rows.append([_coerce_numeric(v) for v in data])
+        row_len = len(rows[0])
+        if row_len == 0 or any(len(r) != row_len for r in rows):
+            raise ValueError("JSON tensor rows must be the same length.")
+        return tuple(tuple(float(v) for v in row) for row in rows)
 
-    row_len = len(rows[0])
-    if row_len == 0 or any(len(r) != row_len for r in rows):
-        raise ValueError("JSON matrix rows must be the same length.")
-    return tuple(tuple(float(v) for v in row) for row in rows)
+    return tuple(float(_coerce_numeric(v)) for v in data)
+
+
+def _is_rank1_data(data) -> bool:
+    """Detect rank-1 tensor payloads."""
+    if not isinstance(data, tuple):
+        return False
+    if not data:
+        return False
+    return isinstance(data[0], (int, float))
 
 
 def _load_matrix_from_csv(path: str) -> Tuple[Tuple[float, ...], ...]:

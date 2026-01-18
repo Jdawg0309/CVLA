@@ -13,25 +13,26 @@ if TYPE_CHECKING:
 from state.actions.tensor_actions import (
     SelectTensor, DeselectTensor, DeleteTensor, UpdateTensor
 )
+from state.models.tensor_model import TensorDType
 
 
 class TensorListWidget:
     """Widget displaying all tensors in the scene."""
 
     TYPE_ICONS = {
-        'vector': '[V]',
-        'matrix': '[M]',
-        'image': '[I]',
+        'r1': '[R1]',
+        'r2': '[R2]',
+        'r3': '[R3+]',
     }
 
     TYPE_COLORS = {
-        'vector': (0.4, 0.7, 1.0, 1.0),  # Blue
-        'matrix': (0.4, 1.0, 0.7, 1.0),  # Green
-        'image': (1.0, 0.7, 0.4, 1.0),   # Orange
+        'r1': (0.4, 0.7, 1.0, 1.0),   # Rank-1
+        'r2': (0.4, 1.0, 0.7, 1.0),   # Rank-2
+        'r3': (0.7, 0.7, 0.8, 1.0),   # Rank-3+
     }
 
     def __init__(self):
-        self._filter_type = "all"  # "all", "vector", "matrix", "image"
+        self._filter_type = "all"  # "all", "r1", "r2", "r3"
         self._search_text = ""
 
     def render(self, state: "AppState", dispatch, width: float, height: float):
@@ -41,8 +42,8 @@ class TensorListWidget:
         # Filter controls
         imgui.same_line(width - 150)
         imgui.push_item_width(60)
-        filter_items = ["All", "V", "M", "I"]
-        filter_map = ["all", "vector", "matrix", "image"]
+        filter_items = ["All", "R1", "R2", "R3+"]
+        filter_map = ["all", "r1", "r2", "r3"]
         current_idx = filter_map.index(self._filter_type) if self._filter_type in filter_map else 0
         changed, new_idx = imgui.combo("##filter", current_idx, filter_items)
         if changed:
@@ -55,6 +56,20 @@ class TensorListWidget:
         imgui.pop_item_width()
 
         imgui.spacing()
+        selected_id = state.selected_tensor_id
+        selected_tensor = None
+        if selected_id:
+            for t in state.tensors:
+                if t.id == selected_id:
+                    selected_tensor = t
+                    break
+        if selected_tensor is not None:
+            shape_str = self._format_feedback_shape(selected_tensor)
+            imgui.text_colored(
+                f"Parsed as rank-{selected_tensor.rank} tensor, shape {shape_str}",
+                0.5, 0.7, 0.5, 1.0
+            )
+            imgui.spacing()
 
         # Tensor list
         list_height = height - 60
@@ -89,8 +104,13 @@ class TensorListWidget:
         result = []
         for t in tensors:
             # Type filter
-            if self._filter_type != "all" and t.tensor_type != self._filter_type:
-                continue
+            if self._filter_type != "all":
+                if self._filter_type == "r1" and t.rank != 1:
+                    continue
+                if self._filter_type == "r2" and t.rank != 2:
+                    continue
+                if self._filter_type == "r3" and t.rank < 3:
+                    continue
 
             # Search filter
             if self._search_text:
@@ -104,7 +124,12 @@ class TensorListWidget:
     def _render_tensor_item(self, tensor, selected_id, dispatch, width):
         """Render a single tensor item in the list."""
         is_selected = tensor.id == selected_id
-        tensor_type = tensor.tensor_type
+        if tensor.rank == 1:
+            tensor_type = "r1"
+        elif tensor.rank == 2:
+            tensor_type = "r2"
+        else:
+            tensor_type = "r3"
 
         # Item styling
         icon = self.TYPE_ICONS.get(tensor_type, '[?]')
@@ -138,6 +163,9 @@ class TensorListWidget:
         imgui.text_colored(icon, *color)
         imgui.same_line()
         imgui.text(tensor.label)
+        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
+            imgui.same_line()
+            imgui.text_colored(f"[{tensor.dtype.value}]", 0.6, 0.6, 0.6, 1.0)
 
         # Shape info
         imgui.same_line(width - 80)
@@ -152,12 +180,20 @@ class TensorListWidget:
 
     def _format_shape(self, tensor) -> str:
         """Format tensor shape for display."""
-        if tensor.is_vector:
-            return f"({len(tensor.data)},)"
-        elif tensor.is_matrix:
-            return f"({tensor.rows}x{tensor.cols})"
-        elif tensor.is_image:
+        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
             if len(tensor.shape) == 2:
                 return f"{tensor.shape[0]}x{tensor.shape[1]}"
             return f"{tensor.shape[0]}x{tensor.shape[1]}x{tensor.shape[2]}"
+        if tensor.rank == 1:
+            return f"({len(tensor.data)},)"
+        elif tensor.rank == 2:
+            return f"({tensor.rows}x{tensor.cols})"
+        return str(tensor.shape)
+
+    def _format_feedback_shape(self, tensor) -> str:
+        """Format shape for creation feedback."""
+        if tensor.rank == 1:
+            return f"({tensor.shape[0]},)"
+        if tensor.rank == 2:
+            return f"({tensor.shape[0]}x{tensor.shape[1]})"
         return str(tensor.shape)

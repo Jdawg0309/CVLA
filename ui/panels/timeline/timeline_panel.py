@@ -31,7 +31,9 @@ class TimelinePanel:
         if imgui.begin("Timeline", flags=flags):
             imgui.text("Timeline")
             imgui.same_line()
-            imgui.text_disabled(f"{len(state.pipeline_steps)} steps")
+            steps = state.operations.steps if state.operations and state.operations.steps else state.pipeline_steps
+            step_index = state.operations.step_index if state.operations and state.operations.steps else state.pipeline_step_index
+            imgui.text_disabled(f"{len(steps)} steps")
 
             imgui.same_line(width - 180)
             if imgui.small_button("Prev") and dispatch:
@@ -55,11 +57,12 @@ class TimelinePanel:
                 border=True,
                 flags=getattr(imgui, "WINDOW_ALWAYS_VERTICAL_SCROLLBAR", 0),
             )
-            for idx, step in enumerate(state.pipeline_steps):
-                if self._step_filter and self._step_filter.lower() not in step.title.lower():
+            for idx, step in enumerate(steps):
+                title = getattr(step, "title", f"Step {idx + 1}")
+                if self._step_filter and self._step_filter.lower() not in title.lower():
                     continue
-                is_active = idx == state.pipeline_step_index
-                label = f"{idx+1}. {step.title}"
+                is_active = idx == step_index
+                label = f"{idx+1}. {title}"
                 if imgui.selectable(label, is_active)[0] and dispatch:
                     dispatch(JumpToStep(index=idx))
             imgui.end_child()

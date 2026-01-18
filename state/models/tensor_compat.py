@@ -46,7 +46,7 @@ def tensor_to_vector(tensor: TensorData) -> Optional[VectorData]:
     Returns:
         Equivalent VectorData instance, or None if not a vector
     """
-    if not tensor.is_vector:
+    if tensor.rank != 1:
         return None
 
     return VectorData(
@@ -90,7 +90,7 @@ def tensor_to_matrix(tensor: TensorData) -> Optional[MatrixData]:
     Returns:
         Equivalent MatrixData instance, or None if not a matrix
     """
-    if not tensor.is_matrix:
+    if tensor.rank != 2:
         return None
 
     return MatrixData(
@@ -140,7 +140,7 @@ def tensor_to_image(tensor: TensorData) -> Optional[ImageData]:
     Returns:
         Equivalent ImageData instance, or None if not an image
     """
-    if not tensor.is_image:
+    if tensor.dtype not in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
         return None
 
     pixels = tensor.to_numpy()
@@ -206,4 +206,10 @@ def filter_tensors_by_type(tensors: tuple, tensor_type: str) -> tuple:
     Returns:
         Filtered tuple of TensorData
     """
-    return tuple(t for t in tensors if t.tensor_type == tensor_type)
+    if tensor_type == "vector":
+        return tuple(t for t in tensors if t.rank == 1)
+    if tensor_type == "matrix":
+        return tuple(t for t in tensors if t.rank == 2)
+    if tensor_type == "image":
+        return tuple(t for t in tensors if t.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE))
+    return ()

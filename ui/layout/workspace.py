@@ -27,6 +27,7 @@ from ui.toolbars.toolbar import Toolbar
 from ui.panels.mode_selector.mode_selector import ModeSelector
 from ui.panels.input_panel import InputPanel
 from ui.panels.operations_panel import OperationsPanel
+from ui.panels.timeline.timeline_panel import TimelinePanel
 from ui.themes.theme_manager import apply_theme
 from state.actions import DismissError
 
@@ -48,6 +49,8 @@ class WorkspaceLayout:
     |      |                                 |                         |
     |      |   3D VIEWPORT (CENTER)          |                         |
     +------+---------------------------------+-------------------------+
+    |                    TIMELINE (100px)                              |
+    +------------------------------------------------------------------+
     """
 
     def __init__(self):
@@ -62,6 +65,7 @@ class WorkspaceLayout:
         self._legacy_sidebar = Sidebar()
         self._legacy_inspector = Inspector()
 
+        self.timeline = TimelinePanel()
         self._last_theme = None
 
         # Layout mode toggle (for gradual migration)
@@ -71,6 +75,7 @@ class WorkspaceLayout:
         self._rail_w = 60
         self._left_w = 360
         self._right_w = 380
+        self._bottom_h = 110
         self._splitter_thickness = 6
 
     def render(self, state, dispatch, camera, view_config, app):
@@ -113,7 +118,8 @@ class WorkspaceLayout:
 
         # Apply splitters before calculating panel rects.
         self._render_splitters(display, top_h)
-        self._apply_layout_constraints(display)
+        self._apply_layout_constraints(display, top_h)
+        bottom_h = int(self._bottom_h)
         left_w = int(self._left_w)
         right_w = int(self._right_w)
 
@@ -121,24 +127,29 @@ class WorkspaceLayout:
         self.toolbar.render(state, dispatch, camera, view_config, app)
 
         # Left mode selector rail (simplified)
-        mode_rect = (0, top_h, rail_w, display.y - top_h)
+        mode_rect = (0, top_h, rail_w, display.y - top_h - bottom_h)
         self.mode_selector.render(mode_rect, state, dispatch)
 
         # Left Input Panel
-        input_rect = (rail_w, top_h, left_w, display.y - top_h)
+        input_rect = (rail_w, top_h, left_w, display.y - top_h - bottom_h)
         self.input_panel.render(input_rect, state, dispatch)
 
         # Right Operations Panel
-        right_rect = (display.x - right_w, top_h, right_w, display.y - top_h)
+        right_rect = (display.x - right_w, top_h, right_w, display.y - top_h - bottom_h)
         self.operations_panel.render(right_rect, state, dispatch)
+
+        # Bottom Timeline
+        bottom_rect = (0, display.y - bottom_h, display.x, bottom_h)
+        self.timeline.render(bottom_rect, state, dispatch)
 
     def _render_splitters(self, display, top_h):
         """Render draggable splitters for the new layout."""
         thickness = self._splitter_thickness
-        height = max(0, display.y - top_h)
+        height = max(0, display.y - top_h - self._bottom_h)
         io = imgui.get_io()
 
         resize_ew = getattr(imgui, "MOUSE_CURSOR_RESIZE_EW", None)
+        resize_ns = getattr(imgui, "MOUSE_CURSOR_RESIZE_NS", None)
         no_bg = getattr(imgui, "WINDOW_NO_BACKGROUND", 0)
         no_focus = getattr(imgui, "WINDOW_NO_FOCUS_ON_APPEARING", 0)
         no_saved = getattr(imgui, "WINDOW_NO_SAVED_SETTINGS", 0)
@@ -177,11 +188,28 @@ class WorkspaceLayout:
                 imgui.set_mouse_cursor(resize_ew)
         imgui.end()
 
-    def _apply_layout_constraints(self, display):
+        # Bottom horizontal splitter (between main area and timeline)
+        bottom_y = display.y - self._bottom_h - thickness / 2
+        set_next_window_position(0, bottom_y, cond=_SET_WINDOW_POS_ALWAYS)
+        set_next_window_size((display.x, thickness), cond=_SET_WINDOW_SIZE_ALWAYS)
+        if imgui.begin("##split_bottom", flags=flags):
+            imgui.invisible_button("##split_bottom_btn", display.x, thickness)
+            if imgui.is_item_active():
+                self._bottom_h -= io.mouse_delta.y
+            if imgui.is_item_hovered() and resize_ns is not None:
+                imgui.set_mouse_cursor(resize_ns)
+        imgui.end()
+
+    def _apply_layout_constraints(self, display, top_h):
         """Clamp panel sizes so the center area remains usable."""
         min_left = 240
         min_right = 280
         min_center = 360
+        min_bottom = 90
+        min_main_h = 220
+
+        max_bottom = max(min_bottom, display.y - top_h - min_main_h)
+        self._bottom_h = max(min_bottom, min(self._bottom_h, max_bottom))
 
         available_w = max(0, display.x - self._rail_w)
         self._left_w = max(min_left, self._left_w)
@@ -219,12 +247,17 @@ class WorkspaceLayout:
         self.mode_selector.render(mode_rect, state, dispatch)
 
         # Left operations panel (sidebar)
-        left_rect = (rail_w, top_h, left_w, display.y - top_h)
+        bottom_h = 120
+        left_rect = (rail_w, top_h, left_w, display.y - top_h - bottom_h)
         self._legacy_sidebar.render(left_rect, camera, view_config, state, dispatch)
 
         # Right inspector panel
-        right_rect = (display.x - right_w, top_h, right_w, display.y - top_h)
+        right_rect = (display.x - right_w, top_h, right_w, display.y - top_h - bottom_h)
         self._legacy_inspector.render(state, dispatch, right_rect)
+
+        # Bottom timeline
+        bottom_rect = (0, display.y - bottom_h, display.x, bottom_h)
+        self.timeline.render(bottom_rect, state, dispatch)
 
     def toggle_layout(self):
         """Toggle between new and legacy layout."""

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from state.app_state import AppState
 from state.models import VectorData, MatrixData
-from state.models.tensor_model import TensorData
+from state.models.tensor_model import TensorData, TensorDType
 
 
 @dataclass
@@ -123,8 +123,23 @@ class SceneAdapter:
 
         # Convert tensor vectors to renderer format
         for t in state.tensors:
-            if t.is_vector:
+            if t.rank == 1:
                 self._vectors.append(RendererVector.from_tensor_data(t))
+
+        # Operation step overlays (render hints)
+        if getattr(state, "operations", None) and state.operations.steps:
+            step_index = max(0, min(state.operations.step_index, len(state.operations.steps) - 1))
+            step = state.operations.steps[step_index]
+            for i, hint in enumerate(getattr(step, "render_vectors", ())):
+                coords = list(getattr(hint, "coords", (0.0, 0.0, 0.0)))
+                coords = (coords + [0.0, 0.0, 0.0])[:3]
+                self._vectors.append(RendererVector(
+                    id=f"op:{step_index}:{i}",
+                    coords=np.array(coords, dtype=np.float32),
+                    color=getattr(hint, "color", (0.9, 0.9, 0.2)),
+                    label=getattr(hint, "label", f"op_step_{step_index+1}"),
+                    visible=getattr(hint, "visible", True),
+                ))
 
         if (
             state.active_mode == "vectors"
@@ -134,6 +149,7 @@ class SceneAdapter:
             preview_color = (0.4, 0.6, 0.9)
             for idx, coords in enumerate(state.input_matrix_preview_vectors):
                 preview_vector = RendererVector(
+                    id=f"preview:{idx}",
                     coords=np.array(
                         (list(coords) + [0.0, 0.0, 0.0])[:3],
                         dtype=np.float32,
@@ -166,7 +182,7 @@ class SceneAdapter:
             ))
 
         for t in state.tensors:
-            if t.is_matrix:
+            if t.rank == 2 and t.dtype not in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
                 try:
                     matrix = np.array(t.values, dtype=np.float32)
                 except Exception:
@@ -200,10 +216,13 @@ class SceneAdapter:
                 None
             )
             if selected_tensor is not None:
-                if selected_tensor.is_vector:
+                if selected_tensor.is_image_dtype:
+                    self._selection_type = None
+                    self._selected_object = None
+                elif selected_tensor.rank == 1:
                     self._selection_type = 'vector'
                     self._selected_object = vector_by_id.get(selected_tensor.id)
-                elif selected_tensor.is_matrix:
+                elif selected_tensor.rank == 2:
                     self._selection_type = 'matrix'
                     self._selected_object = matrix_by_id.get(selected_tensor.id)
 

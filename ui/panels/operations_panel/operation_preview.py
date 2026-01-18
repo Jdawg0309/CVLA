@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from state.app_state import AppState
     from state.models.tensor_model import TensorData
 
+from state.models.tensor_model import TensorDType
+
 from state.actions.tensor_actions import CancelPreview, ConfirmPreview
 
 
@@ -137,9 +139,18 @@ class OperationPreviewWidget:
             imgui.text_disabled("(no data)")
             return
 
-        tensor_type = tensor.tensor_type
+        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
+            # Show image dimensions and stats
+            h, w = tensor.shape[0], tensor.shape[1]
+            channels = tensor.shape[2] if len(tensor.shape) > 2 else 1
+            imgui.text(f"Size: {w}x{h}")
+            ch_str = "RGB" if channels == 3 else ("RGBA" if channels == 4 else "Gray")
+            imgui.text(f"Format: {ch_str}")
 
-        if tensor_type == "vector":
+            # Would show thumbnail here if we had image rendering
+            imgui.text_colored("(image preview)", 0.5, 0.5, 0.5, 1.0)
+
+        elif tensor.rank == 1:
             # Show vector coordinates
             coords = tensor.coords
             if len(coords) <= 4:
@@ -153,7 +164,7 @@ class OperationPreviewWidget:
             magnitude = sum(c * c for c in coords) ** 0.5
             imgui.text_colored(f"Magnitude: {magnitude:.4f}", 0.6, 0.6, 0.6, 1.0)
 
-        elif tensor_type == "matrix":
+        elif tensor.rank == 2:
             # Show matrix dimensions and sample values
             rows, cols = tensor.shape[0], tensor.shape[1]
             imgui.text(f"Shape: {rows}x{cols}")
@@ -170,17 +181,6 @@ class OperationPreviewWidget:
                 if rows > 3:
                     imgui.text_colored("...", 0.5, 0.5, 0.5, 1.0)
 
-        elif tensor_type == "image":
-            # Show image dimensions and stats
-            h, w = tensor.shape[0], tensor.shape[1]
-            channels = tensor.shape[2] if len(tensor.shape) > 2 else 1
-            imgui.text(f"Size: {w}x{h}")
-            ch_str = "RGB" if channels == 3 else ("RGBA" if channels == 4 else "Gray")
-            imgui.text(f"Format: {ch_str}")
-
-            # Would show thumbnail here if we had image rendering
-            imgui.text_colored("(image preview)", 0.5, 0.5, 0.5, 1.0)
-
     def _render_diff_info(self, original: "TensorData", preview: "TensorData"):
         """Show difference statistics between original and preview."""
         imgui.text("Changes:")
@@ -193,7 +193,7 @@ class OperationPreviewWidget:
             )
 
         # For numeric tensors, compute difference stats
-        if original.tensor_type == "vector" and preview.tensor_type == "vector":
+        if original.rank == 1 and preview.rank == 1:
             orig_coords = original.coords
             prev_coords = preview.coords
             if len(orig_coords) == len(prev_coords):

@@ -6,7 +6,7 @@ import imgui
 import numpy as np
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
-from state.actions import SetPipeline, StepBackward, StepForward
+from state.actions import SetPipeline
 from state.models import EducationalStep
 from domain.vectors.vector_ops import gaussian_elimination_steps
 
@@ -32,14 +32,14 @@ class LinearSystemsWidget:
         imgui.separator()
         imgui.spacing()
 
-        if selected is None or not getattr(selected, "is_matrix", False):
+        if selected is None or selected.rank != 2:
             imgui.text_colored(
-                "Select a matrix tensor from the left panel.",
+                "Select a rank-2 tensor from the left panel.",
                 0.6, 0.6, 0.6, 1.0
             )
             imgui.spacing()
             imgui.text_wrapped(
-                "Gaussian elimination runs on the selected matrix. "
+                "Gaussian elimination runs on the selected tensor. "
                 "Use an augmented matrix [A | b] with shape n x (n+1)."
             )
             return
@@ -48,7 +48,7 @@ class LinearSystemsWidget:
         cols = selected.cols
         if cols != rows + 1:
             imgui.text_colored(
-                f"Selected matrix shape is {rows} x {cols}.",
+                f"Selected tensor shape is {rows} x {cols}.",
                 1.0, 0.6, 0.2, 1.0
             )
             imgui.text_wrapped(
@@ -57,7 +57,7 @@ class LinearSystemsWidget:
             )
             return
 
-        imgui.text_disabled(f"Using selected matrix: {selected.label} ({rows} x {cols})")
+        imgui.text_disabled(f"Using selected tensor: {selected.label} ({rows} x {cols})")
         imgui.spacing()
         if imgui.button("Gaussian Elimination", width - 20, 26):
             self._run_elimination(selected, dispatch)
@@ -84,14 +84,6 @@ class LinearSystemsWidget:
             imgui.text(f"Step {step_idx + 1} / {len(self._steps)}: {step['title']}")
             if step.get("description"):
                 imgui.text_wrapped(step["description"])
-
-            imgui.spacing()
-            if dispatch:
-                if imgui.small_button("Prev Step"):
-                    dispatch(StepBackward())
-                imgui.same_line()
-                if imgui.small_button("Next Step"):
-                    dispatch(StepForward())
 
             imgui.spacing()
             matrix = step.get("matrix")

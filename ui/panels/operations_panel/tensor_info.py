@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from state.app_state import AppState
     from state.models.tensor_model import TensorData
 
+from state.models.tensor_model import TensorDType
+
 from state.actions.tensor_actions import UpdateTensor
 from state.selectors import get_tensor_stats, get_tensor_magnitude, get_tensor_norm
 
@@ -32,16 +34,27 @@ class TensorInfoWidget:
             return
 
         # Header with type icon
-        tensor_type = tensor.tensor_type
         type_colors = {
-            'vector': (0.4, 0.7, 1.0),
-            'matrix': (0.4, 1.0, 0.7),
-            'image': (1.0, 0.7, 0.4),
+            'r1': (0.4, 0.7, 1.0),
+            'r2': (0.4, 1.0, 0.7),
+            'r3': (0.8, 0.8, 0.8),
         }
-        color = type_colors.get(tensor_type, (0.8, 0.8, 0.8))
+        if tensor.rank == 1:
+            rank_key = "r1"
+            rank_label = "RANK-1"
+        elif tensor.rank == 2:
+            rank_key = "r2"
+            rank_label = "RANK-2"
+        else:
+            rank_key = "r3"
+            rank_label = f"RANK-{tensor.rank}"
+        color = type_colors.get(rank_key, (0.8, 0.8, 0.8))
 
-        imgui.text_colored(tensor_type.upper(), *color, 1.0)
+        imgui.text_colored(rank_label, *color, 1.0)
         imgui.same_line()
+        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
+            imgui.text_disabled(f"[{tensor.dtype.value}]")
+            imgui.same_line()
 
         # Editable label
         if self._editing_label:
@@ -73,7 +86,7 @@ class TensorInfoWidget:
         imgui.same_line(80)
         imgui.text(self._format_shape(tensor))
 
-        imgui.text("Type:")
+        imgui.text("DType:")
         imgui.same_line(80)
         imgui.text(str(tensor.dtype.value))
 
@@ -84,7 +97,7 @@ class TensorInfoWidget:
             dispatch(UpdateTensor(id=tensor.id, visible=new_visible))
 
         # Color picker (for vectors/matrices)
-        if tensor_type in ('vector', 'matrix'):
+        if tensor.rank in (1, 2):
             imgui.text("Color:")
             imgui.same_line(80)
             _, new_color = imgui.color_edit3(
@@ -98,13 +111,13 @@ class TensorInfoWidget:
         imgui.separator()
         imgui.spacing()
 
-        # Type-specific info
-        if tensor.is_vector:
-            self._render_vector_info(tensor)
-        elif tensor.is_matrix:
-            self._render_matrix_info(tensor)
-        elif tensor.is_image:
+        # Type-specific info (dtype takes precedence over rank)
+        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
             self._render_image_info(tensor)
+        elif tensor.rank == 1:
+            self._render_vector_info(tensor)
+        elif tensor.rank == 2:
+            self._render_matrix_info(tensor)
 
     def _format_shape(self, tensor: "TensorData") -> str:
         """Format tensor shape for display."""

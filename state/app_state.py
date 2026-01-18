@@ -21,6 +21,11 @@ from state.models.image_model import ImageData
 from state.models.educational_step import EducationalStep
 from state.models.tensor_model import TensorData
 from state.models.operation_record import OperationRecord
+from state.models.vector_space import VectorSpaceGraph
+from state.models.selection_state import SelectionState
+from state.models.operations_state import OperationsState
+from state.models.render_state import RenderState
+from state.models.cache_state import CacheState
 
 
 # Maximum undo history depth
@@ -40,6 +45,12 @@ class AppState:
     # =========================================================================
     vectors: Tuple[VectorData, ...] = ()
     matrices: Tuple[MatrixData, ...] = ()
+
+    # =========================================================================
+    # VECTOR SPACE GRAPH (canonical, parallel migration)
+    # =========================================================================
+    vector_spaces: VectorSpaceGraph = field(default_factory=VectorSpaceGraph)
+    selection: SelectionState = field(default_factory=SelectionState)
 
     # =========================================================================
     # UNIFIED TENSOR STATE (new model - coexists with legacy for migration)
@@ -74,6 +85,21 @@ class AppState:
     # OPERATION HISTORY (for timeline)
     # =========================================================================
     operation_history: Tuple[OperationRecord, ...] = ()
+
+    # =========================================================================
+    # OPERATIONS PIPELINE (canonical)
+    # =========================================================================
+    operations: OperationsState = field(default_factory=OperationsState)
+
+    # =========================================================================
+    # RENDER STATE (canonical)
+    # =========================================================================
+    render_state: RenderState = field(default_factory=RenderState)
+
+    # =========================================================================
+    # CACHE (canonical)
+    # =========================================================================
+    cache: CacheState = field(default_factory=CacheState)
 
     # =========================================================================
     # SELECTION STATE

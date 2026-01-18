@@ -1,7 +1,7 @@
 """
 Main input panel orchestrator.
 
-Combines matrix input and file input widgets with the tensor list.
+Combines manual and file input widgets with the tensor list.
 """
 
 import imgui
@@ -30,17 +30,17 @@ class InputPanel:
     Left input panel for creating tensors.
 
     Contains:
-    - Input selector for manual matrix or file-based input
+    - Input selector for manual or file-based input
     - Active input widget
     - Tensor list showing all tensors in scene
     """
 
     INPUT_METHODS = [
-        ("matrix", "Matrix Manual", "Enter a matrix manually"),
-        ("json", "JSON", "Load matrix from JSON file"),
-        ("csv", "CSV", "Load matrix from CSV file"),
-        ("excel", "Excel", "Load matrix from Excel file"),
-        ("image", "Image", "Load image from file"),
+        ("matrix", "Manual", "Enter tensor data manually"),
+        ("json", "JSON", "Load a numeric tensor from JSON"),
+        ("csv", "CSV", "Load a numeric tensor from CSV"),
+        ("excel", "Excel", "Load a numeric tensor from Excel"),
+        ("image", "Image", "Load an image tensor from file"),
     ]
 
     def __init__(self):
@@ -77,14 +77,7 @@ class InputPanel:
 
             # Get active mode
             active_mode = state.active_mode if state else "vectors"
-
-            # Auto-switch input method when mode changes
-            if self._last_mode != active_mode:
-                self._last_mode = active_mode
-                if active_mode == "images" and state.active_input_method != "image":
-                    dispatch(SetInputMethod(method="image"))
-                elif active_mode != "images" and state.active_input_method == "image":
-                    dispatch(SetInputMethod(method="matrix"))
+            self._last_mode = active_mode
 
             if imgui.begin_child(
                 "##input_scroll",
@@ -110,12 +103,10 @@ class InputPanel:
         # Show mode-specific header
         active_mode = state.active_mode if state else "vectors"
         mode_labels = {
-            "vectors": "ALGEBRA",
-            "matrices": "ALGEBRA",
-            "images": "VISION",
+            "vectors": "TENSORS",
             "visualize": "VIEW",
         }
-        header = mode_labels.get(active_mode, "INPUT")
+        header = mode_labels.get(active_mode, "TENSORS")
         imgui.text(header)
         imgui.same_line(width - 60)
         # Could add settings button here
@@ -132,7 +123,7 @@ class InputPanel:
         except ValueError:
             current_index = 0
 
-        imgui.text("Input Type:")
+        imgui.text("Input Source:")
         imgui.same_line()
         imgui.push_item_width(width - 110)
         changed, new_index = imgui.combo(
@@ -153,14 +144,14 @@ class InputPanel:
         active_method = state.active_input_method
 
         if active_method == "matrix":
-            self.text_widget.render(state, dispatch, width, matrix_only=True)
+            self.text_widget.render(state, dispatch, width, matrix_only=False)
         elif active_method in ("json", "csv", "excel", "image"):
             self.file_widget.render(state, dispatch, width, file_type=active_method)
         else:
-            self.text_widget.render(state, dispatch, width, matrix_only=True)
+            self.text_widget.render(state, dispatch, width, matrix_only=False)
 
     def _render_standard_content(self, state: "AppState", dispatch, width: float, height: float):
-        """Render standard input content (Algebra/Vision modes)."""
+        """Render standard input content (tensor mode)."""
         # Input selector and widget
         self._render_input_selector(state, dispatch, width)
         imgui.spacing()
