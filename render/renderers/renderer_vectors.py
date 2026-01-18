@@ -8,19 +8,7 @@ import time
 
 def _render_vectors_with_enhancements(self, scene, vp):
     """Render all vectors with enhanced visualizations."""
-    try:
-        if len(scene.vectors) > 0:
-            visible_vectors = [v for v in scene.vectors if v.visible]
-            if visible_vectors:
-                max_mag = max([np.linalg.norm(v.coords) for v in visible_vectors] + [1.0])
-                desired = max(1.0, self.camera.radius * 0.2)
-                scale_factor = desired / max_mag
-                scale_factor = float(np.clip(scale_factor, 0.3, 5.0))
-                self.vector_scale = float(self.view.vector_scale) * scale_factor
-            else:
-                self.vector_scale = float(self.view.vector_scale)
-    except Exception:
-        self.vector_scale = float(self.view.vector_scale)
+    self.vector_scale = float(self.view.vector_scale)
 
     for vector in scene.vectors:
         if vector.visible:

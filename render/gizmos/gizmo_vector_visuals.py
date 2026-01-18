@@ -4,11 +4,53 @@ Vector visualization helpers.
 
 import numpy as np
 
+_SPAN_RADIUS_SCALE = 1.25
+_SPAN_LINE_WIDTH = 1.6
+_SPAN_BORDER_ALPHA = 0.32
+_SPAN_FILL_ALPHA = 0.2
+_SUBSPACE_EDGE_WIDTH = 1.4
+_SUBSPACE_FACE_ALPHA = 0.12
 
-def draw_vector_span(self, vp, vector1, vector2, color=(0.2, 0.4, 0.8, 0.3)):
+
+def _desaturate(color, amount=0.6):
+    """Desaturate an RGB/RGBA color by mixing toward luminance."""
+    r, g, b = color[:3]
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    r = r * (1.0 - amount) + lum * amount
+    g = g * (1.0 - amount) + lum * amount
+    b = b * (1.0 - amount) + lum * amount
+    if len(color) == 4:
+        return (r, g, b, color[3])
+    return (r, g, b)
+
+
+def _span_color(vectors, base_alpha):
+    """Create a desaturated span color from basis vectors."""
+    if not vectors:
+        return (0.4, 0.4, 0.5, base_alpha)
+    colors = [np.array(v.color, dtype='f4') for v in vectors if hasattr(v, "color")]
+    if not colors:
+        return (0.4, 0.4, 0.5, base_alpha)
+    avg = np.mean(colors, axis=0)
+    desat = _desaturate((float(avg[0]), float(avg[1]), float(avg[2])), amount=0.6)
+    return (desat[0], desat[1], desat[2], base_alpha)
+
+
+def _scale_vectors_to_radius(vectors, radius_scale=_SPAN_RADIUS_SCALE):
+    """Scale vectors uniformly so their max length matches the semantic radius."""
+    lengths = [np.linalg.norm(v) for v in vectors]
+    max_len = max(lengths + [0.0])
+    if max_len <= 1e-8:
+        return vectors
+    scale = radius_scale
+    return [v * scale for v in vectors]
+
+
+def draw_vector_span(self, vp, vector1, vector2, color=None, scale=1.0):
     """Draw the span (parallelogram) between two vectors."""
-    v1 = vector1.coords
-    v2 = vector2.coords
+    v1 = vector1.coords * scale
+    v2 = vector2.coords * scale
+    v1, v2 = _scale_vectors_to_radius([v1, v2], radius_scale=_SPAN_RADIUS_SCALE)
 
     vertices = [
         [0, 0, 0],
@@ -27,12 +69,9 @@ def draw_vector_span(self, vp, vector1, vector2, color=(0.2, 0.4, 0.8, 0.3)):
     normal = normal / norm if norm > 0 else np.array([0.0, 0.0, 1.0], dtype=np.float32)
     normals = [normal.tolist()] * 6
 
-    colors = []
-    for i in range(6):
-        if i < 3:
-            colors.append((color[0], color[1], color[2], color[3] * 0.8))
-        else:
-            colors.append((color[0], color[1], color[2], color[3] * 0.6))
+    if color is None:
+        color = _span_color([vector1, vector2], _SPAN_FILL_ALPHA)
+    colors = [color] * 6
 
     self.draw_triangles(tri_vertices, normals, colors, vp, use_lighting=True)
 
@@ -42,16 +81,22 @@ def draw_vector_span(self, vp, vector1, vector2, color=(0.2, 0.4, 0.8, 0.3)):
         vertices[2], vertices[3],
         vertices[3], vertices[0]
     ]
-    border_colors = [(color[0] * 0.7, color[1] * 0.7, color[2] * 0.7, 1.0)] * 8
-    self.draw_lines(border_vertices, border_colors, vp, width=1.5)
+    border_color = _span_color([vector1, vector2], _SPAN_BORDER_ALPHA)
+    border_colors = [border_color] * 8
+    self.draw_lines(border_vertices, border_colors, vp, width=_SPAN_LINE_WIDTH)
 
 
-def draw_parallelepiped(self, vp, vectors, color=(0.3, 0.6, 0.9, 0.2)):
+def draw_parallelepiped(self, vp, vectors, color=None, scale=1.0):
     """Draw parallelepiped spanned by three vectors."""
     if len(vectors) < 3:
         return
 
-    v1, v2, v3 = vectors[0].coords, vectors[1].coords, vectors[2].coords
+    v1 = vectors[0].coords * scale
+    v2 = vectors[1].coords * scale
+    v3 = vectors[2].coords * scale
+    v1, v2, v3 = _scale_vectors_to_radius([v1, v2, v3], radius_scale=_SPAN_RADIUS_SCALE)
+    if color is None:
+        color = _span_color(vectors[:3], _SPAN_BORDER_ALPHA)
 
     vertices = [
         np.array([0, 0, 0]),
@@ -77,8 +122,8 @@ def draw_parallelepiped(self, vp, vectors, color=(0.3, 0.6, 0.9, 0.2)):
         edge_vertices.append(vertices[i].tolist())
         edge_vertices.append(vertices[j].tolist())
 
-    edge_colors = [(color[0] * 0.8, color[1] * 0.8, color[2] * 0.8, 1.0)] * len(edge_vertices)
-    self.draw_lines(edge_vertices, edge_colors, vp, width=2.0)
+    edge_colors = [(color[0], color[1], color[2], min(_SPAN_BORDER_ALPHA, 0.35))] * len(edge_vertices)
+    self.draw_lines(edge_vertices, edge_colors, vp, width=_SUBSPACE_EDGE_WIDTH)
 
     faces = [
         [vertices[0], vertices[1], vertices[4], vertices[2]],
@@ -100,7 +145,7 @@ def draw_parallelepiped(self, vp, vectors, color=(0.3, 0.6, 0.9, 0.2)):
         normal = normal / norm if norm > 0 else np.array([0.0, 0.0, 1.0], dtype=np.float32)
         normals = [normal.tolist()] * 6
 
-        face_color = (color[0], color[1], color[2], color[3] * 0.15)
+        face_color = (color[0], color[1], color[2], _SUBSPACE_FACE_ALPHA)
         face_colors = [face_color] * 6
 
         self.draw_triangles(tri_vertices, normals, face_colors, vp, use_lighting=False)

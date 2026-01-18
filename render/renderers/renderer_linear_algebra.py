@@ -37,12 +37,12 @@ def _render_linear_algebra_visuals(self, scene, vp):
 
     if getattr(scene, 'vector_span', None) is not None:
         v1, v2 = scene.vector_span
-        self.gizmos.draw_vector_span(vp, v1, v2)
+        self.gizmos.draw_vector_span(vp, v1, v2, scale=self.vector_scale)
     elif self.show_vector_spans and len(scene.vectors) >= 2:
-        self.gizmos.draw_vector_span(vp, scene.vectors[0], scene.vectors[1])
+        self.gizmos.draw_vector_span(vp, scene.vectors[0], scene.vectors[1], scale=self.vector_scale)
 
     if len(scene.vectors) >= 3:
-        self.gizmos.draw_parallelepiped(vp, scene.vectors[:3])
+        self.gizmos.draw_parallelepiped(vp, scene.vectors[:3], scale=self.vector_scale)
 
     self._render_matrix_3d_plot(scene, vp, force=True)
 
