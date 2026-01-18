@@ -2,8 +2,6 @@
 Immutable Data Models for CVLA.
 """
 
-from state.models.vector_model import VectorData
-from state.models.matrix_model import MatrixData
 from state.models.image_model import ImageData
 from state.models.educational_step import EducationalStep
 from state.models.pipeline_models import PipelineOp, MicroOp
@@ -16,9 +14,7 @@ from state.models.selection_state import SelectionState
 from state.models.render_state import RenderState
 from state.models.cache_state import CacheState
 __all__ = [
-    # Legacy models
-    'VectorData',
-    'MatrixData',
+    # Core models
     'ImageData',
     'EducationalStep',
     'PipelineOp',

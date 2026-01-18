@@ -15,9 +15,11 @@ from state.selectors.tensor_selectors import get_selected_tensor
 from state.models.tensor_model import TensorDType
 
 from ui.panels.operations_panel.tensor_info import TensorInfoWidget
-from ui.panels.operations_panel.vector_ops import VectorOpsWidget
-from ui.panels.operations_panel.matrix_ops import MatrixOpsWidget
-from ui.panels.operations_panel.image_ops import ImageOpsWidget
+from ui.panels.operations_panel.tensor_ops import (
+    VectorOpsWidget,
+    MatrixOpsWidget,
+    ImageOpsWidget,
+)
 from ui.panels.operations_panel.linear_systems import LinearSystemsWidget
 from ui.panels.operations_panel.operation_preview import OperationPreviewWidget
 from ui.panels.operations_panel.view_settings import ViewSettingsWidget

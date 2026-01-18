@@ -222,7 +222,7 @@ class AppState:
     show_error_modal: bool = False
 
     # ---------------------------------------------------------------------
-    # Temporary compatibility for frozen engine code (do not persist)
+    # Temporary compatibility for frozen engine code (remove in Phase 7)
     # ---------------------------------------------------------------------
     @property
     def selected_id(self) -> Optional[str]:

@@ -288,8 +288,8 @@ class OperationRecord:
 ```
 
 ### Legacy Vector/Matrix Models
-`VectorData` and `MatrixData` may temporarily exist only for frozen engine
-compatibility. State, reducers, selectors, and UI are tensor-only.
+Legacy vector/matrix models have been removed from state, reducers, selectors,
+and UI. Only tensor models remain.
 
 ### Result Helper (optional)
 When an operation needs explicit success/failure, use a light-weight result:
@@ -709,7 +709,7 @@ CVLA/
 │   ├── actions/              # vectors, matrices, tensors, images, navigation, pipeline, history, input
 │   ├── reducers/             # reducer_vectors.py, reducer_matrices.py, reducer_images.py, reducer_pipeline.py, reducer_navigation.py, reducer_input_panel.py, ...
 │   ├── selectors/            # tensor_selectors.py, ...
-│   └── models/               # tensor_model.py, vector_model.py, matrix_model.py, image_model.py, educational_step.py, operation_record.py, pipeline_models.py
+│   └── models/               # tensor_model.py, image_model.py, educational_step.py, operation_record.py, pipeline_models.py
 ├── ui/                       # ImGui interface
 │   ├── layout/workspace.py
 │   ├── inspectors/
