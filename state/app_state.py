@@ -19,6 +19,8 @@ from state.models.vector_model import VectorData
 from state.models.matrix_model import MatrixData
 from state.models.image_model import ImageData
 from state.models.educational_step import EducationalStep
+from state.models.tensor_model import TensorData
+from state.models.operation_record import OperationRecord
 
 
 # Maximum undo history depth
@@ -38,6 +40,40 @@ class AppState:
     # =========================================================================
     vectors: Tuple[VectorData, ...] = ()
     matrices: Tuple[MatrixData, ...] = ()
+
+    # =========================================================================
+    # UNIFIED TENSOR STATE (new model - coexists with legacy for migration)
+    # =========================================================================
+    tensors: Tuple[TensorData, ...] = ()
+    selected_tensor_id: Optional[str] = None
+
+    # =========================================================================
+    # INPUT PANEL STATE
+    # =========================================================================
+    active_input_method: str = "text"  # "text", "file", "grid"
+    input_text_content: str = ""
+    input_text_parsed_type: str = ""  # What the parser detected: "vector", "matrix", ""
+    input_file_path: str = ""
+    input_grid_rows: int = 3
+    input_grid_cols: int = 3
+    input_grid_cells: Tuple[Tuple[float, ...], ...] = (
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+        (0.0, 0.0, 0.0),
+    )
+
+    # =========================================================================
+    # OPERATIONS PANEL STATE
+    # =========================================================================
+    pending_operation: Optional[str] = None
+    pending_operation_params: Tuple[Tuple[str, str], ...] = ()
+    operation_preview_tensor: Optional[TensorData] = None
+    show_operation_preview: bool = True
+
+    # =========================================================================
+    # OPERATION HISTORY (for timeline)
+    # =========================================================================
+    operation_history: Tuple[OperationRecord, ...] = ()
 
     # =========================================================================
     # SELECTION STATE

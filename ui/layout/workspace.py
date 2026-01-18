@@ -1,4 +1,12 @@
-"""Main UI layout for CVLA (Photoshop-style)."""
+"""
+Main UI layout for CVLA.
+
+New Layout (2024):
+- Left: Mode rail (60px) + Input Panel (360px)
+- Right: Operations Panel (380px)
+- Bottom: Timeline (100px)
+- Center: 3D Viewport
+"""
 
 import imgui
 
@@ -15,27 +23,53 @@ _WINDOW_NO_RESIZE = getattr(imgui, "WINDOW_NO_RESIZE", 0)
 _WINDOW_NO_MOVE = getattr(imgui, "WINDOW_NO_MOVE", 0)
 _WINDOW_NO_SCROLLBAR = getattr(imgui, "WINDOW_NO_SCROLLBAR", 0)
 _WINDOW_MENU_BAR = getattr(imgui, "WINDOW_MENU_BAR", 0)
-_DOCK_SPACE = getattr(imgui, "dock_space", None)
-_GET_ID = getattr(imgui, "get_id", None)
 
 from ui.toolbars.toolbar import Toolbar
 from ui.panels.mode_selector.mode_selector import ModeSelector
-from ui.panels.sidebar.sidebar import Sidebar
-from ui.panels.tool_palette.tool_palette import ToolPalette
-from ui.inspectors.inspector import Inspector
+from ui.panels.input_panel import InputPanel
+from ui.panels.operations_panel import OperationsPanel
 from ui.panels.timeline.timeline_panel import TimelinePanel
 from ui.themes.theme_manager import apply_theme
 
+# Legacy imports (for fallback if new panels fail)
+from ui.panels.sidebar.sidebar import Sidebar
+from ui.inspectors.inspector import Inspector
+
 
 class WorkspaceLayout:
+    """
+    Main workspace layout manager.
+
+    Layout structure:
+    +------------------------------------------------------------------+
+    |                        TOOLBAR (40px)                            |
+    +------------------------------------------------------------------+
+    | MODE |         LEFT INPUT PANEL        |    RIGHT OPS PANEL      |
+    | (60) |             (360px)             |        (380px)          |
+    |      |                                 |                         |
+    |      |   3D VIEWPORT (CENTER)          |                         |
+    +------+---------------------------------+-------------------------+
+    |                    TIMELINE (100px)                              |
+    +------------------------------------------------------------------+
+    """
+
     def __init__(self):
         self.toolbar = Toolbar()
         self.mode_selector = ModeSelector()
-        self.tool_palette = ToolPalette()
-        self.operations_panel = Sidebar()
-        self.inspector = Inspector()
+
+        # New panels (tensor-based UI)
+        self.input_panel = InputPanel()
+        self.operations_panel = OperationsPanel()
+
+        # Legacy panels (kept for fallback)
+        self._legacy_sidebar = Sidebar()
+        self._legacy_inspector = Inspector()
+
         self.timeline = TimelinePanel()
         self._last_theme = None
+
+        # Layout mode toggle (for gradual migration)
+        self._use_new_layout = True
 
     def render(self, state, dispatch, camera, view_config, app):
         """Render the full UI layout."""
@@ -60,6 +94,41 @@ class WorkspaceLayout:
                 _DOCK_SPACE(dockspace_id, 0, 0, _DOCK_PASSTHRU_FLAG)
             imgui.end()
 
+        if self._use_new_layout:
+            self._render_new_layout(state, dispatch, camera, view_config, app, display)
+        else:
+            self._render_legacy_layout(state, dispatch, camera, view_config, app, display)
+
+    def _render_new_layout(self, state, dispatch, camera, view_config, app, display):
+        """Render the new tensor-based layout."""
+        # Layout dimensions
+        top_h = 40      # Toolbar height
+        bottom_h = 100  # Timeline height
+        rail_w = 60     # Mode selector rail width
+        left_w = 360    # Input panel width
+        right_w = 380   # Operations panel width
+
+        # Top toolbar
+        self.toolbar.render(state, dispatch, camera, view_config, app)
+
+        # Left mode selector rail (simplified)
+        mode_rect = (0, top_h, rail_w, display.y - top_h - bottom_h)
+        self.mode_selector.render(mode_rect, state, dispatch)
+
+        # Left Input Panel
+        input_rect = (rail_w, top_h, left_w, display.y - top_h - bottom_h)
+        self.input_panel.render(input_rect, state, dispatch)
+
+        # Right Operations Panel
+        right_rect = (display.x - right_w, top_h, right_w, display.y - top_h - bottom_h)
+        self.operations_panel.render(right_rect, state, dispatch)
+
+        # Bottom Timeline
+        bottom_rect = (0, display.y - bottom_h, display.x, bottom_h)
+        self.timeline.render(bottom_rect, state, dispatch)
+
+    def _render_legacy_layout(self, state, dispatch, camera, view_config, app, display):
+        """Render the legacy layout (original Photoshop-style)."""
         top_h = 40
         bottom_h = 120
         rail_w = 120
@@ -74,18 +143,19 @@ class WorkspaceLayout:
         mode_rect = (0, top_h, rail_w, mode_h)
         self.mode_selector.render(mode_rect, state, dispatch)
 
-        # Left tool palette
-        tool_rect = (0, top_h + mode_h, rail_w, display.y - top_h - bottom_h - mode_h)
-        self.tool_palette.render(tool_rect, state, dispatch)
-
-        # Left operations panel
+        # Left operations panel (sidebar)
         left_rect = (rail_w, top_h, left_w, display.y - top_h - bottom_h)
-        self.operations_panel.render(left_rect, camera, view_config, state, dispatch)
+        self._legacy_sidebar.render(left_rect, camera, view_config, state, dispatch)
 
         # Right inspector panel
         right_rect = (display.x - right_w, top_h, right_w, display.y - top_h - bottom_h)
-        self.inspector.render(state, dispatch, right_rect)
+        self._legacy_inspector.render(state, dispatch, right_rect)
 
         # Bottom timeline
         bottom_rect = (0, display.y - bottom_h, display.x, bottom_h)
         self.timeline.render(bottom_rect, state, dispatch)
+
+    def toggle_layout(self):
+        """Toggle between new and legacy layout."""
+        self._use_new_layout = not self._use_new_layout
+        return self._use_new_layout

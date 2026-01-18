@@ -15,6 +15,8 @@ from state.reducers.reducer_images import reduce_images
 from state.reducers.reducer_pipeline import reduce_pipeline
 from state.reducers.reducer_inputs import reduce_inputs
 from state.reducers.reducer_navigation import reduce_navigation
+from state.reducers.reducer_tensors import reduce_tensors
+from state.reducers.reducer_input_panel import reduce_input_panel
 
 
 def reduce(state: "AppState", action: Action) -> "AppState":
@@ -32,6 +34,17 @@ def reduce(state: "AppState", action: Action) -> "AppState":
         new_history = (state.history + (state,))[-_app_state.MAX_HISTORY:]
         return replace(new_state, history=new_history, future=())
 
+    # New unified tensor reducer (takes precedence)
+    result = reduce_tensors(state, action, with_history)
+    if result is not None:
+        return result
+
+    # New input panel reducer
+    result = reduce_input_panel(state, action, with_history)
+    if result is not None:
+        return result
+
+    # Legacy reducers (for backward compatibility during migration)
     result = reduce_vectors(state, action, with_history)
     if result is not None:
         return result

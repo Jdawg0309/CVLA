@@ -43,6 +43,23 @@ from state.actions.navigation_actions import (
 )
 from state.actions.history_actions import Undo, Redo
 
+# New unified tensor actions
+from state.actions.tensor_actions import (
+    AddTensor, DeleteTensor, UpdateTensor, SelectTensor, DeselectTensor,
+    ApplyOperation, PreviewOperation, CancelPreview, ConfirmPreview,
+    ClearAllTensors, DuplicateTensor,
+    AddVectorTensor, AddMatrixTensor, AddImageTensor,
+)
+
+# New input panel actions
+from state.actions.input_panel_actions import (
+    SetInputMethod, SetTextInput, ClearTextInput, ParseTextInput,
+    SetFilePath, LoadFile, ClearFilePath,
+    SetGridSize, SetGridCell, SetGridRow, SetGridColumn,
+    ClearGrid, ApplyGridTemplate, TransposeGrid,
+    CreateTensorFromTextInput, CreateTensorFromFileInput, CreateTensorFromGridInput,
+)
+
 
 Action = Union[
     # Vector actions
@@ -75,4 +92,15 @@ Action = Union[
     SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
     # History actions
     Undo, Redo,
+    # Tensor actions (new unified model)
+    AddTensor, DeleteTensor, UpdateTensor, SelectTensor, DeselectTensor,
+    ApplyOperation, PreviewOperation, CancelPreview, ConfirmPreview,
+    ClearAllTensors, DuplicateTensor,
+    AddVectorTensor, AddMatrixTensor, AddImageTensor,
+    # Input panel actions (new UI)
+    SetInputMethod, SetTextInput, ClearTextInput, ParseTextInput,
+    SetFilePath, LoadFile, ClearFilePath,
+    SetGridSize, SetGridCell, SetGridRow, SetGridColumn,
+    ClearGrid, ApplyGridTemplate, TransposeGrid,
+    CreateTensorFromTextInput, CreateTensorFromFileInput, CreateTensorFromGridInput,
 ]

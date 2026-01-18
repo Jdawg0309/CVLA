@@ -10,6 +10,46 @@ if TYPE_CHECKING:
     from state.app_state import AppState
 from state.models import VectorData, MatrixData, EducationalStep
 
+# Import tensor selectors
+from state.selectors.tensor_selectors import (
+    get_tensor_by_id,
+    get_selected_tensor,
+    get_tensors_by_type,
+    get_vectors,
+    get_matrices,
+    get_images,
+    get_visible_tensors,
+    get_visible_vectors,
+    get_visible_matrices,
+    get_visible_images,
+    get_tensor_count,
+    get_tensor_count_by_type,
+    get_tensor_labels,
+    get_tensor_ids,
+    is_tensor_selected,
+    has_tensors,
+    has_vectors,
+    has_matrices,
+    has_images,
+    get_tensor_magnitude,
+    get_tensor_norm,
+    get_tensor_stats,
+    get_operation_history,
+    get_last_operation,
+    get_preview_tensor,
+    has_preview,
+    get_pending_operation,
+    get_active_input_method,
+    get_text_input_content,
+    get_text_input_type,
+    get_grid_size,
+    get_grid_cells,
+    get_file_path,
+    can_create_tensor_from_text,
+    can_create_tensor_from_file,
+    can_create_tensor_from_grid,
+)
+
 
 def get_vector_by_id(state: "AppState", id: str) -> Optional[VectorData]:
     """Find a vector by ID."""

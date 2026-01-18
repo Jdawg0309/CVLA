@@ -1,0 +1,241 @@
+"""
+Unified Tensor data model for CVLA.
+
+TensorData represents vectors, matrices, and images in a unified structure.
+The tensor_type is determined by shape:
+- Rank 1 (1D): vector
+- Rank 2 (2D, not image): matrix
+- Rank 2 or 3 (with image dtype): image
+"""
+
+from dataclasses import dataclass, replace
+from enum import Enum
+from typing import Tuple, Union, Optional
+from uuid import uuid4
+import numpy as np
+
+
+class TensorDType(Enum):
+    """Data type classification for tensors."""
+    NUMERIC = "numeric"
+    IMAGE_RGB = "image_rgb"
+    IMAGE_GRAYSCALE = "image_grayscale"
+
+
+@dataclass(frozen=True)
+class TensorData:
+    """
+    Unified immutable tensor representation.
+
+    Can represent vectors, matrices, or images depending on shape and dtype.
+    """
+    id: str
+    data: Tuple[Union[float, Tuple], ...]  # Nested tuples for N-dimensional
+    shape: Tuple[int, ...]
+    dtype: TensorDType
+    label: str
+    color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
+    visible: bool = True
+    history: Tuple[str, ...] = ()
+
+    @property
+    def rank(self) -> int:
+        """Number of dimensions."""
+        return len(self.shape)
+
+    @property
+    def tensor_type(self) -> str:
+        """
+        Determine the semantic type based on shape and dtype.
+
+        Returns:
+            'vector': 1D numeric data
+            'matrix': 2D numeric data
+            'image': 2D/3D image data
+        """
+        if self.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
+            return 'image'
+        if self.rank == 1:
+            return 'vector'
+        return 'matrix'
+
+    @property
+    def is_vector(self) -> bool:
+        return self.tensor_type == 'vector'
+
+    @property
+    def is_matrix(self) -> bool:
+        return self.tensor_type == 'matrix'
+
+    @property
+    def is_image(self) -> bool:
+        return self.tensor_type == 'image'
+
+    @staticmethod
+    def create_vector(
+        coords: Tuple[float, ...],
+        label: str,
+        color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
+    ) -> 'TensorData':
+        """Create a vector tensor."""
+        return TensorData(
+            id=str(uuid4()),
+            data=tuple(float(c) for c in coords),
+            shape=(len(coords),),
+            dtype=TensorDType.NUMERIC,
+            label=label,
+            color=color,
+            visible=True,
+            history=()
+        )
+
+    @staticmethod
+    def create_matrix(
+        values: Tuple[Tuple[float, ...], ...],
+        label: str,
+        color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
+    ) -> 'TensorData':
+        """Create a matrix tensor."""
+        if not values:
+            shape = (0, 0)
+        else:
+            shape = (len(values), len(values[0]))
+        return TensorData(
+            id=str(uuid4()),
+            data=tuple(tuple(float(v) for v in row) for row in values),
+            shape=shape,
+            dtype=TensorDType.NUMERIC,
+            label=label,
+            color=color,
+            visible=True,
+            history=()
+        )
+
+    @staticmethod
+    def create_image(
+        pixels: np.ndarray,
+        name: str,
+        history: Tuple[str, ...] = ()
+    ) -> 'TensorData':
+        """
+        Create an image tensor from numpy array.
+
+        Args:
+            pixels: HxW (grayscale) or HxWxC (color) numpy array
+            name: Image label
+            history: Operation history
+        """
+        shape = tuple(pixels.shape)
+        is_grayscale = len(shape) == 2 or (len(shape) == 3 and shape[2] == 1)
+        dtype = TensorDType.IMAGE_GRAYSCALE if is_grayscale else TensorDType.IMAGE_RGB
+
+        # Convert numpy array to nested tuples
+        data = _numpy_to_tuples(pixels)
+
+        return TensorData(
+            id=str(uuid4()),
+            data=data,
+            shape=shape,
+            dtype=dtype,
+            label=name,
+            color=(0.8, 0.8, 0.8),
+            visible=True,
+            history=history
+        )
+
+    def to_numpy(self) -> np.ndarray:
+        """Convert data to numpy array."""
+        return _tuples_to_numpy(self.data, self.shape)
+
+    def with_history(self, operation: str) -> 'TensorData':
+        """Return new TensorData with operation appended to history."""
+        return replace(self, history=self.history + (operation,))
+
+    def with_data(self, new_data: Tuple, new_shape: Optional[Tuple[int, ...]] = None) -> 'TensorData':
+        """Return new TensorData with updated data."""
+        shape = new_shape if new_shape is not None else self.shape
+        return replace(self, data=new_data, shape=shape)
+
+    def with_label(self, label: str) -> 'TensorData':
+        """Return new TensorData with updated label."""
+        return replace(self, label=label)
+
+    def with_color(self, color: Tuple[float, float, float]) -> 'TensorData':
+        """Return new TensorData with updated color."""
+        return replace(self, color=color)
+
+    def with_visible(self, visible: bool) -> 'TensorData':
+        """Return new TensorData with updated visibility."""
+        return replace(self, visible=visible)
+
+    # Vector-specific properties
+    @property
+    def coords(self) -> Tuple[float, ...]:
+        """Get vector coordinates (only valid for vectors)."""
+        if not self.is_vector:
+            raise ValueError("coords only valid for vectors")
+        return self.data
+
+    # Matrix-specific properties
+    @property
+    def values(self) -> Tuple[Tuple[float, ...], ...]:
+        """Get matrix values (only valid for matrices)."""
+        if not self.is_matrix:
+            raise ValueError("values only valid for matrices")
+        return self.data
+
+    @property
+    def rows(self) -> int:
+        """Get number of rows (for matrices)."""
+        if self.rank < 2:
+            return 1
+        return self.shape[0]
+
+    @property
+    def cols(self) -> int:
+        """Get number of columns (for matrices)."""
+        if self.rank < 2:
+            return self.shape[0] if self.shape else 0
+        return self.shape[1]
+
+    # Image-specific properties
+    @property
+    def height(self) -> int:
+        """Get image height (only valid for images)."""
+        if not self.is_image:
+            raise ValueError("height only valid for images")
+        return self.shape[0]
+
+    @property
+    def width(self) -> int:
+        """Get image width (only valid for images)."""
+        if not self.is_image:
+            raise ValueError("width only valid for images")
+        return self.shape[1]
+
+    @property
+    def channels(self) -> int:
+        """Get number of channels (only valid for images)."""
+        if not self.is_image:
+            raise ValueError("channels only valid for images")
+        return self.shape[2] if len(self.shape) > 2 else 1
+
+    @property
+    def is_grayscale(self) -> bool:
+        """Check if image is grayscale."""
+        return self.dtype == TensorDType.IMAGE_GRAYSCALE
+
+
+def _numpy_to_tuples(arr: np.ndarray) -> Tuple:
+    """Convert numpy array to nested tuples."""
+    if arr.ndim == 0:
+        return float(arr)
+    if arr.ndim == 1:
+        return tuple(float(x) for x in arr)
+    return tuple(_numpy_to_tuples(row) for row in arr)
+
+
+def _tuples_to_numpy(data: Tuple, shape: Tuple[int, ...]) -> np.ndarray:
+    """Convert nested tuples back to numpy array."""
+    arr = np.array(data, dtype=np.float32)
+    return arr.reshape(shape) if arr.shape != shape else arr
