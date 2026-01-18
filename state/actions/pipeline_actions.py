@@ -3,6 +3,9 @@ Pipeline and educational step action definitions.
 """
 
 from dataclasses import dataclass
+from typing import Tuple
+
+from state.models.educational_step import EducationalStep
 
 
 @dataclass(frozen=True)
@@ -27,3 +30,10 @@ class JumpToStep:
 class ResetPipeline:
     """Clear all pipeline steps and reset to initial state."""
     pass
+
+
+@dataclass(frozen=True)
+class SetPipeline:
+    """Replace the pipeline steps and reset the index."""
+    steps: Tuple[EducationalStep, ...]
+    index: int = 0

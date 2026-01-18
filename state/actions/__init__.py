@@ -22,7 +22,7 @@ from state.actions.image_actions import (
     NormalizeImage,
     NormalizeImage,
 )
-from state.actions.pipeline_actions import StepForward, StepBackward, JumpToStep, ResetPipeline
+from state.actions.pipeline_actions import StepForward, StepBackward, JumpToStep, ResetPipeline, SetPipeline
 from state.actions.input_actions import (
     SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetEquationCell, SetEquationCount,
@@ -73,7 +73,7 @@ Action = Union[
     LoadImage, CreateSampleImage, ApplyKernel, ApplyTransform,
     FlipImageHorizontal, UseResultAsInput, ClearImage,
     # Pipeline actions
-    StepForward, StepBackward, JumpToStep, ResetPipeline,
+    StepForward, StepBackward, JumpToStep, ResetPipeline, SetPipeline,
     # UI input actions
     SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetEquationCell, SetEquationCount,

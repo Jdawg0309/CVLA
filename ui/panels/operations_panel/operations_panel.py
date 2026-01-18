@@ -17,6 +17,7 @@ from ui.panels.operations_panel.tensor_info import TensorInfoWidget
 from ui.panels.operations_panel.vector_ops import VectorOpsWidget
 from ui.panels.operations_panel.matrix_ops import MatrixOpsWidget
 from ui.panels.operations_panel.image_ops import ImageOpsWidget
+from ui.panels.operations_panel.linear_systems import LinearSystemsWidget
 from ui.panels.operations_panel.operation_preview import OperationPreviewWidget
 from ui.panels.operations_panel.operation_history import OperationHistoryWidget
 
@@ -46,6 +47,7 @@ class OperationsPanel:
         self.vector_ops = VectorOpsWidget()
         self.matrix_ops = MatrixOpsWidget()
         self.image_ops = ImageOpsWidget()
+        self.linear_systems = LinearSystemsWidget()
         self.preview = OperationPreviewWidget()
         self.history = OperationHistoryWidget()
 
@@ -89,53 +91,98 @@ class OperationsPanel:
             # Panel header
             self._render_header(selected, width)
 
-            if selected is None:
-                imgui.separator()
-                imgui.spacing()
-                self._render_no_selection(width)
-            else:
-                imgui.separator()
-                imgui.spacing()
+            imgui.separator()
+            imgui.spacing()
 
-                if imgui.begin_tab_bar("##ops_tabs"):
-                    if imgui.begin_tab_item("Operations")[0]:
-                        if imgui.begin_child(
-                            "##ops_content",
-                            0, 0,
-                            border=False,
-                            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                        ):
+            if imgui.begin_tab_bar("##ops_tabs"):
+                if imgui.begin_tab_item("Vector Ops")[0]:
+                    if imgui.begin_child(
+                        "##vector_ops_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        if selected is None or selected.tensor_type != "vector":
+                            self._render_no_selection(width)
+                        else:
                             self.tensor_info.render(selected, state, dispatch, width - 30)
                             imgui.spacing()
                             imgui.separator()
                             imgui.spacing()
-                            self._render_type_ops(selected, state, dispatch, width - 30)
-                        imgui.end_child()
-                        imgui.end_tab_item()
+                            self.vector_ops.render(selected, state, dispatch, width - 30)
+                    imgui.end_child()
+                    imgui.end_tab_item()
 
-                    if self._show_preview and imgui.begin_tab_item("Preview")[0]:
-                        if imgui.begin_child(
-                            "##preview_content",
-                            0, 0,
-                            border=False,
-                            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                        ):
-                            self.preview.render(selected, state, dispatch, width - 30)
-                        imgui.end_child()
-                        imgui.end_tab_item()
+                if imgui.begin_tab_item("Matrix Ops")[0]:
+                    if imgui.begin_child(
+                        "##matrix_ops_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        if selected is None or selected.tensor_type != "matrix":
+                            self._render_no_selection(width)
+                        else:
+                            self.tensor_info.render(selected, state, dispatch, width - 30)
+                            imgui.spacing()
+                            imgui.separator()
+                            imgui.spacing()
+                            self.matrix_ops.render(selected, state, dispatch, width - 30)
+                    imgui.end_child()
+                    imgui.end_tab_item()
 
-                    if self._show_history and imgui.begin_tab_item("History")[0]:
-                        if imgui.begin_child(
-                            "##history_content",
-                            0, 0,
-                            border=False,
-                            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                        ):
-                            self.history.render(selected, state, dispatch, width - 30)
-                        imgui.end_child()
-                        imgui.end_tab_item()
+                if imgui.begin_tab_item("Image Ops")[0]:
+                    if imgui.begin_child(
+                        "##image_ops_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        if selected is None or selected.tensor_type != "image":
+                            self._render_no_selection(width)
+                        else:
+                            self.tensor_info.render(selected, state, dispatch, width - 30)
+                            imgui.spacing()
+                            imgui.separator()
+                            imgui.spacing()
+                            self.image_ops.render(selected, state, dispatch, width - 30)
+                    imgui.end_child()
+                    imgui.end_tab_item()
 
-                    imgui.end_tab_bar()
+                if imgui.begin_tab_item("Linear Systems")[0]:
+                    if imgui.begin_child(
+                        "##linear_systems_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        self.linear_systems.render(state, dispatch, width - 30, selected)
+                    imgui.end_child()
+                    imgui.end_tab_item()
+
+                if selected is not None and self._show_preview and imgui.begin_tab_item("Preview")[0]:
+                    if imgui.begin_child(
+                        "##preview_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        self.preview.render(selected, state, dispatch, width - 30)
+                    imgui.end_child()
+                    imgui.end_tab_item()
+
+                if selected is not None and self._show_history and imgui.begin_tab_item("History")[0]:
+                    if imgui.begin_child(
+                        "##history_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        self.history.render(selected, state, dispatch, width - 30)
+                    imgui.end_child()
+                    imgui.end_tab_item()
+
+                imgui.end_tab_bar()
 
         imgui.end()
         imgui.pop_style_var(2)

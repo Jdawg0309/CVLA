@@ -4,7 +4,7 @@ Sidebar linear systems section.
 
 import imgui
 
-from state.actions import SetEquationCell, SetEquationCount
+from state.actions import SetEquationCell, SetEquationCount, StepBackward, StepForward
 
 
 def _render_linear_systems(self):
@@ -75,7 +75,11 @@ def _render_linear_systems(self):
             if imgui.button("Solve System", width=-1):
                 self._solve_linear_system()
 
-            if self.operation_result and 'solution' in self.operation_result:
+            if self.operation_result and 'error' in self.operation_result:
+                imgui.spacing()
+                imgui.text_colored(f"Error: {self.operation_result['error']}", 1.0, 0.3, 0.3)
+
+            if self.operation_result and self.operation_result.get('solution') is not None:
                 imgui.spacing()
                 imgui.separator()
                 imgui.spacing()
@@ -89,6 +93,51 @@ def _render_linear_systems(self):
                 imgui.spacing()
                 if imgui.button("Add Solution Vectors", width=-1):
                     self._add_solution_vectors(solution)
+
+            if self.operation_result and self.operation_result.get('solution') is None:
+                status = self.operation_result.get('status')
+                if status in ("infinite", "inconsistent"):
+                    imgui.spacing()
+                    imgui.text_colored(
+                        "No unique solution.",
+                        1.0, 0.7, 0.2
+                    )
+
+            steps = None
+            if self.operation_result:
+                steps = self.operation_result.get('steps')
+
+            if steps:
+                imgui.spacing()
+                imgui.separator()
+                imgui.spacing()
+
+                imgui.text_colored("Gaussian Elimination Steps:", 0.6, 0.8, 1.0)
+
+                if self._state is not None:
+                    step_index = self._state.pipeline_step_index
+                else:
+                    step_index = 0
+
+                step_index = max(0, min(step_index, len(steps) - 1))
+                step = steps[step_index]
+
+                imgui.text(f"Step {step_index + 1} / {len(steps)}: {step['title']}")
+                if step.get('description'):
+                    imgui.text_wrapped(step['description'])
+
+                imgui.spacing()
+                if self._dispatch is not None:
+                    if imgui.small_button("Prev Step"):
+                        self._dispatch(StepBackward())
+                    imgui.same_line()
+                    if imgui.small_button("Next Step"):
+                        self._dispatch(StepForward())
+
+                imgui.spacing()
+                matrix = step.get('matrix')
+                if matrix:
+                    self._matrix_input_widget([list(row) for row in matrix], editable=False)
 
             imgui.end_child()
 

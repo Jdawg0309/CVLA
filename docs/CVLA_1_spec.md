@@ -386,6 +386,30 @@ class MyOperation(OperationSpec):
     ...
 ```
 
+### Wiring into UI + history (next up)
+- Operations panel lists registry entries by `category` and renders `description` + `intuition`.
+- Executing an operation follows: `validate` → `compute` → `steps` (all pure); failures return `Err` and set a user-facing message, with **no** state mutation.
+- Success path:
+  - Store result as `operation_preview_tensor` when preview is enabled; commit to tensors/images only on confirm.
+  - Append `OperationRecord` (operation id/name, parameters, target_ids, result_ids) to `operation_history`.
+  - Replace `pipeline_steps` with the returned `EducationalStep` list and reset `pipeline_step_index = 0`.
+- If `steps()` is empty, insert a single step that explains why the operation is non-stepped (e.g., constant-time ops).
+
+### Step trace → timeline mapping (next up)
+- Timeline titles come from `EducationalStep.title`; the long description uses `EducationalStep.explanation`.
+- `EducationalStep.math_expression` is rendered in the right panel (LaTeX) and mirrored in the timeline tooltip.
+- `EducationalStep.input_data`/`output_data` (when provided) are used by `SceneAdapter` to render before/after previews without recomputing math in the renderer.
+- `OperationRecord` anchors the timeline group; steps are treated as children of the last operation until a new record is appended.
+
+### Image & convolution step generation (next up)
+- Convolution operations emit a **step per kernel position** (row-major), plus a final "assembled output" step.
+- Each step fills:
+  - `kernel_position` (x, y)
+  - `kernel_values` (current kernel)
+  - `input_data` (the local image patch as `ImageData`)
+  - `output_data` (either the current output pixel or the partial output image)
+- For performance, steps may store **downsampled** previews while the final compute writes full-resolution output.
+
 ---
 
 ## FEATURE CHECKLIST
@@ -547,7 +571,7 @@ class MyOperation(OperationSpec):
 ```
 +------------------------------------------------------------------+
 |                        TOOLBAR (40px)                            |
-|  [CVLA] [Undo] [Redo]              [Theme] [Settings]            |
+|  [CVLA] [Undo] [Redo] [Export]      [Theme] [Settings]            |
 +------------------------------------------------------------------+
 | MODE |         LEFT: INPUT               |   RIGHT: OPERATIONS   |
 | RAIL |         (Creation)                |   (Math/Reasoning)    |
@@ -578,6 +602,10 @@ class MyOperation(OperationSpec):
 
 ### Panel Specifications
 
+**Toolbar (40px tall)**
+- [Undo], [Redo], and [Export] (LaTeX) live here for global access
+- Theme + settings toggles remain right-aligned
+
 **Mode Rail (60px wide)**
 - Vertical icons for mode switching
 - [V] Vector mode
@@ -596,6 +624,11 @@ class MyOperation(OperationSpec):
 - Mouse controls: orbit, pan, zoom
 - Displays all visible tensors
 - Grid and axes overlay
+
+**Viewport Controls (overlay or inspector section)**
+- Grid fade: toggle + start/end sliders (`view_grid_fade`, `view_grid_fade_start`, `view_grid_fade_end`)
+- Depth ordering: grid `behind` scene vs `overlay` on top (`view_grid_depth_order`)
+- Axes remain visible regardless of grid depth order
 
 **Right Panel: Operations (300px)**
 - Shows selected tensor info
@@ -622,6 +655,8 @@ class MyOperation(OperationSpec):
 
 **Key behaviors**
 - Grid modes: `plane` (xy/xz/yz) and `cube`, both obey right/left-handed axis mapping and perspective/orthographic view modes.
+- Grid depth ordering: when `view_grid_depth_order == 'overlay'`, draw grid after scene with depth test off; otherwise draw before scene with depth test on.
+- Grid fade: when `view_grid_fade` is enabled, fade grid alpha based on camera distance between `view_grid_fade_start` and `view_grid_fade_end`.
 - Caching: view-projection matrix cached until camera/view config changes; image plane batches cached by `(resolution, render_mode, color_mode)`.
 - Image rendering: plane or height-field; optional grid overlay; uses `engine.image_adapter` downsampling before upload.
 - Linear algebra overlays: basis transform previews, vector span parallelograms, parallelepiped for 3 vectors, optional matrix 3D point plot.
@@ -646,6 +681,7 @@ CVLA/
 ├── imgui.ini
 ├── docs/
 │   └── CVLA_1_spec.md
+├── exports/                 # Generated LaTeX exports (optional)
 ├── app/                      # Window + ImGui bootstrap and handlers
 │   ├── app.py
 │   ├── app_run.py
@@ -801,6 +837,10 @@ class AppState:
     view_up_axis: str = "z"
     view_grid_mode: str = "cube"
     view_grid_plane: str = "xy"
+    view_grid_depth_order: str = "behind"  # 'behind' | 'overlay'
+    view_grid_fade: bool = False
+    view_grid_fade_start: float = 0.0
+    view_grid_fade_end: float = 1.0
     view_show_grid: bool = True
     view_show_axes: bool = True
     view_show_labels: bool = True
@@ -844,6 +884,17 @@ class AppState:
 - `can_undo`, `can_redo`
 - `get_view_settings` (derived view-related toggles)
 
+### Timeline + undo/redo wiring (next up)
+- Timeline reads from `pipeline_steps`; `JumpToStep` updates `pipeline_step_index` and re-renders the preview only.
+- `operation_history` entries are appended **once per commit**, not per step.
+- Undo/redo restores `pipeline_steps`, `pipeline_step_index`, and `operation_history` so the timeline remains consistent.
+- View-only actions (camera movement, theme, view toggles) should **not** record history.
+
+### LaTeX export (next up)
+- Export uses the current `operation_history` + `pipeline_steps` to generate a standalone `.tex`.
+- Each step includes: `math_expression` (display math), `description` (paragraph), and `numeric_values` (aligned key/value or matrix block).
+- Default output path: `exports/cvla_steps_YYYYMMDD_HHMMSS.tex` (configurable in settings).
+
 ---
 
 ## TESTING REQUIREMENTS
@@ -857,6 +908,11 @@ class AppState:
 | Input parsers (`ui/panels/input_panel/input_parsers.py`) | 90% | P1 |
 | Scene adapter + history manager | 90% | P1 |
 | Renderer smoke tests (headless, no GL asserts) | 70% | P2 |
+
+### Headless renderer smoke tests (next up)
+- Create an offscreen context and render a minimal scene (one vector, one grid, one image plane).
+- Assert **no exceptions**, a valid framebuffer size, and a non-empty pixel buffer.
+- Include a `SceneAdapter` regression case: known state → expected counts (vectors, planes, labels).
 
 ### Test Patterns
 ```python
@@ -1074,6 +1130,8 @@ CVLA v1.0 is complete when:
 - [ ] UI toggles for grid fade/depth ordering
 - [ ] Export steps to LaTeX
 - [ ] Undo/redo fully wired for tensors and images
+
+*Spec note:* The items above are now fully specified in the Operation Registry, State Management, UI Layout, Rendering System, and Testing sections; implementation remains pending.
 
 ---
 

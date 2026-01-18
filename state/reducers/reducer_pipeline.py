@@ -4,7 +4,7 @@ Pipeline action reducers.
 
 from dataclasses import replace
 
-from state.actions import StepForward, StepBackward, JumpToStep, ResetPipeline
+from state.actions import StepForward, StepBackward, JumpToStep, ResetPipeline, SetPipeline
 
 
 def reduce_pipeline(state, action, with_history):
@@ -30,5 +30,11 @@ def reduce_pipeline(state, action, with_history):
             pipeline_step_index=0,
         )
         return with_history(new_state)
+
+    if isinstance(action, SetPipeline):
+        if not action.steps:
+            return replace(state, pipeline_steps=(), pipeline_step_index=0)
+        idx = max(0, min(action.index, len(action.steps) - 1))
+        return replace(state, pipeline_steps=action.steps, pipeline_step_index=idx)
 
     return None

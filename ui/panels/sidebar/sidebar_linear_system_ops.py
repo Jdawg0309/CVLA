@@ -3,7 +3,10 @@ Sidebar linear system helpers.
 """
 
 import numpy as np
-from state.actions import AddVector, SetEquationCount
+from state.actions import AddVector, SetEquationCount, SetPipeline
+from state.models import EducationalStep
+
+from domain.vectors.vector_ops import gaussian_elimination_steps
 
 
 def _resize_equations(self):
@@ -29,10 +32,24 @@ def _solve_linear_system(self):
                 A[i, j] = equations[i][j]
             b[i] = equations[i][-1]
 
-        solution = np.linalg.solve(A, b)
+        steps, solution, status = gaussian_elimination_steps(A, b)
+
+        pipeline_steps = tuple(
+            EducationalStep.create(
+                title=step["title"],
+                explanation=step["description"],
+                operation="gaussian_elimination",
+            )
+            for step in steps
+        )
+
+        if self._dispatch is not None:
+            self._dispatch(SetPipeline(steps=pipeline_steps, index=0))
+
         self.operation_result = {
             'solution': solution,
-            'steps': [],
+            'status': status,
+            'steps': steps,
             'augmented_matrix': np.hstack([A, b.reshape(-1, 1)]),
         }
 

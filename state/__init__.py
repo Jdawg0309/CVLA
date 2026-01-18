@@ -48,7 +48,7 @@ from state.actions import (
     LoadImage, CreateSampleImage, ApplyKernel, ApplyTransform,
     FlipImageHorizontal, UseResultAsInput, ClearImage,
     # Pipeline actions
-    StepForward, StepBackward, JumpToStep, ResetPipeline,
+    StepForward, StepBackward, JumpToStep, ResetPipeline, SetPipeline,
     # UI input actions
     SetInputVector, SetInputMatrixCell, SetInputMatrixShape, SetInputMatrixLabel,
     SetEquationCell, SetEquationCount,
@@ -83,7 +83,7 @@ __all__ = [
     'ToggleMatrixPlot',
     'LoadImage', 'CreateSampleImage', 'ApplyKernel', 'ApplyTransform',
     'FlipImageHorizontal', 'UseResultAsInput', 'ClearImage',
-    'StepForward', 'StepBackward', 'JumpToStep', 'ResetPipeline',
+    'StepForward', 'StepBackward', 'JumpToStep', 'ResetPipeline', 'SetPipeline',
     'SetInputVector', 'SetInputMatrixCell', 'SetInputMatrixShape', 'SetInputMatrixLabel',
     'SetEquationCell', 'SetEquationCount',
     'SetImagePath', 'SetSamplePattern', 'SetSampleSize',
