@@ -1,7 +1,7 @@
 """
 Main input panel orchestrator.
 
-Combines text, file, and grid input widgets with the tensor list.
+Combines matrix input and file input widgets with the tensor list.
 """
 
 import imgui
@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from state.app_state import AppState
 
 from state.actions.input_panel_actions import SetInputMethod
-from ui.panels.input_panel.text_input import TextInputWidget
 from ui.panels.input_panel.file_input import FileInputWidget
 from ui.panels.input_panel.grid_input import GridInputWidget
 from ui.panels.input_panel.tensor_list import TensorListWidget
@@ -31,22 +30,24 @@ class InputPanel:
     Left input panel for creating tensors.
 
     Contains:
-    - Tab bar for switching between input methods (text, file, grid)
+    - Input selector for manual matrix or file-based input
     - Active input widget
     - Tensor list showing all tensors in scene
     """
 
     INPUT_METHODS = [
-        ("text", "Text", "Enter vectors/matrices as text"),
-        ("file", "File", "Load images from files"),
-        ("grid", "Grid", "Spreadsheet-style entry"),
+        ("matrix", "Matrix Manual", "Enter a matrix manually"),
+        ("json", "JSON", "Load matrix from JSON file"),
+        ("csv", "CSV", "Load matrix from CSV file"),
+        ("excel", "Excel", "Load matrix from Excel file"),
+        ("image", "Image", "Load image from file"),
     ]
 
     def __init__(self):
-        self.text_widget = TextInputWidget()
         self.file_widget = FileInputWidget()
         self.grid_widget = GridInputWidget()
         self.tensor_list = TensorListWidget()
+        self._last_mode = None
 
     def render(self, rect, state: "AppState", dispatch):
         """
@@ -74,6 +75,17 @@ class InputPanel:
             imgui.separator()
             imgui.spacing()
 
+            # Get active mode
+            active_mode = state.active_mode if state else "vectors"
+
+            # Auto-switch input method when mode changes
+            if self._last_mode != active_mode:
+                self._last_mode = active_mode
+                if active_mode == "images" and state.active_input_method != "image":
+                    dispatch(SetInputMethod(method="image"))
+                elif active_mode != "images" and state.active_input_method == "image":
+                    dispatch(SetInputMethod(method="matrix"))
+
             if imgui.begin_child(
                 "##input_scroll",
                 0,
@@ -81,28 +93,13 @@ class InputPanel:
                 border=False,
                 flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
             ):
-                # Input method tabs and widget
-                self._render_input_tabs(state, dispatch, width)
-                imgui.spacing()
-
-                expanded, _ = imgui.collapsing_header(
-                    "Create",
-                    imgui.TREE_NODE_DEFAULT_OPEN
-                )
-                if expanded:
-                    self._render_active_input(state, dispatch, width - 20)
-
-                imgui.spacing()
-
-                expanded, _ = imgui.collapsing_header(
-                    "Tensors",
-                    imgui.TREE_NODE_DEFAULT_OPEN
-                )
-                if expanded:
-                    list_height = max(220, height * 0.35)
-                    self.tensor_list.render(state, dispatch, width - 10, list_height)
-
-                imgui.spacing()
+                # Render different content based on mode
+                if active_mode == "visualize":
+                    # View mode - show view info
+                    self._render_view_mode_content(state, dispatch, width, height)
+                else:
+                    # Algebra or Vision mode - show normal input
+                    self._render_standard_content(state, dispatch, width, height)
 
             imgui.end_child()
 
@@ -110,44 +107,100 @@ class InputPanel:
 
     def _render_header(self, state: "AppState", dispatch, width: float):
         """Render panel header."""
-        imgui.text("INPUT")
+        # Show mode-specific header
+        active_mode = state.active_mode if state else "vectors"
+        mode_labels = {
+            "vectors": "ALGEBRA",
+            "matrices": "ALGEBRA",
+            "images": "VISION",
+            "visualize": "VIEW",
+        }
+        header = mode_labels.get(active_mode, "INPUT")
+        imgui.text(header)
         imgui.same_line(width - 60)
         # Could add settings button here
 
-    def _render_input_tabs(self, state: "AppState", dispatch, width: float):
-        """Render input method tab bar."""
+    def _render_input_selector(self, state: "AppState", dispatch, width: float):
+        """Render input method selector."""
         active_method = state.active_input_method
-        tab_width = (width - 20) / len(self.INPUT_METHODS)
+        method_ids = [m[0] for m in self.INPUT_METHODS]
+        method_labels = [m[1] for m in self.INPUT_METHODS]
+        method_tooltips = {m[0]: m[2] for m in self.INPUT_METHODS}
 
-        for i, (method_id, method_name, tooltip) in enumerate(self.INPUT_METHODS):
-            if i > 0:
-                imgui.same_line()
+        try:
+            current_index = method_ids.index(active_method)
+        except ValueError:
+            current_index = 0
 
-            is_active = active_method == method_id
+        imgui.text("Input Type:")
+        imgui.same_line()
+        imgui.push_item_width(width - 110)
+        changed, new_index = imgui.combo(
+            "##input_type",
+            current_index,
+            method_labels
+        )
+        imgui.pop_item_width()
 
-            # Style active tab
-            if is_active:
-                imgui.push_style_color(imgui.COLOR_BUTTON, 0.3, 0.5, 0.7, 1.0)
-                imgui.push_style_color(imgui.COLOR_BUTTON_HOVERED, 0.35, 0.55, 0.75, 1.0)
-                imgui.push_style_color(imgui.COLOR_BUTTON_ACTIVE, 0.4, 0.6, 0.8, 1.0)
+        if changed:
+            dispatch(SetInputMethod(method=method_ids[new_index]))
 
-            if imgui.button(method_name, tab_width, 25):
-                dispatch(SetInputMethod(method=method_id))
-
-            if is_active:
-                imgui.pop_style_color(3)
-
-            # Tooltip
-            if imgui.is_item_hovered():
-                imgui.set_tooltip(tooltip)
+        if imgui.is_item_hovered() and active_method in method_tooltips:
+            imgui.set_tooltip(method_tooltips[active_method])
 
     def _render_active_input(self, state: "AppState", dispatch, width: float):
         """Render the currently active input widget."""
         active_method = state.active_input_method
 
-        if active_method == "text":
-            self.text_widget.render(state, dispatch, width)
-        elif active_method == "file":
-            self.file_widget.render(state, dispatch, width)
-        elif active_method == "grid":
-            self.grid_widget.render(state, dispatch, width)
+        if active_method == "matrix":
+            self.grid_widget.render(state, dispatch, width, matrix_only=True)
+        elif active_method in ("json", "csv", "excel", "image"):
+            self.file_widget.render(state, dispatch, width, file_type=active_method)
+        else:
+            self.grid_widget.render(state, dispatch, width, matrix_only=True)
+
+    def _render_standard_content(self, state: "AppState", dispatch, width: float, height: float):
+        """Render standard input content (Algebra/Vision modes)."""
+        # Input selector and widget
+        self._render_input_selector(state, dispatch, width)
+        imgui.spacing()
+
+        expanded, _ = imgui.collapsing_header(
+            "Create",
+            imgui.TREE_NODE_DEFAULT_OPEN
+        )
+        if expanded:
+            self._render_active_input(state, dispatch, width - 20)
+
+        imgui.spacing()
+
+        expanded, _ = imgui.collapsing_header(
+            "Tensors",
+            imgui.TREE_NODE_DEFAULT_OPEN
+        )
+        if expanded:
+            list_height = max(220, height * 0.35)
+            self.tensor_list.render(state, dispatch, width - 10, list_height)
+
+        imgui.spacing()
+
+    def _render_view_mode_content(self, state: "AppState", dispatch, width: float, height: float):
+        """Render View mode content - simplified, just tensor list."""
+        # Info text
+        imgui.text_colored("View Settings", 0.6, 0.8, 0.6, 1.0)
+        imgui.spacing()
+        imgui.text_wrapped("Use the Operations panel on the right to adjust view settings.")
+        imgui.spacing()
+        imgui.separator()
+        imgui.spacing()
+
+        # Tensor list for reference
+        expanded, _ = imgui.collapsing_header(
+            "Tensors",
+            imgui.TREE_NODE_DEFAULT_OPEN
+        )
+        if expanded:
+            list_height = max(300, height * 0.5)
+            self.tensor_list.render(state, dispatch, width - 10, list_height)
+
+        imgui.spacing()

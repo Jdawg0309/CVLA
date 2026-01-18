@@ -50,7 +50,7 @@ class AppState:
     # =========================================================================
     # INPUT PANEL STATE
     # =========================================================================
-    active_input_method: str = "text"  # "text", "file", "grid"
+    active_input_method: str = "matrix"  # "matrix", "json", "csv", "excel", "image"
     input_text_content: str = ""
     input_text_parsed_type: str = ""  # What the parser detected: "vector", "matrix", ""
     input_file_path: str = ""
@@ -193,6 +193,12 @@ class AppState:
     next_vector_id: int = 1
     next_matrix_id: int = 1
     next_color_index: int = 0
+
+    # =========================================================================
+    # ERROR/NOTIFICATION STATE
+    # =========================================================================
+    error_message: Optional[str] = None
+    show_error_modal: bool = False
 
 
 def create_initial_state() -> AppState:

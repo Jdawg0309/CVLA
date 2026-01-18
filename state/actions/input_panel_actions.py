@@ -12,8 +12,8 @@ from typing import Tuple, Optional
 
 @dataclass(frozen=True)
 class SetInputMethod:
-    """Switch between input methods: text, file, grid."""
-    method: str  # "text", "file", "grid"
+    """Switch between input methods."""
+    method: str  # "matrix", "json", "csv", "excel", "image"
 
 
 # Text input actions
@@ -132,7 +132,9 @@ class CreateTensorFromTextInput:
 @dataclass(frozen=True)
 class CreateTensorFromFileInput:
     """Create a tensor from the current file input."""
+    file_type: str  # "json", "csv", "excel", "image"
     label: str = ""  # Empty means use filename
+    color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
 
 
 @dataclass(frozen=True)

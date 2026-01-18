@@ -1,7 +1,7 @@
 """
 File input widget for the input panel.
 
-Provides file path entry and sample image generation.
+Provides file path entry for matrix or image files.
 """
 
 import imgui
@@ -12,34 +12,36 @@ if TYPE_CHECKING:
     from state.app_state import AppState
 
 from state.actions.input_panel_actions import (
-    SetFilePath, ClearFilePath
+    SetFilePath, ClearFilePath, CreateTensorFromFileInput
 )
-from state.actions.image_actions import LoadImage, CreateSampleImage
+from state.actions.image_actions import LoadImage
+from state.selectors import get_next_color
 
 
 class FileInputWidget:
     """Widget for file-based tensor input."""
 
-    SAMPLE_PATTERNS = [
-        ("checkerboard", "Checkerboard pattern"),
-        ("gradient", "Horizontal gradient"),
-        ("circle", "Circle pattern"),
-        ("noise", "Random noise"),
-        ("stripes", "Vertical stripes"),
-    ]
-
-    SAMPLE_SIZES = [32, 64, 128, 256, 512]
-
     def __init__(self):
         self._path_buffer = ""
         self._label_buffer = ""
-        self._selected_pattern = 0
-        self._selected_size = 2  # Default to 128
 
-    def render(self, state: "AppState", dispatch, width: float):
-        """Render the file input widget."""
-        # File path section
-        imgui.text("Image file path:")
+    def render(self, state: "AppState", dispatch, width: float, file_type: str):
+        """Render the file input widget for the selected file type."""
+        labels = {
+            "json": "JSON file path:",
+            "csv": "CSV file path:",
+            "excel": "Excel file path:",
+            "image": "Image file path:",
+        }
+        button_labels = {
+            "json": "Create Matrix",
+            "csv": "Create Matrix",
+            "excel": "Create Matrix",
+            "image": "Load Image",
+        }
+        is_image = file_type == "image"
+
+        imgui.text(labels.get(file_type, "File path:"))
 
         imgui.push_item_width(width - 20)
         changed, self._path_buffer = imgui.input_text(
@@ -62,27 +64,36 @@ class FileInputWidget:
 
         imgui.spacing()
 
-        # Label input
-        imgui.text("Label (optional):")
-        imgui.same_line()
-        imgui.push_item_width(width - 140)
-        _, self._label_buffer = imgui.input_text(
-            "##image_label",
-            self._label_buffer,
-            256
-        )
-        imgui.pop_item_width()
+        if not is_image:
+            # Label input (matrix files)
+            imgui.text("Label (optional):")
+            imgui.same_line()
+            imgui.push_item_width(width - 140)
+            _, self._label_buffer = imgui.input_text(
+                "##matrix_label",
+                self._label_buffer,
+                256
+            )
+            imgui.pop_item_width()
+            imgui.spacing()
 
-        imgui.spacing()
-
-        # Load button
+        # Load/create button
         can_load = file_path and os.path.exists(file_path)
         if not can_load:
             imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
 
-        if imgui.button("Load Image", width - 20, 30):
+        if imgui.button(button_labels.get(file_type, "Load"), width - 20, 30):
             if can_load:
-                dispatch(LoadImage(path=file_path))
+                if is_image:
+                    dispatch(LoadImage(path=file_path))
+                else:
+                    label = self._label_buffer.strip()
+                    color, _ = get_next_color(state)
+                    dispatch(CreateTensorFromFileInput(
+                        file_type=file_type,
+                        label=label,
+                        color=color
+                    ))
                 self._path_buffer = ""
                 self._label_buffer = ""
                 dispatch(ClearFilePath())
@@ -90,50 +101,16 @@ class FileInputWidget:
         if not can_load:
             imgui.pop_style_var()
 
-        # Sample image section
-        imgui.spacing()
-        imgui.separator()
-        imgui.spacing()
-        imgui.text("Or create sample image:")
-        imgui.spacing()
-
-        # Pattern selector
-        imgui.text("Pattern:")
-        imgui.same_line(80)
-        imgui.push_item_width(width - 100)
-        pattern_names = [p[1] for p in self.SAMPLE_PATTERNS]
-        _, self._selected_pattern = imgui.combo(
-            "##pattern",
-            self._selected_pattern,
-            pattern_names
-        )
-        imgui.pop_item_width()
-
-        # Size selector
-        imgui.text("Size:")
-        imgui.same_line(80)
-        imgui.push_item_width(width - 100)
-        size_names = [f"{s}x{s}" for s in self.SAMPLE_SIZES]
-        _, self._selected_size = imgui.combo(
-            "##size",
-            self._selected_size,
-            size_names
-        )
-        imgui.pop_item_width()
-
-        imgui.spacing()
-
-        # Create sample button
-        if imgui.button("Create Sample", width - 20, 30):
-            pattern = self.SAMPLE_PATTERNS[self._selected_pattern][0]
-            size = self.SAMPLE_SIZES[self._selected_size]
-            dispatch(CreateSampleImage(pattern=pattern, size=size))
-
         # Supported formats
         imgui.spacing()
         imgui.separator()
         imgui.spacing()
         imgui.text_colored("Supported formats:", 0.6, 0.6, 0.6, 1.0)
-        imgui.text_colored("  PNG, JPG, BMP, TIFF", 0.5, 0.5, 0.5, 1.0)
-        imgui.text_colored("  CSV (numeric data)", 0.5, 0.5, 0.5, 1.0)
-        imgui.text_colored("  NPY (numpy arrays)", 0.5, 0.5, 0.5, 1.0)
+        if file_type == "json":
+            imgui.text_colored("  .json (array of rows)", 0.5, 0.5, 0.5, 1.0)
+        elif file_type == "csv":
+            imgui.text_colored("  .csv (numeric table)", 0.5, 0.5, 0.5, 1.0)
+        elif file_type == "excel":
+            imgui.text_colored("  .xlsx (first sheet)", 0.5, 0.5, 0.5, 1.0)
+        else:
+            imgui.text_colored("  PNG, JPG, BMP, TIFF", 0.5, 0.5, 0.5, 1.0)

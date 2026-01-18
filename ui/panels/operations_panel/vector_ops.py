@@ -166,5 +166,9 @@ class VectorOpsWidget:
         imgui.same_line()
 
         if imgui.button("To Origin", half_width, 25):
-            # Create vector from origin to this point
-            pass  # TODO: implement
+            dispatch(ApplyOperation(
+                operation_name="to_origin",
+                parameters=(),
+                target_ids=(tensor.id,),
+                create_new=False
+            ))

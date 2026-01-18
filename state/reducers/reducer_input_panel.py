@@ -1,12 +1,15 @@
 """
 Reducer for input panel actions.
 
-Handles state changes for the text, file, and grid input widgets.
+Handles state changes for the file and grid input widgets.
 """
 
 from dataclasses import replace
-from typing import Optional, Callable, TYPE_CHECKING
+from typing import Optional, Callable, TYPE_CHECKING, List, Tuple
+import csv
+import json
 import re
+from pathlib import Path
 
 if TYPE_CHECKING:
     from state.app_state import AppState
@@ -398,14 +401,31 @@ def _create_tensor_from_file(
     if not path:
         return state
 
-    try:
-        from domain.images.io.image_loader import load_image
-        pixels = load_image(path)
-        label = action.label if action.label else path.split("/")[-1].split("\\")[-1]
-        if hasattr(pixels, "data"):
-            pixels = pixels.data
-        tensor = TensorData.create_image(pixels=pixels, name=label)
+    file_type = action.file_type
 
+    if file_type == "image":
+        try:
+            from domain.images.io.image_loader import load_image
+            pixels = load_image(path)
+            label = action.label if action.label else path.split("/")[-1].split("\\")[-1]
+            if hasattr(pixels, "data"):
+                pixels = pixels.data
+            tensor = TensorData.create_image(pixels=pixels, name=label)
+
+            new_state = replace(
+                state,
+                tensors=state.tensors + (tensor,),
+                selected_tensor_id=tensor.id,
+                input_file_path=""
+            )
+            return with_history(new_state)
+        except Exception:
+            return state
+
+    try:
+        matrix = _load_matrix_from_file(path, file_type)
+        label = action.label.strip() if action.label else Path(path).stem
+        tensor = TensorData.create_matrix(values=matrix, label=label, color=action.color)
         new_state = replace(
             state,
             tensors=state.tensors + (tensor,),
@@ -413,8 +433,11 @@ def _create_tensor_from_file(
             input_file_path=""
         )
         return with_history(new_state)
-    except Exception:
-        return state
+    except Exception as exc:
+        return replace(state,
+            error_message=f"Failed to load {file_type.upper()} matrix: {exc}",
+            show_error_modal=True,
+        )
 
 
 def _create_tensor_from_grid(
@@ -450,3 +473,135 @@ def _create_tensor_from_grid(
         selected_tensor_id=tensor.id
     )
     return with_history(new_state)
+
+
+def _load_matrix_from_file(path: str, file_type: str) -> Tuple[Tuple[float, ...], ...]:
+    """Load a numeric matrix from a supported file type."""
+    if file_type == "json":
+        return _load_matrix_from_json(path)
+    if file_type == "csv":
+        return _load_matrix_from_csv(path)
+    if file_type == "excel":
+        return _load_matrix_from_excel(path)
+    raise ValueError(f"Unsupported file type '{file_type}'")
+
+
+def _coerce_numeric(value) -> float:
+    """Coerce a value to float, treating empty values as 0.0."""
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == "":
+            return 0.0
+        return float(stripped)
+    return float(value)
+
+
+def _parse_row_cells(cells) -> Tuple[List[float], bool, bool]:
+    """Parse a row of cells into floats, tracking numeric/text content."""
+    values: List[float] = []
+    had_numeric = False
+    had_text = False
+    for cell in cells:
+        try:
+            val = _coerce_numeric(cell)
+            values.append(val)
+            if cell is not None and not (isinstance(cell, str) and cell.strip() == ""):
+                had_numeric = True
+        except (ValueError, TypeError):
+            had_text = True
+            values.append(0.0)
+    return values, had_numeric, had_text
+
+
+def _normalize_rows(rows: List[List[float]]) -> Tuple[Tuple[float, ...], ...]:
+    """Normalize row lengths by padding with zeros."""
+    if not rows:
+        raise ValueError("No numeric rows found.")
+    max_len = max(len(row) for row in rows)
+    if max_len == 0:
+        raise ValueError("No numeric columns found.")
+    normalized = []
+    for row in rows:
+        if len(row) < max_len:
+            row = row + [0.0] * (max_len - len(row))
+        normalized.append(tuple(float(v) for v in row))
+    return tuple(normalized)
+
+
+def _load_matrix_from_json(path: str) -> Tuple[Tuple[float, ...], ...]:
+    """Load matrix from a JSON file."""
+    with open(path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    if isinstance(data, dict):
+        for key in ("data", "matrix", "values"):
+            if key in data:
+                data = data[key]
+                break
+
+    if not isinstance(data, list) or not data:
+        raise ValueError("JSON must contain a non-empty array.")
+
+    rows: List[List[float]] = []
+    if all(isinstance(row, (list, tuple)) for row in data):
+        for row in data:
+            rows.append([_coerce_numeric(v) for v in row])
+    else:
+        rows.append([_coerce_numeric(v) for v in data])
+
+    row_len = len(rows[0])
+    if row_len == 0 or any(len(r) != row_len for r in rows):
+        raise ValueError("JSON matrix rows must be the same length.")
+    return tuple(tuple(float(v) for v in row) for row in rows)
+
+
+def _load_matrix_from_csv(path: str) -> Tuple[Tuple[float, ...], ...]:
+    """Load matrix from a CSV file."""
+    rows: List[List[float]] = []
+    with open(path, newline="", encoding="utf-8-sig") as handle:
+        reader = csv.reader(handle)
+        for row in reader:
+            if not row or all(not cell.strip() for cell in row):
+                continue
+            values, had_numeric, had_text = _parse_row_cells(row)
+            if had_text and not had_numeric:
+                if not rows:
+                    continue
+                raise ValueError("CSV contains non-numeric data.")
+            if had_text and had_numeric:
+                raise ValueError("CSV row mixes text and numbers.")
+            rows.append(values)
+    return _normalize_rows(rows)
+
+
+def _load_matrix_from_excel(path: str) -> Tuple[Tuple[float, ...], ...]:
+    """Load matrix from the first sheet of an Excel file."""
+    try:
+        import openpyxl  # type: ignore
+    except Exception:
+        raise ValueError("Excel support requires openpyxl. Install it or convert to CSV.")
+
+    rows: List[List[float]] = []
+    workbook = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    sheet = workbook.active
+    try:
+        for row in sheet.iter_rows(values_only=True):
+            if row is None:
+                continue
+            values, had_numeric, had_text = _parse_row_cells(row)
+            if not had_numeric and not had_text and all(v == 0.0 for v in values):
+                continue
+            if had_text and not had_numeric:
+                if not rows:
+                    continue
+                raise ValueError("Excel contains non-numeric data.")
+            if had_text and had_numeric:
+                raise ValueError("Excel row mixes text and numbers.")
+            rows.append(values)
+    finally:
+        workbook.close()
+    return _normalize_rows(rows)

@@ -15,6 +15,7 @@ from state.actions import (
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
     SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ShowError, DismissError,
 )
 
 
@@ -167,6 +168,18 @@ def reduce_navigation(state, action):
         return replace(state,
             view_mode_2d=mode_2d,
             view_grid_mode=grid_mode,
+        )
+
+    if isinstance(action, ShowError):
+        return replace(state,
+            error_message=action.message,
+            show_error_modal=True,
+        )
+
+    if isinstance(action, DismissError):
+        return replace(state,
+            error_message=None,
+            show_error_modal=False,
         )
 
     return None

@@ -37,6 +37,7 @@ class TensorData:
     color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
     visible: bool = True
     history: Tuple[str, ...] = ()
+    original_data: Optional[Tuple[Union[float, Tuple], ...]] = None  # For reset functionality
 
     @property
     def rank(self) -> int:
@@ -116,7 +117,8 @@ class TensorData:
     def create_image(
         pixels: np.ndarray,
         name: str,
-        history: Tuple[str, ...] = ()
+        history: Tuple[str, ...] = (),
+        preserve_original: bool = True
     ) -> 'TensorData':
         """
         Create an image tensor from numpy array.
@@ -125,6 +127,7 @@ class TensorData:
             pixels: HxW (grayscale) or HxWxC (color) numpy array
             name: Image label
             history: Operation history
+            preserve_original: If True, store original data for reset functionality
         """
         shape = tuple(pixels.shape)
         is_grayscale = len(shape) == 2 or (len(shape) == 3 and shape[2] == 1)
@@ -132,6 +135,9 @@ class TensorData:
 
         # Convert numpy array to nested tuples
         data = _numpy_to_tuples(pixels)
+
+        # Store original data for reset functionality (only for new images, not derived ones)
+        original = data if (preserve_original and not history) else None
 
         return TensorData(
             id=str(uuid4()),
@@ -141,7 +147,8 @@ class TensorData:
             label=name,
             color=(0.8, 0.8, 0.8),
             visible=True,
-            history=history
+            history=history,
+            original_data=original
         )
 
     def to_numpy(self) -> np.ndarray:

@@ -106,15 +106,6 @@ class TensorInfoWidget:
         elif tensor.is_image:
             self._render_image_info(tensor)
 
-        # History
-        if tensor.history:
-            imgui.spacing()
-            imgui.separator()
-            imgui.spacing()
-            imgui.text("History:")
-            for op in tensor.history[-5:]:  # Show last 5 operations
-                imgui.bullet_text(op)
-
     def _format_shape(self, tensor: "TensorData") -> str:
         """Format tensor shape for display."""
         return " x ".join(str(d) for d in tensor.shape)

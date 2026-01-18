@@ -325,12 +325,19 @@ def _handle_apply_operation(
         return state
 
     # Apply operation (placeholder - actual implementation depends on operation)
-    result_tensors = _execute_operation(
-        action.operation_name,
-        action.parameters,
-        targets,
-        action.create_new
-    )
+    try:
+        result_tensors = _execute_operation(
+            action.operation_name,
+            action.parameters,
+            targets,
+            action.create_new
+        )
+    except OperationError as e:
+        # Operation failed with a user-facing error - show error modal
+        return replace(state,
+            error_message=e.message,
+            show_error_modal=True,
+        )
 
     if result_tensors is None:
         return state
@@ -495,6 +502,8 @@ def _execute_operation(
         return _op_cross(targets, params, create_new)
     if operation_name == "project":
         return _op_project(targets, params, create_new)
+    if operation_name == "to_origin":
+        return _op_to_origin(targets, params, create_new)
 
     # Matrix operations
     if operation_name == "transpose":
@@ -535,6 +544,8 @@ def _execute_operation(
         return _op_invert_image(targets, params, create_new)
     if operation_name == "to_matrix":
         return _op_image_to_matrix(targets, params, create_new)
+    if operation_name == "reset_image":
+        return _op_reset_image(targets, params, create_new)
 
     return None
 
@@ -758,6 +769,37 @@ def _op_project(targets: list, params: dict, create_new: bool) -> list:
     return [new_t]
 
 
+def _op_to_origin(targets: list, params: dict, create_new: bool) -> list:
+    """Move vector tail to origin (0,0,0).
+
+    Creates a fresh copy of the vector positioned from the origin.
+    In the current model, vectors are already from origin, so this
+    serves as a confirmation/reset operation.
+    """
+    results = []
+    for t in targets:
+        if not t.is_vector:
+            continue
+        # Vector data already represents position from origin
+        # This operation confirms/resets the vector to origin-based
+        new_data = t.data  # Keep same coordinates (direction from origin)
+        if create_new:
+            new_t = TensorData(
+                id=_generate_id(),
+                data=new_data,
+                shape=t.shape,
+                dtype=t.dtype,
+                label=f"{t.label}_origin",
+                color=t.color,
+                visible=True,
+                history=t.history + ("to_origin",)
+            )
+        else:
+            new_t = replace(t, history=t.history + ("to_origin",))
+        results.append(new_t)
+    return results
+
+
 def _op_transpose(targets: list, params: dict, create_new: bool) -> list:
     """Transpose matrices."""
     import numpy as np
@@ -785,6 +827,13 @@ def _op_transpose(targets: list, params: dict, create_new: bool) -> list:
     return results
 
 
+class OperationError(Exception):
+    """Exception raised when an operation fails with a user-facing error."""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+
 def _op_inverse(targets: list, params: dict, create_new: bool) -> list:
     """Compute matrix inverse."""
     import numpy as np
@@ -792,6 +841,9 @@ def _op_inverse(targets: list, params: dict, create_new: bool) -> list:
     for t in targets:
         if not t.is_matrix:
             continue
+        # Check if matrix is square
+        if t.rows != t.cols:
+            raise OperationError(f"Matrix '{t.label}' is not square ({t.rows}x{t.cols}). Only square matrices can be inverted.")
         try:
             arr = np.linalg.inv(t.to_numpy())
             new_data = _numpy_to_tuples(arr)
@@ -810,7 +862,7 @@ def _op_inverse(targets: list, params: dict, create_new: bool) -> list:
                 new_t = replace(t, data=new_data, history=t.history + ("inverse",))
             results.append(new_t)
         except np.linalg.LinAlgError:
-            pass  # Matrix not invertible
+            raise OperationError(f"Matrix '{t.label}' is singular (determinant = 0) and cannot be inverted.")
     return results
 
 
@@ -1097,10 +1149,12 @@ def _op_apply_kernel(targets: list, params: dict, create_new: bool) -> list:
         new_t = TensorData.create_image(
             pixels=result_pixels,
             name=f"{t.label}_{kernel_name}" if create_new else t.label,
-            history=t.history + (f"kernel:{kernel_name}",)
+            history=t.history + (f"kernel:{kernel_name}",),
+            preserve_original=False  # Don't overwrite original
         )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            # Preserve the original_data from source tensor for reset
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1115,9 +1169,13 @@ def _op_rotate_image(targets: list, params: dict, create_new: bool) -> list:
             continue
         arr = t.to_numpy()
         rotated = np.rot90(arr, k=k, axes=(0, 1))
-        new_t = TensorData.create_image(rotated, f"{t.label}_rot{angle:.0f}")
+        new_t = TensorData.create_image(
+            rotated, f"{t.label}_rot{angle:.0f}",
+            history=t.history + (f"rotate:{angle}",),
+            preserve_original=False
+        )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1135,9 +1193,13 @@ def _op_scale_image(targets: list, params: dict, create_new: bool) -> list:
         y_idx = (np.linspace(0, arr.shape[0] - 1, new_h)).astype(int)
         x_idx = (np.linspace(0, arr.shape[1] - 1, new_w)).astype(int)
         scaled = arr[np.ix_(y_idx, x_idx)]
-        new_t = TensorData.create_image(scaled, f"{t.label}_s{factor:.2f}")
+        new_t = TensorData.create_image(
+            scaled, f"{t.label}_s{factor:.2f}",
+            history=t.history + (f"scale:{factor}",),
+            preserve_original=False
+        )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1145,13 +1207,18 @@ def _op_scale_image(targets: list, params: dict, create_new: bool) -> list:
 def _op_flip_image(targets: list, params: dict, axis: int, create_new: bool) -> list:
     """Flip image horizontally or vertically."""
     results = []
+    flip_type = "horizontal" if axis == 1 else "vertical"
     for t in targets:
         if not t.is_image:
             continue
         arr = np.flip(t.to_numpy(), axis=axis)
-        new_t = TensorData.create_image(arr, f"{t.label}_flip")
+        new_t = TensorData.create_image(
+            arr, f"{t.label}_flip",
+            history=t.history + (f"flip:{flip_type}",),
+            preserve_original=False
+        )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1170,9 +1237,13 @@ def _op_normalize_image(targets: list, params: dict, create_new: bool) -> list:
         normed = (arr - mean) / std
         # clamp to 0..1 for display
         normed = np.clip(normed, 0.0, 1.0)
-        new_t = TensorData.create_image(normed, f"{t.label}_norm")
+        new_t = TensorData.create_image(
+            normed, f"{t.label}_norm",
+            history=t.history + (f"normalize:{mean},{std}",),
+            preserve_original=False
+        )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1189,9 +1260,13 @@ def _op_to_grayscale(targets: list, params: dict, create_new: bool) -> list:
         else:
             gray = arr
         gray = np.clip(gray, 0.0, 1.0)
-        new_t = TensorData.create_image(gray, f"{t.label}_gray")
+        new_t = TensorData.create_image(
+            gray, f"{t.label}_gray",
+            history=t.history + ("to_grayscale",),
+            preserve_original=False
+        )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1205,9 +1280,13 @@ def _op_invert_image(targets: list, params: dict, create_new: bool) -> list:
         arr = t.to_numpy().astype(float)
         inv = 1.0 - arr
         inv = np.clip(inv, 0.0, 1.0)
-        new_t = TensorData.create_image(inv, f"{t.label}_inv")
+        new_t = TensorData.create_image(
+            inv, f"{t.label}_inv",
+            history=t.history + ("invert",),
+            preserve_original=False
+        )
         if not create_new:
-            new_t = replace(new_t, id=t.id)
+            new_t = replace(new_t, id=t.id, original_data=t.original_data)
         results.append(new_t)
     return results
 
@@ -1235,6 +1314,27 @@ def _op_image_to_matrix(targets: list, params: dict, create_new: bool) -> list:
             history=t.history + ("to_matrix",)
         )
         results.append(mat_tensor)
+    return results
+
+
+def _op_reset_image(targets: list, params: dict, create_new: bool) -> list:
+    """Reset image to its original state."""
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        # Check if we have original data stored
+        if t.original_data is not None:
+            # Restore to original
+            new_t = replace(
+                t,
+                data=t.original_data,
+                history=()  # Clear history since we're resetting
+            )
+        else:
+            # No original data stored, just clear history
+            new_t = replace(t, history=())
+        results.append(new_t)
     return results
 
 

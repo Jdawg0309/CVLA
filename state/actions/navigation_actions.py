@@ -153,3 +153,15 @@ class SetViewCubeFaceOpacity:
 class ToggleView2D:
     """Toggle 2D camera mode."""
     pass
+
+
+@dataclass(frozen=True)
+class ShowError:
+    """Show an error modal with a message."""
+    message: str
+
+
+@dataclass(frozen=True)
+class DismissError:
+    """Dismiss the current error modal."""
+    pass

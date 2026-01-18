@@ -36,7 +36,7 @@ class GridInputWidget:
         self._label_buffer = ""
         self._cell_buffers = {}  # (row, col) -> str buffer
 
-    def render(self, state: "AppState", dispatch, width: float):
+    def render(self, state: "AppState", dispatch, width: float, matrix_only: bool = False):
         """Render the grid input widget."""
         rows = state.input_grid_rows
         cols = state.input_grid_cols
@@ -161,33 +161,44 @@ class GridInputWidget:
         imgui.spacing()
 
         # Create tensor buttons
-        half_width = (width - 30) / 2
+        if matrix_only:
+            if imgui.button("Create Matrix", width - 20, 30):
+                label = self._label_buffer.strip() or self._generate_matrix_label(state)
+                color, _ = get_next_color(state)
+                dispatch(CreateTensorFromGridInput(
+                    tensor_type="matrix",
+                    label=label,
+                    color=color
+                ))
+                self._label_buffer = ""
+        else:
+            half_width = (width - 30) / 2
+            if imgui.button("Create Vector", half_width, 30):
+                label = self._label_buffer.strip() or self._generate_vector_label(state)
+                color, _ = get_next_color(state)
+                dispatch(CreateTensorFromGridInput(
+                    tensor_type="vector",
+                    label=label,
+                    color=color
+                ))
+                self._label_buffer = ""
 
-        if imgui.button("Create Vector", half_width, 30):
-            label = self._label_buffer.strip() or self._generate_vector_label(state)
-            color, _ = get_next_color(state)
-            dispatch(CreateTensorFromGridInput(
-                tensor_type="vector",
-                label=label,
-                color=color
-            ))
-            self._label_buffer = ""
+            imgui.same_line()
 
-        imgui.same_line()
-
-        if imgui.button("Create Matrix", half_width, 30):
-            label = self._label_buffer.strip() or self._generate_matrix_label(state)
-            color, _ = get_next_color(state)
-            dispatch(CreateTensorFromGridInput(
-                tensor_type="matrix",
-                label=label,
-                color=color
-            ))
-            self._label_buffer = ""
+            if imgui.button("Create Matrix", half_width, 30):
+                label = self._label_buffer.strip() or self._generate_matrix_label(state)
+                color, _ = get_next_color(state)
+                dispatch(CreateTensorFromGridInput(
+                    tensor_type="matrix",
+                    label=label,
+                    color=color
+                ))
+                self._label_buffer = ""
 
         # Help text
         imgui.spacing()
-        imgui.text_colored("Note: 'Create Vector' uses first row only", 0.5, 0.5, 0.5, 1.0)
+        if not matrix_only:
+            imgui.text_colored("Note: 'Create Vector' uses first row only", 0.5, 0.5, 0.5, 1.0)
 
     def _generate_vector_label(self, state: "AppState") -> str:
         """Generate automatic vector label."""

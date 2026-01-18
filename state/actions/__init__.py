@@ -40,6 +40,7 @@ from state.actions.navigation_actions import (
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
     SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ShowError, DismissError,
 )
 from state.actions.history_actions import Undo, Redo
 
@@ -90,6 +91,7 @@ Action = Union[
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
     SetViewRotationSpeed, ToggleViewCubeFaces, ToggleViewCubeCorners,
     SetViewCubicGridDensity, SetViewCubeFaceOpacity, ToggleView2D,
+    ShowError, DismissError,
     # History actions
     Undo, Redo,
     # Tensor actions (new unified model)

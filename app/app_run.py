@@ -106,19 +106,29 @@ def run(self):
         )
 
         # Render 3D scene using adapter (vectors from state)
-        render_image = state.processed_image
+        # Determine which image to render
+        render_image = None
         color_source = None
         if state.active_image_tab == "raw" or state.processed_image is None:
             render_image = state.current_image
         else:
+            # Default to processed_image when operations have been applied
+            render_image = state.processed_image
             if state.current_image and state.image_color_mode == "rgb":
                 color_source = state.current_image
+            # Override with pipeline step if available
             current_step = get_current_step(state)
             if current_step is not None:
                 if current_step.output_data is not None:
                     render_image = current_step.output_data
                 elif current_step.input_data is not None:
                     render_image = current_step.input_data
+        # Debug: Log image rendering info
+        if render_image is not None and hasattr(render_image, 'id'):
+            _img_id = getattr(render_image, 'id', 'unknown')[:8]
+            _img_name = getattr(render_image, 'name', 'unknown')
+            # Uncomment to debug: print(f"[CVLA] Rendering image: {_img_name} (id={_img_id})")
+
         self.renderer.render(
             scene_adapter,
             image_data=render_image,

@@ -1,11 +1,11 @@
 """
 Main operations panel for the right side of the CVLA interface.
 
-Orchestrates tensor info, type-specific operations, preview, and history.
+Orchestrates tensor info, type-specific operations, and preview.
 """
 
 import imgui
-from typing import TYPE_CHECKING, Optional, Callable
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from state.app_state import AppState
@@ -19,7 +19,7 @@ from ui.panels.operations_panel.matrix_ops import MatrixOpsWidget
 from ui.panels.operations_panel.image_ops import ImageOpsWidget
 from ui.panels.operations_panel.linear_systems import LinearSystemsWidget
 from ui.panels.operations_panel.operation_preview import OperationPreviewWidget
-from ui.panels.operations_panel.operation_history import OperationHistoryWidget
+from ui.panels.operations_panel.view_settings import ViewSettingsWidget
 
 
 _SET_WINDOW_POS_FIRST = getattr(imgui, "SET_WINDOW_POS_FIRST_USE_EVER", 0)
@@ -39,7 +39,6 @@ class OperationsPanel:
     - Selected tensor info
     - Type-specific operations (vector/matrix/image)
     - Operation preview (before/after)
-    - Operation history timeline
     """
 
     def __init__(self):
@@ -49,12 +48,10 @@ class OperationsPanel:
         self.image_ops = ImageOpsWidget()
         self.linear_systems = LinearSystemsWidget()
         self.preview = OperationPreviewWidget()
-        self.history = OperationHistoryWidget()
+        self.view_settings = ViewSettingsWidget()
 
         # Panel state
-        self._active_section = "operations"  # "operations", "preview", "history"
         self._show_preview = True
-        self._show_history = True
 
     def render(
         self,
@@ -85,8 +82,9 @@ class OperationsPanel:
         flags = _WINDOW_RESIZABLE | _WINDOW_NO_COLLAPSE
 
         if imgui.begin("Operations", flags=flags):
-            # Get selected tensor
+            # Get selected tensor and active mode
             selected = get_selected_tensor(state) if state else None
+            active_mode = state.active_mode if state else "vectors"
 
             # Panel header
             self._render_header(selected, width)
@@ -94,95 +92,16 @@ class OperationsPanel:
             imgui.separator()
             imgui.spacing()
 
-            if imgui.begin_tab_bar("##ops_tabs"):
-                if imgui.begin_tab_item("Vector Ops")[0]:
-                    if imgui.begin_child(
-                        "##vector_ops_content",
-                        0, 0,
-                        border=False,
-                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                    ):
-                        if selected is None or selected.tensor_type != "vector":
-                            self._render_no_selection(width)
-                        else:
-                            self.tensor_info.render(selected, state, dispatch, width - 30)
-                            imgui.spacing()
-                            imgui.separator()
-                            imgui.spacing()
-                            self.vector_ops.render(selected, state, dispatch, width - 30)
-                    imgui.end_child()
-                    imgui.end_tab_item()
-
-                if imgui.begin_tab_item("Matrix Ops")[0]:
-                    if imgui.begin_child(
-                        "##matrix_ops_content",
-                        0, 0,
-                        border=False,
-                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                    ):
-                        if selected is None or selected.tensor_type != "matrix":
-                            self._render_no_selection(width)
-                        else:
-                            self.tensor_info.render(selected, state, dispatch, width - 30)
-                            imgui.spacing()
-                            imgui.separator()
-                            imgui.spacing()
-                            self.matrix_ops.render(selected, state, dispatch, width - 30)
-                    imgui.end_child()
-                    imgui.end_tab_item()
-
-                if imgui.begin_tab_item("Image Ops")[0]:
-                    if imgui.begin_child(
-                        "##image_ops_content",
-                        0, 0,
-                        border=False,
-                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                    ):
-                        if selected is None or selected.tensor_type != "image":
-                            self._render_no_selection(width)
-                        else:
-                            self.tensor_info.render(selected, state, dispatch, width - 30)
-                            imgui.spacing()
-                            imgui.separator()
-                            imgui.spacing()
-                            self.image_ops.render(selected, state, dispatch, width - 30)
-                    imgui.end_child()
-                    imgui.end_tab_item()
-
-                if imgui.begin_tab_item("Linear Systems")[0]:
-                    if imgui.begin_child(
-                        "##linear_systems_content",
-                        0, 0,
-                        border=False,
-                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                    ):
-                        self.linear_systems.render(state, dispatch, width - 30, selected)
-                    imgui.end_child()
-                    imgui.end_tab_item()
-
-                if selected is not None and self._show_preview and imgui.begin_tab_item("Preview")[0]:
-                    if imgui.begin_child(
-                        "##preview_content",
-                        0, 0,
-                        border=False,
-                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                    ):
-                        self.preview.render(selected, state, dispatch, width - 30)
-                    imgui.end_child()
-                    imgui.end_tab_item()
-
-                if selected is not None and self._show_history and imgui.begin_tab_item("History")[0]:
-                    if imgui.begin_child(
-                        "##history_content",
-                        0, 0,
-                        border=False,
-                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-                    ):
-                        self.history.render(selected, state, dispatch, width - 30)
-                    imgui.end_child()
-                    imgui.end_tab_item()
-
-                imgui.end_tab_bar()
+            # Render different content based on active mode
+            if active_mode == "visualize":
+                # View mode - show visualization settings
+                self._render_view_mode(state, dispatch, width)
+            elif active_mode == "images":
+                # Vision mode - show image operations
+                self._render_vision_mode(selected, state, dispatch, width)
+            else:
+                # Algebra mode (vectors/matrices) - show standard tabs
+                self._render_algebra_mode(selected, state, dispatch, width)
 
         imgui.end()
         imgui.pop_style_var(2)
@@ -215,13 +134,9 @@ class OperationsPanel:
             _, self._show_preview = imgui.checkbox(
                 "Show Preview", self._show_preview
             )
-            _, self._show_history = imgui.checkbox(
-                "Show History", self._show_history
-            )
             imgui.separator()
             if imgui.menu_item("Reset Layout")[0]:
                 self._show_preview = True
-                self._show_history = True
             imgui.end_popup()
 
     def _render_no_selection(self, width: float):
@@ -252,23 +167,6 @@ class OperationsPanel:
         imgui.spacing()
         imgui.spacing()
 
-        # Quick create buttons
-        imgui.separator()
-        imgui.spacing()
-        imgui.text_disabled("Quick Create:")
-        imgui.spacing()
-
-        btn_width = (width - 50) / 3
-        if imgui.button("Vector", btn_width, 25):
-            # Would switch to input panel and set to vector mode
-            pass
-        imgui.same_line()
-        if imgui.button("Matrix", btn_width, 25):
-            pass
-        imgui.same_line()
-        if imgui.button("Image", btn_width, 25):
-            pass
-
     def _render_type_ops(self, tensor, state, dispatch, width: float):
         """Render type-specific operations based on tensor type."""
         tensor_type = tensor.tensor_type if tensor else None
@@ -284,3 +182,152 @@ class OperationsPanel:
                 f"Unknown tensor type: {tensor_type}",
                 0.8, 0.4, 0.4, 1.0
             )
+
+    def _render_view_mode(self, state, dispatch, width: float):
+        """Render View mode content - visualization settings."""
+        if imgui.begin_child(
+            "##view_settings_content",
+            0, 0,
+            border=False,
+            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+        ):
+            self.view_settings.render(state, dispatch, width - 30)
+        imgui.end_child()
+
+    def _render_vision_mode(self, selected, state, dispatch, width: float):
+        """Render Vision mode content - image operations."""
+        if imgui.begin_tab_bar("##vision_tabs"):
+            if imgui.begin_tab_item("Image Ops")[0]:
+                if imgui.begin_child(
+                    "##image_ops_content",
+                    0, 0,
+                    border=False,
+                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                ):
+                    if selected is None or selected.tensor_type != "image":
+                        self._render_image_hint(width)
+                    else:
+                        self.tensor_info.render(selected, state, dispatch, width - 30)
+                        imgui.spacing()
+                        imgui.separator()
+                        imgui.spacing()
+                        self.image_ops.render(selected, state, dispatch, width - 30)
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            if selected is not None and selected.tensor_type == "image":
+                if self._show_preview and imgui.begin_tab_item("Preview")[0]:
+                    if imgui.begin_child(
+                        "##preview_content",
+                        0, 0,
+                        border=False,
+                        flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                    ):
+                        self.preview.render(selected, state, dispatch, width - 30)
+                    imgui.end_child()
+                    imgui.end_tab_item()
+
+            imgui.end_tab_bar()
+
+    def _render_algebra_mode(self, selected, state, dispatch, width: float):
+        """Render Algebra mode content - vector/matrix/image operations."""
+        if imgui.begin_tab_bar("##ops_tabs"):
+            if imgui.begin_tab_item("Vector Ops")[0]:
+                if imgui.begin_child(
+                    "##vector_ops_content",
+                    0, 0,
+                    border=False,
+                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                ):
+                    if selected is None or selected.tensor_type != "vector":
+                        self._render_no_selection(width)
+                    else:
+                        self.tensor_info.render(selected, state, dispatch, width - 30)
+                        imgui.spacing()
+                        imgui.separator()
+                        imgui.spacing()
+                        self.vector_ops.render(selected, state, dispatch, width - 30)
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            if imgui.begin_tab_item("Matrix Ops")[0]:
+                if imgui.begin_child(
+                    "##matrix_ops_content",
+                    0, 0,
+                    border=False,
+                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                ):
+                    if selected is None or selected.tensor_type != "matrix":
+                        self._render_no_selection(width)
+                    else:
+                        self.tensor_info.render(selected, state, dispatch, width - 30)
+                        imgui.spacing()
+                        imgui.separator()
+                        imgui.spacing()
+                        self.matrix_ops.render(selected, state, dispatch, width - 30)
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            if imgui.begin_tab_item("Image Ops")[0]:
+                if imgui.begin_child(
+                    "##image_ops_content",
+                    0, 0,
+                    border=False,
+                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                ):
+                    if selected is None or selected.tensor_type != "image":
+                        self._render_image_hint(width)
+                    else:
+                        self.tensor_info.render(selected, state, dispatch, width - 30)
+                        imgui.spacing()
+                        imgui.separator()
+                        imgui.spacing()
+                        self.image_ops.render(selected, state, dispatch, width - 30)
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            if imgui.begin_tab_item("Linear Systems")[0]:
+                if imgui.begin_child(
+                    "##linear_systems_content",
+                    0, 0,
+                    border=False,
+                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                ):
+                    self.linear_systems.render(state, dispatch, width - 30, selected)
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            if selected is not None and self._show_preview and imgui.begin_tab_item("Preview")[0]:
+                if imgui.begin_child(
+                    "##preview_content",
+                    0, 0,
+                    border=False,
+                    flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+                ):
+                    self.preview.render(selected, state, dispatch, width - 30)
+                imgui.end_child()
+                imgui.end_tab_item()
+
+            imgui.end_tab_bar()
+
+    def _render_image_hint(self, width: float):
+        """Render hint for Vision mode when no image is selected."""
+        imgui.spacing()
+        imgui.spacing()
+
+        text = "Select an image to see operations"
+        text_width = imgui.calc_text_size(text)[0]
+        imgui.set_cursor_pos_x((width - text_width) / 2)
+        imgui.text_colored(text, 0.5, 0.5, 0.5, 1.0)
+
+        imgui.spacing()
+        imgui.spacing()
+
+        hint_width = width - 40
+        imgui.set_cursor_pos_x(20)
+        imgui.push_text_wrap_pos(imgui.get_cursor_pos_x() + hint_width)
+        imgui.text_colored(
+            "Use the Input panel to load an image file.",
+            0.4, 0.4, 0.4, 1.0
+        )
+        imgui.pop_text_wrap_pos()

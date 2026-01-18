@@ -142,7 +142,6 @@ class Renderer:
     _draw_axis_cones = _draw_axis_cones
     _render_linear_algebra_visuals = _render_linear_algebra_visuals
     _render_matrix_3d_plot = _render_matrix_3d_plot
-    _render_matrix_3d_plot = _render_matrix_3d_plot
     _render_vectors_with_enhancements = _render_vectors_with_enhancements
     _render_vector_projections = _render_vector_projections
     _render_selection_highlight = _render_selection_highlight

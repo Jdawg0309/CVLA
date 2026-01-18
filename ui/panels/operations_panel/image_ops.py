@@ -307,8 +307,12 @@ class ImageOpsWidget:
         imgui.same_line()
 
         if imgui.button("Reset", half_width, 25):
-            # Reset to original (undo all operations)
-            pass  # TODO: implement reset from history
+            dispatch(ApplyOperation(
+                operation_name="reset_image",
+                parameters=(),
+                target_ids=(tensor.id,),
+                create_new=False
+            ))
 
         imgui.spacing()
 

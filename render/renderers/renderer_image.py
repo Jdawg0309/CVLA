@@ -147,9 +147,13 @@ def _build_image_batches(self, matrix, channels, color_matrix, alt_channels,
 def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", color_source=None,
                      render_mode="plane"):
     """Render image pixels as filled squares on the XY plane (Z = 0)."""
+    if image_data is None:
+        return
+
     try:
         matrix, channels = _resolve_image_matrix(image_data)
-    except Exception:
+    except Exception as e:
+        print(f"[CVLA] Image resolve error: {e}")
         return
 
     alt_matrix = None
