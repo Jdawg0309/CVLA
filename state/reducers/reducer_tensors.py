@@ -116,8 +116,24 @@ def _handle_delete_tensor(
     with_history: Callable
 ) -> "AppState":
     """Delete a tensor by ID."""
+    removed = next((t for t in state.tensors if t.id == action.id), None)
     new_tensors = tuple(t for t in state.tensors if t.id != action.id)
     new_selected = state.selected_tensor_id if state.selected_tensor_id != action.id else None
+
+    # If an image tensor is deleted, also clear current/processed images so it disappears from view.
+    if removed and removed.is_image:
+        new_state = replace(
+            state,
+            tensors=new_tensors,
+            selected_tensor_id=new_selected,
+            current_image=None,
+            processed_image=None,
+            current_image_preview=None,
+            processed_image_preview=None,
+            current_image_stats=None,
+            processed_image_stats=None,
+        )
+        return with_history(new_state)
 
     new_state = replace(
         state,
@@ -278,6 +294,14 @@ def _handle_add_image_tensor(
         pixels = create_sample_image(action.size, action.pattern)
         label = action.label if action.label else f"{action.pattern}_{action.size}"
 
+    # Normalize to numpy array if ImageMatrix
+    if hasattr(pixels, "data"):
+        try:
+            label = action.label or getattr(pixels, "name", label)
+        except Exception:
+            pass
+        pixels = pixels.data
+
     tensor = TensorData.create_image(pixels=pixels, name=label)
 
     new_state = replace(
@@ -333,10 +357,23 @@ def _handle_apply_operation(
                 new_tensors.append(t)
         new_tensors = tuple(new_tensors)
 
+    # If any result is an image tensor, sync to processed_image for rendering.
+    processed_image = state.processed_image
+    current_image = state.current_image
+    if any(getattr(t, "is_image", False) for t in result_tensors):
+        first_image = next(t for t in result_tensors if t.is_image)
+        import numpy as np
+        from state.models.image_model import ImageData
+        img_np = np.array(first_image.data)
+        processed_image = ImageData.create(img_np, first_image.label)
+        current_image = current_image or processed_image
+
     new_state = replace(
         state,
         tensors=new_tensors,
-        operation_history=state.operation_history + (record,)
+        operation_history=state.operation_history + (record,),
+        processed_image=processed_image,
+        current_image=current_image,
     )
     return with_history(new_state)
 
@@ -455,10 +492,34 @@ def _execute_operation(
         return _op_trace(targets, params, create_new)
     if operation_name == "matrix_multiply":
         return _op_matrix_multiply(targets, params, create_new)
+    if operation_name == "eigen":
+        return _op_eigen(targets, params, create_new)
+    if operation_name == "svd":
+        return _op_svd(targets, params, create_new)
+    if operation_name == "qr":
+        return _op_qr(targets, params, create_new)
+    if operation_name == "lu":
+        return _op_lu(targets, params, create_new)
 
     # Image operations
     if operation_name == "apply_kernel":
         return _op_apply_kernel(targets, params, create_new)
+    if operation_name == "rotate":
+        return _op_rotate_image(targets, params, create_new)
+    if operation_name == "scale_image":
+        return _op_scale_image(targets, params, create_new)
+    if operation_name == "flip_horizontal":
+        return _op_flip_image(targets, params, axis=1, create_new=create_new)
+    if operation_name == "flip_vertical":
+        return _op_flip_image(targets, params, axis=0, create_new=create_new)
+    if operation_name == "normalize":
+        return _op_normalize_image(targets, params, create_new)
+    if operation_name == "to_grayscale":
+        return _op_to_grayscale(targets, params, create_new)
+    if operation_name == "invert":
+        return _op_invert_image(targets, params, create_new)
+    if operation_name == "to_matrix":
+        return _op_image_to_matrix(targets, params, create_new)
 
     return None
 
@@ -841,6 +902,169 @@ def _op_matrix_multiply(targets: list, params: dict, create_new: bool) -> list:
     return []
 
 
+def _op_eigen(targets: list, params: dict, create_new: bool) -> list:
+    """Eigendecomposition: returns eigenvalues as vector and eigenvectors as matrix."""
+    results = []
+    for t in targets:
+        if not t.is_matrix or t.rows != t.cols:
+            continue
+        try:
+            vals, vecs = np.linalg.eig(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        eigvals = tuple(float(v) for v in vals)
+        eigvecs = _numpy_to_tuples(vecs)
+        val_tensor = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=eigvals,
+            shape=(len(eigvals),),
+            dtype=t.dtype,
+            label=f"eigvals({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("eigen",)
+        )
+        vec_tensor = TensorData(
+            id=_generate_id(),
+            data=eigvecs,
+            shape=vecs.shape,
+            dtype=t.dtype,
+            label=f"eigvecs({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("eigen",)
+        )
+        results.extend([val_tensor, vec_tensor])
+    return results
+
+
+def _op_svd(targets: list, params: dict, create_new: bool) -> list:
+    """Singular Value Decomposition."""
+    results = []
+    for t in targets:
+        if not t.is_matrix:
+            continue
+        try:
+            U, S, Vt = np.linalg.svd(t.to_numpy(), full_matrices=False)
+        except np.linalg.LinAlgError:
+            continue
+        U_t = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(U),
+            shape=U.shape,
+            dtype=t.dtype,
+            label=f"U({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("svd",)
+        )
+        S_t = TensorData(
+            id=_generate_id(),
+            data=tuple(float(s) for s in S),
+            shape=(len(S),),
+            dtype=t.dtype,
+            label=f"S({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("svd",)
+        )
+        V_t = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(Vt),
+            shape=Vt.shape,
+            dtype=t.dtype,
+            label=f"Vt({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("svd",)
+        )
+        results.extend([U_t, S_t, V_t])
+    return results
+
+
+def _op_qr(targets: list, params: dict, create_new: bool) -> list:
+    """QR decomposition."""
+    results = []
+    for t in targets:
+        if not t.is_matrix:
+            continue
+        try:
+            Q, R = np.linalg.qr(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        Q_t = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(Q),
+            shape=Q.shape,
+            dtype=t.dtype,
+            label=f"Q({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("qr",)
+        )
+        R_t = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(R),
+            shape=R.shape,
+            dtype=t.dtype,
+            label=f"R({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("qr",)
+        )
+        results.extend([Q_t, R_t])
+    return results
+
+
+def _op_lu(targets: list, params: dict, create_new: bool) -> list:
+    """LU decomposition (simple Doolittle via numpy)."""
+    results = []
+    for t in targets:
+        if not t.is_matrix:
+            continue
+        A = t.to_numpy()
+        n, m = A.shape
+        if n != m:
+            continue
+        try:
+            L = np.zeros_like(A, dtype=float)
+            U = np.zeros_like(A, dtype=float)
+            for i in range(n):
+                for k in range(i, n):
+                    U[i, k] = A[i, k] - sum(L[i, j] * U[j, k] for j in range(i))
+                for k in range(i, n):
+                    if i == k:
+                        L[i, i] = 1.0
+                    else:
+                        if abs(U[i, i]) < 1e-12:
+                            raise np.linalg.LinAlgError
+                        L[k, i] = (A[k, i] - sum(L[k, j] * U[j, i] for j in range(i))) / U[i, i]
+        except np.linalg.LinAlgError:
+            continue
+        L_t = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(L),
+            shape=L.shape,
+            dtype=t.dtype,
+            label=f"L({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("lu",)
+        )
+        U_t = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(U),
+            shape=U.shape,
+            dtype=t.dtype,
+            label=f"U({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("lu",)
+        )
+        results.extend([L_t, U_t])
+    return results
+
+
 def _op_apply_kernel(targets: list, params: dict, create_new: bool) -> list:
     """Apply convolution kernel to images."""
     kernel_name = params.get("kernel", "identity")
@@ -864,6 +1088,139 @@ def _op_apply_kernel(targets: list, params: dict, create_new: bool) -> list:
             results.append(new_t)
         except Exception:
             pass
+    return results
+
+
+def _op_rotate_image(targets: list, params: dict, create_new: bool) -> list:
+    """Rotate image by nearest 90-degree step for simplicity."""
+    angle = float(params.get("angle", 0.0))
+    k = int(round(angle / 90.0)) % 4  # quarter turns
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = t.to_numpy()
+        rotated = np.rot90(arr, k=k, axes=(0, 1))
+        new_t = TensorData.create_image(rotated, f"{t.label}_rot{angle:.0f}")
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
+    return results
+
+
+def _op_scale_image(targets: list, params: dict, create_new: bool) -> list:
+    """Nearest-neighbor scale for images."""
+    factor = max(0.01, float(params.get("factor", 1.0)))
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = t.to_numpy()
+        new_h = max(1, int(round(arr.shape[0] * factor)))
+        new_w = max(1, int(round(arr.shape[1] * factor)))
+        y_idx = (np.linspace(0, arr.shape[0] - 1, new_h)).astype(int)
+        x_idx = (np.linspace(0, arr.shape[1] - 1, new_w)).astype(int)
+        scaled = arr[np.ix_(y_idx, x_idx)]
+        new_t = TensorData.create_image(scaled, f"{t.label}_s{factor:.2f}")
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
+    return results
+
+
+def _op_flip_image(targets: list, params: dict, axis: int, create_new: bool) -> list:
+    """Flip image horizontally or vertically."""
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = np.flip(t.to_numpy(), axis=axis)
+        new_t = TensorData.create_image(arr, f"{t.label}_flip")
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
+    return results
+
+
+def _op_normalize_image(targets: list, params: dict, create_new: bool) -> list:
+    """Normalize image by mean/std."""
+    mean = float(params.get("mean", 0.0))
+    std = float(params.get("std", 1.0))
+    if abs(std) < 1e-12:
+        std = 1.0
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = t.to_numpy().astype(float)
+        normed = (arr - mean) / std
+        # clamp to 0..1 for display
+        normed = np.clip(normed, 0.0, 1.0)
+        new_t = TensorData.create_image(normed, f"{t.label}_norm")
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
+    return results
+
+
+def _op_to_grayscale(targets: list, params: dict, create_new: bool) -> list:
+    """Convert RGB image to grayscale."""
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = t.to_numpy().astype(float)
+        if arr.ndim == 3 and arr.shape[2] >= 3:
+            gray = np.dot(arr[..., :3], [0.299, 0.587, 0.114])
+        else:
+            gray = arr
+        gray = np.clip(gray, 0.0, 1.0)
+        new_t = TensorData.create_image(gray, f"{t.label}_gray")
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
+    return results
+
+
+def _op_invert_image(targets: list, params: dict, create_new: bool) -> list:
+    """Invert image colors."""
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = t.to_numpy().astype(float)
+        inv = 1.0 - arr
+        inv = np.clip(inv, 0.0, 1.0)
+        new_t = TensorData.create_image(inv, f"{t.label}_inv")
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
+    return results
+
+
+def _op_image_to_matrix(targets: list, params: dict, create_new: bool) -> list:
+    """Convert image to numeric matrix tensor (grayscale)."""
+    results = []
+    for t in targets:
+        if not t.is_image:
+            continue
+        arr = t.to_numpy()
+        if arr.ndim == 3 and arr.shape[2] >= 3:
+            gray = np.dot(arr[..., :3], [0.299, 0.587, 0.114])
+        else:
+            gray = arr
+        data = _numpy_to_tuples(gray)
+        mat_tensor = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=data,
+            shape=gray.shape,
+            dtype=TensorDType.NUMERIC,
+            label=f"{t.label}_matrix",
+            color=t.color,
+            visible=True,
+            history=t.history + ("to_matrix",)
+        )
+        results.append(mat_tensor)
     return results
 
 

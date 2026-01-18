@@ -1041,6 +1041,42 @@ CVLA v1.0 is complete when:
 
 ---
 
+## PROGRESS CHECKLIST (2026-01-18 snapshot)
+
+**Definition of Done alignment**
+- [x] Build a vector space with 3+ vectors (interactive)  
+- [x] Add matrices and apply to vectors (with visuals)  
+- [ ] Gaussian elimination step-by-step  
+- [ ] Visualize null space and column space  
+- [ ] Watch convolution slide across an image  
+- [ ] Replay entire computation like a film  
+- [ ] 60 FPS maintained throughout (target perf)  
+- [ ] All operations produce step lists  
+- [ ] Zero silent failures & invariants enforced  
+- [ ] Add new operation in < 10 minutes  
+- [ ] Never touch renderer for new math (registry abstraction)  
+- [ ] All operations registered
+
+**Implemented / in-code**
+- [x] Unified `TensorData` / `TensorDType`
+- [x] SceneAdapter includes legacy + unified tensors
+- [x] Renderer grid/axes tuned for zoom visibility
+- [x] Matrix columns rendered as vectors (temp)
+- [x] Image plane render path (depth off) for visibility
+- [x] Matrix decompositions (eig/qr/svd/lu) wired to operations panel
+- [x] Image ops wired: rotate, scale, flip, normalize, grayscale, invert, to-matrix
+
+**In progress / next up**
+- [ ] Operation registry wired to domain math helpers + UI
+- [ ] Step traces attached to timeline & operation history
+- [ ] Image/convolution pipeline with stepped outputs
+- [ ] Headless renderer smoke tests; state→scene adapter tests
+- [ ] UI toggles for grid fade/depth ordering
+- [ ] Export steps to LaTeX
+- [ ] Undo/redo fully wired for tensors and images
+
+---
+
 *Document Version: 1.0*
 *Last Updated: 2026-01-18*
 *Target Implementation: Python 3.10+, ModernGL, ImGui*

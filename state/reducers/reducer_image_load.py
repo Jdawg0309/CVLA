@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from state.actions import LoadImage, CreateSampleImage
 from state.models import ImageData, EducationalStep
+from state.models.tensor_model import TensorData
 from state.reducers.image_cache import compute_image_stats, compute_preview_matrix
 
 
@@ -37,9 +38,13 @@ def reduce_image_load(state, action, with_history):
                 render_scale = _auto_fit_scale(image_data)
             stats = compute_image_stats(image_data)
             preview = compute_preview_matrix(image_data)
+            tensor = TensorData.create_image(image_data.pixels, image_data.name)
+
             new_state = replace(state,
                 current_image=image_data,
                 processed_image=None,
+                tensors=state.tensors + (tensor,),
+                selected_tensor_id=tensor.id,
                 pipeline_steps=(),
                 pipeline_step_index=0,
                 image_status=f"Loaded image '{image_data.name}' ({image_data.width}x{image_data.height})",
@@ -78,9 +83,13 @@ def reduce_image_load(state, action, with_history):
 
             stats = compute_image_stats(image_data)
             preview = compute_preview_matrix(image_data)
+            tensor = TensorData.create_image(image_data.pixels, image_data.name)
+
             new_state = replace(state,
                 current_image=image_data,
                 processed_image=None,
+                tensors=state.tensors + (tensor,),
+                selected_tensor_id=tensor.id,
                 pipeline_steps=(step,),
                 pipeline_step_index=0,
                 image_status=f"Created sample image '{image_data.name}' ({image_data.width}x{image_data.height})",

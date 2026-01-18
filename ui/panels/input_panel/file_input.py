@@ -12,9 +12,9 @@ if TYPE_CHECKING:
     from state.app_state import AppState
 
 from state.actions.input_panel_actions import (
-    SetFilePath, ClearFilePath, CreateTensorFromFileInput
+    SetFilePath, ClearFilePath
 )
-from state.actions.tensor_actions import AddImageTensor
+from state.actions.image_actions import LoadImage, CreateSampleImage
 
 
 class FileInputWidget:
@@ -82,9 +82,7 @@ class FileInputWidget:
 
         if imgui.button("Load Image", width - 20, 30):
             if can_load:
-                dispatch(CreateTensorFromFileInput(
-                    label=self._label_buffer.strip()
-                ))
+                dispatch(LoadImage(path=file_path))
                 self._path_buffer = ""
                 self._label_buffer = ""
                 dispatch(ClearFilePath())
@@ -129,12 +127,7 @@ class FileInputWidget:
         if imgui.button("Create Sample", width - 20, 30):
             pattern = self.SAMPLE_PATTERNS[self._selected_pattern][0]
             size = self.SAMPLE_SIZES[self._selected_size]
-            dispatch(AddImageTensor(
-                source="sample",
-                pattern=pattern,
-                size=size,
-                label=f"{pattern}_{size}"
-            ))
+            dispatch(CreateSampleImage(pattern=pattern, size=size))
 
         # Supported formats
         imgui.spacing()

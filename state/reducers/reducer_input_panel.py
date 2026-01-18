@@ -402,6 +402,8 @@ def _create_tensor_from_file(
         from domain.images.io.image_loader import load_image
         pixels = load_image(path)
         label = action.label if action.label else path.split("/")[-1].split("\\")[-1]
+        if hasattr(pixels, "data"):
+            pixels = pixels.data
         tensor = TensorData.create_image(pixels=pixels, name=label)
 
         new_state = replace(

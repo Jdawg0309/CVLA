@@ -7,6 +7,7 @@ from typing import Tuple, Optional, Union
 from pathlib import Path
 
 from domain.images.image_matrix import ImageMatrix
+from domain.images.image_samples import create_sample_image
 
 try:
     from PIL import Image
