@@ -368,12 +368,22 @@ def _handle_apply_operation(
         processed_image = ImageData.create(img_np, first_image.label)
         current_image = current_image or processed_image
 
+    selected_id = result_tensors[-1].id if result_tensors else state.selected_tensor_id
+
     new_state = replace(
         state,
         tensors=new_tensors,
         operation_history=state.operation_history + (record,),
         processed_image=processed_image,
         current_image=current_image,
+        active_image_tab="processed" if processed_image is not None else state.active_image_tab,
+        image_status=(
+            f"Applied {action.operation_name}"
+            if processed_image is not None else state.image_status
+        ),
+        image_status_level="info" if processed_image is not None else state.image_status_level,
+        selected_tensor_id=selected_id,
+        show_image_on_grid=True if processed_image is not None else state.show_image_on_grid,
     )
     return with_history(new_state)
 
@@ -462,6 +472,11 @@ def _execute_operation(
     """
     # Convert parameters to dict for easier access
     params = dict(parameters)
+    has_image = any(getattr(t, "is_image", False) for t in targets)
+
+    # Image-first handlers for shared names
+    if operation_name == "normalize" and has_image:
+        return _op_normalize_image(targets, params, create_new)
 
     # Vector operations
     if operation_name == "normalize":
@@ -1072,22 +1087,21 @@ def _op_apply_kernel(targets: list, params: dict, create_new: bool) -> list:
     for t in targets:
         if not t.is_image:
             continue
-        try:
-            from domain.images.convolution.convolution import apply_kernel
-            from domain.images.kernels import get_kernel_by_name
-            kernel = get_kernel_by_name(kernel_name)
-            pixels = t.to_numpy()
-            result_pixels = apply_kernel(pixels, kernel)
-            new_t = TensorData.create_image(
-                pixels=result_pixels,
-                name=f"{t.label}_{kernel_name}" if create_new else t.label,
-                history=t.history + (f"kernel:{kernel_name}",)
-            )
-            if not create_new:
-                new_t = replace(new_t, id=t.id)
-            results.append(new_t)
-        except Exception:
-            pass
+        from domain.images.convolution.convolution import apply_kernel
+        from domain.images.image_matrix import ImageMatrix
+
+        img_mat = ImageMatrix(t.to_numpy(), name=t.label)
+        result_img = apply_kernel(img_mat, kernel_name)
+        result_pixels = result_img.data
+
+        new_t = TensorData.create_image(
+            pixels=result_pixels,
+            name=f"{t.label}_{kernel_name}" if create_new else t.label,
+            history=t.history + (f"kernel:{kernel_name}",)
+        )
+        if not create_new:
+            new_t = replace(new_t, id=t.id)
+        results.append(new_t)
     return results
 
 

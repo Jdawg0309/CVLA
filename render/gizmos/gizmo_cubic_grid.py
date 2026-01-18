@@ -5,7 +5,8 @@ Cubic grid helpers.
 
 def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
                    color_major=(0.28, 0.30, 0.34, 0.55),
-                   color_minor=(0.18, 0.20, 0.22, 0.28)):
+                   color_minor=(0.18, 0.20, 0.22, 0.28),
+                   depth=True):
     """Draw a beautiful 3D cubic grid."""
     vertices = []
     colors = []
@@ -31,12 +32,12 @@ def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
                 vertices.extend([[0, -size, i], [0, size, i]])
                 colors.extend([color, color])
 
-    self.draw_lines(vertices, colors, vp, width=1.0)
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
     self.draw_cube(vp, [-size, -size, -size], [size, size, size],
-                  (0.35, 0.35, 0.38, 0.35), width=2.0)
+                  (0.35, 0.35, 0.38, 0.35), width=2.0, depth=depth)
 
 
-def draw_cube(self, vp, min_corner, max_corner, color, width=2.0):
+def draw_cube(self, vp, min_corner, max_corner, color, width=2.0, depth=True):
     """Draw a wireframe cube."""
     x0, y0, z0 = min_corner
     x1, y1, z1 = max_corner
@@ -59,4 +60,4 @@ def draw_cube(self, vp, min_corner, max_corner, color, width=2.0):
     ]
 
     colors = [color] * len(vertices)
-    self.draw_lines(vertices, colors, vp, width=width)
+    self.draw_lines(vertices, colors, vp, width=width, depth=depth)

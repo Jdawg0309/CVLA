@@ -5,7 +5,8 @@ Planar grid helpers.
 
 def draw_grid(self, vp, size=10, step=1, plane='xy',
               color_major=(0.28, 0.30, 0.34, 0.55),
-              color_minor=(0.18, 0.20, 0.22, 0.28)):
+              color_minor=(0.18, 0.20, 0.22, 0.28),
+              depth=True):
     """Draw a simple planar grid on specified plane ('xy','xz','yz')."""
     vertices = []
     colors = []
@@ -32,7 +33,7 @@ def draw_grid(self, vp, size=10, step=1, plane='xy',
             vertices.extend([[0, -half, i], [0, half, i]])
             colors.extend([color, color])
 
-    self.draw_lines(vertices, colors, vp, width=1.0)
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
 
 
 def draw_axes(self, vp, length=6.0, thickness=3.0):

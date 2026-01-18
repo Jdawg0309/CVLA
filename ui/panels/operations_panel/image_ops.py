@@ -131,7 +131,7 @@ class ImageOpsWidget:
                 operation_name="apply_kernel",
                 parameters=(("kernel", kernel_id),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
         imgui.spacing()
@@ -145,7 +145,7 @@ class ImageOpsWidget:
                 operation_name="apply_kernel",
                 parameters=(("kernel", "sobel_x"),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
         imgui.same_line()
         if imgui.button("Blur", half_width, 22):
@@ -153,7 +153,7 @@ class ImageOpsWidget:
                 operation_name="apply_kernel",
                 parameters=(("kernel", "gaussian_blur"),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
         if imgui.button("Sharpen", half_width, 22):
@@ -161,7 +161,7 @@ class ImageOpsWidget:
                 operation_name="apply_kernel",
                 parameters=(("kernel", "sharpen"),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
         imgui.same_line()
         if imgui.button("Edges", half_width, 22):
@@ -169,7 +169,7 @@ class ImageOpsWidget:
                 operation_name="apply_kernel",
                 parameters=(("kernel", "edge_detect"),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
     def _render_transform_section(self, tensor, state, dispatch, width):
@@ -193,7 +193,7 @@ class ImageOpsWidget:
                 operation_name="rotate",
                 parameters=(("angle", str(self._rotation_angle)),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
         imgui.spacing()
@@ -214,7 +214,7 @@ class ImageOpsWidget:
                 operation_name="scale_image",
                 parameters=(("factor", str(self._scale_factor)),),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
         imgui.spacing()
@@ -226,7 +226,7 @@ class ImageOpsWidget:
                 operation_name="flip_horizontal",
                 parameters=(),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
         imgui.same_line()
         if imgui.button("Flip V", half_width, 22):
@@ -234,7 +234,7 @@ class ImageOpsWidget:
                 operation_name="flip_vertical",
                 parameters=(),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
     def _render_preprocessing_section(self, tensor, state, dispatch, width):
@@ -270,7 +270,7 @@ class ImageOpsWidget:
                     ("std", str(self._normalize_std)),
                 ),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
         imgui.spacing()
@@ -282,7 +282,7 @@ class ImageOpsWidget:
                 operation_name="to_grayscale",
                 parameters=(),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
         imgui.same_line()
         if imgui.button("Invert", half_width, 22):
@@ -290,7 +290,7 @@ class ImageOpsWidget:
                 operation_name="invert",
                 parameters=(),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
 
     def _render_quick_actions(self, tensor, state, dispatch, width):
@@ -317,5 +317,5 @@ class ImageOpsWidget:
                 operation_name="to_matrix",
                 parameters=(),
                 target_ids=(tensor.id,),
-                create_new=True
+                create_new=False
             ))
