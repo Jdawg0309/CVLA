@@ -16,9 +16,9 @@ from ui.inspectors.inspector_header import _render_header
 from ui.inspectors.inspector_coordinates import _render_coordinate_editor
 from ui.inspectors.inspector_properties import _render_properties
 from ui.inspectors.inspector_computed import _render_computed_properties
-from ui.panels.images.images_info_section import _render_image_info_section
 from ui.panels.images.images_tab import (
     _render_color_mode_selector,
+    _render_image_info_section,
     _render_image_render_options,
     _render_image_tab_selector,
 )
