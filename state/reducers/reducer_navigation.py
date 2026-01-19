@@ -8,7 +8,7 @@ from state.actions import (
     SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, TogglePreview,
     SetImageRenderScale, SetImageRenderMode, SetImageColorMode,
     ToggleImageGridOverlay, ToggleImageDownsample, SetImagePreviewResolution,
-    ToggleImageOnGrid, ClearSelection, SetTheme, SetActiveTool,
+    ToggleImageOnGrid, ClearSelection, SetTheme, SetColorTheme, SetActiveTool,
     SetSelectedPixel,
     SetActiveImageTab,
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
@@ -21,11 +21,11 @@ from state.actions import (
 
 def reduce_navigation(state, action):
     if isinstance(action, SetActiveTab):
-        tab = action.tab if action.tab in ("vectors", "matrices", "systems", "images", "visualize") else state.active_mode
+        tab = action.tab if action.tab in ("vectors", "matrices", "systems", "images", "visualize", "settings") else state.active_mode
         return replace(state, active_tab=tab, active_mode=tab)
 
     if isinstance(action, SetActiveMode):
-        mode = action.mode if action.mode in ("vectors", "matrices", "systems", "images", "visualize") else state.active_mode
+        mode = action.mode if action.mode in ("vectors", "matrices", "systems", "images", "visualize", "settings") else state.active_mode
         return replace(state, active_mode=mode, active_tab=mode)
 
     if isinstance(action, ToggleMatrixEditor):
@@ -74,6 +74,12 @@ def reduce_navigation(state, action):
     if isinstance(action, SetTheme):
         theme = action.theme if action.theme in ("dark", "light", "high-contrast") else "dark"
         return replace(state, ui_theme=theme)
+
+    if isinstance(action, SetColorTheme):
+        valid_themes = ("dark_modern", "midnight_blue", "warm_sunset",
+                        "light_academic", "neon_cyberpunk", "high_contrast")
+        theme = action.theme if action.theme in valid_themes else "dark_modern"
+        return replace(state, current_theme=theme)
 
     if isinstance(action, SetActiveTool):
         return replace(state, active_tool=action.tool)

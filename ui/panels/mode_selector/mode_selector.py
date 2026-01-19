@@ -17,6 +17,7 @@ class ModeSelector:
         self._modes = [
             ("Algebra", "vectors"),
             ("View", "visualize"),
+            ("Settings", "settings"),
         ]
 
     def render(self, rect, state, dispatch):

@@ -42,6 +42,8 @@ def _compute_grid_steps(size, density=1.0):
 
 def _render_cubic_environment(self, vp, scene):
     """Render a beautiful 3D cubic environment."""
+    theme = self.view.theme
+
     if self.view.show_grid:
         radius = getattr(self.camera, "radius", 15.0)
         base_size = getattr(self.view, "grid_size", 15)
@@ -51,26 +53,41 @@ def _render_cubic_environment(self, vp, scene):
             getattr(self.view, "cubic_grid_density", 1.0)
         )
 
+        # Use theme colors for grid with depth pass
+        color_major_depth = (theme.grid_color_major[0], theme.grid_color_major[1],
+                             theme.grid_color_major[2], theme.grid_color_major[3] * 0.9)
+        color_minor_depth = theme.grid_color_minor
+        color_subminor_depth = theme.grid_color_subminor
+
         self.gizmos.draw_cubic_grid(
             vp,
             size=size,
             major_step=major_step,
             minor_step=minor_step,
             subminor_step=subminor_step,
-            color_major=(0.35, 0.37, 0.4, 0.42),
-            color_minor=(0.22, 0.24, 0.28, 0.22),
-            color_subminor=(0.2, 0.22, 0.26, 0.12),
+            color_major=color_major_depth,
+            color_minor=color_minor_depth,
+            color_subminor=color_subminor_depth,
             depth=True,
         )
+
+        # No-depth pass with slightly brighter colors
+        color_major_nodepth = (theme.grid_color_major[0], theme.grid_color_major[1],
+                               theme.grid_color_major[2], theme.grid_color_major[3] * 1.1)
+        color_minor_nodepth = (theme.grid_color_minor[0], theme.grid_color_minor[1],
+                               theme.grid_color_minor[2], theme.grid_color_minor[3] * 1.25)
+        color_subminor_nodepth = (theme.grid_color_subminor[0], theme.grid_color_subminor[1],
+                                  theme.grid_color_subminor[2], theme.grid_color_subminor[3] * 1.3)
+
         self.gizmos.draw_cubic_grid(
             vp,
             size=size,
             major_step=major_step,
             minor_step=minor_step,
             subminor_step=subminor_step,
-            color_major=(0.35, 0.37, 0.4, 0.5),
-            color_minor=(0.22, 0.24, 0.28, 0.28),
-            color_subminor=(0.2, 0.22, 0.26, 0.16),
+            color_major=color_major_nodepth,
+            color_minor=color_minor_nodepth,
+            color_subminor=color_subminor_nodepth,
             depth=False,
         )
 
@@ -82,49 +99,91 @@ def _render_cubic_environment(self, vp, scene):
     if self.view.show_axes:
         axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
         self._render_3d_axes_with_depths(vp, length=axis_len)
-        self.gizmos.draw_points([[0, 0, 0]], [(0.9, 0.9, 0.95, 0.9)], vp, size=6.0, depth=False)
+        self.gizmos.draw_points([[0, 0, 0]], [theme.origin_color], vp, size=6.0, depth=False)
 
 
 def _render_planar_environment(self, vp):
     """Render planar grid environment."""
-    if self.view.show_grid:
-        radius = getattr(self.camera, "radius", 15.0)
-        base_size = getattr(self.view, "grid_size", 15)
-        size = int(max(6, min(base_size, radius * 0.7)))
-        minor_step, major_step, subminor_step = _compute_grid_steps(
-            size,
-            getattr(self.view, "cubic_grid_density", 1.0)
-        )
+    theme = self.view.theme
+    use_infinite_grid = getattr(self.view, 'use_infinite_grid', True)
 
-        self.gizmos.draw_grid(
-            vp,
-            size=size,
-            step=minor_step,
-            major_step=major_step,
-            sub_step=subminor_step,
-            plane=self.view.grid_plane,
-            color_major=(0.35, 0.37, 0.4, 0.42),
-            color_minor=(0.22, 0.24, 0.28, 0.22),
-            color_subminor=(0.2, 0.22, 0.26, 0.12),
-            depth=True,
-        )
-        self.gizmos.draw_grid(
-            vp,
-            size=size,
-            step=minor_step,
-            major_step=major_step,
-            sub_step=subminor_step,
-            plane=self.view.grid_plane,
-            color_major=(0.35, 0.37, 0.4, 0.5),
-            color_minor=(0.22, 0.24, 0.28, 0.28),
-            color_subminor=(0.2, 0.22, 0.26, 0.16),
-            depth=False,
-        )
+    if self.view.show_grid:
+        if use_infinite_grid and hasattr(self.gizmos, 'draw_infinite_grid'):
+            # Use infinite procedural grid
+            view_matrix = self.camera.get_view_matrix()
+            proj_matrix = self.camera.get_projection_matrix()
+            radius = getattr(self.camera, "radius", 15.0)
+
+            self.gizmos.draw_infinite_grid(
+                view_matrix,
+                proj_matrix,
+                plane=self.view.grid_plane,
+                scale=1.0,
+                major_scale=5.0,
+                fade_distance=radius * 3.0,
+                color_minor=theme.grid_color_minor,
+                color_major=theme.grid_color_major,
+                color_axis_x=theme.axis_color_x,
+                color_axis_y=theme.axis_color_y,
+                color_axis_z=theme.axis_color_z,
+            )
+        else:
+            # Fallback to CPU-generated grid
+            radius = getattr(self.camera, "radius", 15.0)
+            base_size = getattr(self.view, "grid_size", 15)
+            size = int(max(6, min(base_size, radius * 0.7)))
+            minor_step, major_step, subminor_step = _compute_grid_steps(
+                size,
+                getattr(self.view, "cubic_grid_density", 1.0)
+            )
+
+            # Use theme colors for grid with depth pass
+            color_major_depth = (theme.grid_color_major[0], theme.grid_color_major[1],
+                                 theme.grid_color_major[2], theme.grid_color_major[3] * 0.9)
+            color_minor_depth = theme.grid_color_minor
+            color_subminor_depth = theme.grid_color_subminor
+
+            self.gizmos.draw_grid(
+                vp,
+                size=size,
+                step=minor_step,
+                major_step=major_step,
+                sub_step=subminor_step,
+                plane=self.view.grid_plane,
+                color_major=color_major_depth,
+                color_minor=color_minor_depth,
+                color_subminor=color_subminor_depth,
+                depth=True,
+            )
+
+            # No-depth pass with slightly brighter colors
+            color_major_nodepth = (theme.grid_color_major[0], theme.grid_color_major[1],
+                                   theme.grid_color_major[2], theme.grid_color_major[3] * 1.1)
+            color_minor_nodepth = (theme.grid_color_minor[0], theme.grid_color_minor[1],
+                                   theme.grid_color_minor[2], theme.grid_color_minor[3] * 1.25)
+            color_subminor_nodepth = (theme.grid_color_subminor[0], theme.grid_color_subminor[1],
+                                      theme.grid_color_subminor[2], theme.grid_color_subminor[3] * 1.3)
+
+            self.gizmos.draw_grid(
+                vp,
+                size=size,
+                step=minor_step,
+                major_step=major_step,
+                sub_step=subminor_step,
+                plane=self.view.grid_plane,
+                color_major=color_major_nodepth,
+                color_minor=color_minor_nodepth,
+                color_subminor=color_subminor_nodepth,
+                depth=False,
+            )
 
     if self.view.show_axes:
         axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
-        self.gizmos.draw_axes(vp, length=axis_len, thickness=3.0)
-        self.gizmos.draw_points([[0, 0, 0]], [(0.9, 0.9, 0.95, 0.9)], vp, size=6.0, depth=False)
+        self.gizmos.draw_axes(vp, length=axis_len, thickness=3.0,
+                              color_x=theme.axis_color_x,
+                              color_y=theme.axis_color_y,
+                              color_z=theme.axis_color_z)
+        self.gizmos.draw_points([[0, 0, 0]], [theme.origin_color], vp, size=6.0, depth=False)
 
 
 def _render_cube_faces(self, vp):
@@ -203,6 +262,7 @@ def _render_cube_faces(self, vp):
 
 def _render_cube_corner_indicators(self, vp):
     """Draw indicators at cube corners showing axis directions."""
+    theme = self.view.theme
     size = float(self.view.grid_size)
     corners = [
         [size, size, size],
@@ -215,42 +275,49 @@ def _render_cube_corner_indicators(self, vp):
         [-size, -size, -size],
     ]
 
-    corner_color = (0.8, 0.8, 0.9, 0.6)
+    corner_color = theme.corner_color
     self.gizmos.draw_points(corners, [corner_color] * len(corners), vp, size=4.0)
+
+    # Use theme axis colors with reduced alpha for corner indicators
+    axis_x_color = (theme.axis_color_x[0], theme.axis_color_x[1], theme.axis_color_x[2], 0.7)
+    axis_y_color = (theme.axis_color_y[0], theme.axis_color_y[1], theme.axis_color_y[2], 0.7)
+    axis_z_color = (theme.axis_color_z[0], theme.axis_color_z[1], theme.axis_color_z[2], 0.7)
 
     axis_length = size * 0.2
     for corner in corners:
         x_end = [corner[0] + axis_length, corner[1], corner[2]]
         self.gizmos.draw_lines(
             [corner, x_end],
-            [(1.0, 0.3, 0.3, 0.7), (1.0, 0.3, 0.3, 0.7)],
+            [axis_x_color, axis_x_color],
             vp, width=1.5
         )
 
         y_end = [corner[0], corner[1] + axis_length, corner[2]]
         self.gizmos.draw_lines(
             [corner, y_end],
-            [(0.3, 1.0, 0.3, 0.7), (0.3, 1.0, 0.3, 0.7)],
+            [axis_y_color, axis_y_color],
             vp, width=1.5
         )
 
         z_end = [corner[0], corner[1], corner[2] + axis_length]
         self.gizmos.draw_lines(
             [corner, z_end],
-            [(0.3, 0.5, 1.0, 0.7), (0.3, 0.5, 1.0, 0.7)],
+            [axis_z_color, axis_z_color],
             vp, width=1.5
         )
 
 
 def _render_3d_axes_with_depths(self, vp, length=None):
     """Render 3D axes with depth cues."""
+    theme = self.view.theme
+
     if length is None:
         length = max(10.0, self.view.grid_size * 0.75)
 
     axes = [
-        {"points": [[0, 0, 0], [length, 0, 0]], "color": (0.95, 0.45, 0.45, 1.0)},
-        {"points": [[0, 0, 0], [0, length, 0]], "color": (0.45, 0.95, 0.45, 1.0)},
-        {"points": [[0, 0, 0], [0, 0, length]], "color": (0.55, 0.6, 1.0, 1.0)},
+        {"points": [[0, 0, 0], [length, 0, 0]], "color": theme.axis_color_x},
+        {"points": [[0, 0, 0], [0, length, 0]], "color": theme.axis_color_y},
+        {"points": [[0, 0, 0], [0, 0, length]], "color": theme.axis_color_z},
     ]
 
     for axis in axes:
@@ -261,10 +328,11 @@ def _render_3d_axes_with_depths(self, vp, length=None):
         )
 
     size = max(20.0, self.view.grid_size) * 1.2
+    faint_color = theme.faint_axis_color
     faint_axes = [
-        {"points": [[-size, 0, 0], [size, 0, 0]], "color": (0.6, 0.6, 0.6, 0.35)},
-        {"points": [[0, -size, 0], [0, size, 0]], "color": (0.6, 0.6, 0.6, 0.35)},
-        {"points": [[0, 0, -size], [0, 0, size]], "color": (0.6, 0.6, 0.6, 0.35)},
+        {"points": [[-size, 0, 0], [size, 0, 0]], "color": faint_color},
+        {"points": [[0, -size, 0], [0, size, 0]], "color": faint_color},
+        {"points": [[0, 0, -size], [0, 0, size]], "color": faint_color},
     ]
 
     for axis in faint_axes:
@@ -279,13 +347,14 @@ def _render_3d_axes_with_depths(self, vp, length=None):
 
 def _draw_axis_cones(self, vp, length):
     """Draw 3D cones at axis tips."""
+    theme = self.view.theme
     cone_height = length * 0.15
     cone_radius = length * 0.05
 
     axes = [
-        {"tip": [length, 0, 0], "direction": [1, 0, 0], "color": (1.0, 0.3, 0.3, 1.0)},
-        {"tip": [0, length, 0], "direction": [0, 1, 0], "color": (0.3, 1.0, 0.3, 1.0)},
-        {"tip": [0, 0, length], "direction": [0, 0, 1], "color": (0.3, 0.5, 1.0, 1.0)},
+        {"tip": [length, 0, 0], "direction": [1, 0, 0], "color": theme.axis_color_x},
+        {"tip": [0, length, 0], "direction": [0, 1, 0], "color": theme.axis_color_y},
+        {"tip": [0, 0, length], "direction": [0, 0, 1], "color": theme.axis_color_z},
     ]
 
     for axis in axes:
@@ -853,14 +922,15 @@ class Renderer:
 
     def _clear_with_gradient(self):
         """Clear with a subtle gradient background."""
+        theme = self.view.theme
         if self.view.grid_mode == "cube":
             self.ctx.clear(
-                color=(0.05, 0.06, 0.08, 1.0),
+                color=theme.background_color_cube,
                 depth=1.0
             )
         else:
             self.ctx.clear(
-                color=(0.08, 0.08, 0.10, 1.0),
+                color=theme.background_color,
                 depth=1.0
             )
 

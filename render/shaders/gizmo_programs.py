@@ -29,7 +29,7 @@ def _create_line_program(self):
 
 
 def _create_triangle_program(self):
-    """Create shader program for triangle rendering (planes)."""
+    """Create shader program for triangle rendering with PBR-lite materials."""
     return self.ctx.program(
         vertex_shader="""
         #version 330
@@ -60,25 +60,61 @@ def _create_triangle_program(self):
         uniform bool use_lighting;
         out vec4 frag_color;
 
+        // PBR-lite material parameters
+        const float roughness = 0.5;
+        const float metallic = 0.0;
+        const float ambient_strength = 0.15;
+
+        // Fresnel-Schlick approximation
+        vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+            return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+        }
+
+        // Hemisphere ambient lighting
+        vec3 hemisphereAmbient(vec3 normal, vec3 base_color) {
+            vec3 sky_color = vec3(0.25, 0.28, 0.35);
+            vec3 ground_color = vec3(0.08, 0.08, 0.10);
+            float hemisphere = normal.y * 0.5 + 0.5;
+            return mix(ground_color, sky_color, hemisphere) * base_color;
+        }
+
         vec3 calculate_lighting(vec3 base_color) {
             if (!use_lighting) return base_color;
 
-            vec3 light_color = vec3(1.0, 1.0, 0.95);
-            vec3 ambient_color = vec3(0.15, 0.15, 0.2);
+            vec3 N = normalize(v_normal);
+            vec3 V = normalize(view_pos - v_position);
+            vec3 L = normalize(light_pos - v_position);
+            vec3 H = normalize(V + L);
 
-            vec3 ambient = ambient_color * base_color;
+            // Hemisphere ambient
+            vec3 ambient = hemisphereAmbient(N, base_color) * ambient_strength;
 
-            vec3 norm = normalize(v_normal);
-            vec3 light_dir = normalize(light_pos - v_position);
-            float diff = max(dot(norm, light_dir), 0.0);
-            vec3 diffuse = light_color * diff * base_color;
+            // Diffuse (Lambertian)
+            float NdotL = max(dot(N, L), 0.0);
+            vec3 light_color = vec3(1.0, 0.98, 0.95);
+            vec3 diffuse = light_color * NdotL * base_color * (1.0 - metallic);
 
-            vec3 view_dir = normalize(view_pos - v_position);
-            vec3 reflect_dir = reflect(-light_dir, norm);
-            float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0);
-            vec3 specular = light_color * spec * 0.5;
+            // Fresnel-Schlick for specular
+            vec3 F0 = mix(vec3(0.04), base_color, metallic);
+            vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-            return ambient + diffuse + specular;
+            // Specular with roughness
+            float NdotH = max(dot(N, H), 0.0);
+            float shininess = mix(8.0, 128.0, 1.0 - roughness);
+            float spec = pow(NdotH, shininess);
+            vec3 specular = F * spec * (1.0 - roughness * 0.5);
+
+            // Rim lighting for depth separation
+            float rim = 1.0 - max(dot(N, V), 0.0);
+            rim = smoothstep(0.6, 1.0, rim);
+            vec3 rim_color = vec3(0.3, 0.35, 0.45) * rim * 0.4;
+
+            // Secondary fill light (soft)
+            vec3 fill_dir = normalize(vec3(-1.0, 0.5, -0.5));
+            float fill = max(dot(N, fill_dir), 0.0) * 0.15;
+            vec3 fill_light = vec3(0.6, 0.65, 0.8) * fill * base_color;
+
+            return ambient + diffuse + specular + rim_color + fill_light;
         }
 
         void main() {

@@ -11,6 +11,7 @@ from render.renderers.renderer import Renderer
 from render.cameras.camera import Camera
 from render.renderers.labels.labels import LabelRenderer
 from render.viewconfigs.viewconfig import ViewConfig
+from render.postprocess.postprocess import PostProcessPipeline
 from app.app_handlers import on_key, on_resize, on_mouse_button, on_mouse_move, on_scroll
 from app.app_logging import dlog, DEBUG
 from app.app_run import run
@@ -103,6 +104,14 @@ class App:
         self.labels = LabelRenderer()
         self.labels.update_view(self.view_config)
         self.workspace = WorkspaceLayout()
+
+        # Initialize post-processing pipeline
+        fb_w, fb_h = glfw.get_framebuffer_size(self.window)
+        self.postprocess = PostProcessPipeline(
+            self.ctx, fb_w, fb_h,
+            theme=self.view_config.theme
+        )
+        self.postprocess_enabled = True
 
         # -----------------------------
         # State Management (Redux-style)

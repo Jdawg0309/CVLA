@@ -30,6 +30,10 @@ def run(self):
         self.ctx.viewport = (0, 0, fb_w, fb_h)
         self.camera.set_viewport(fb_w, fb_h)
 
+        # Resize post-processing if needed
+        if hasattr(self, 'postprocess'):
+            self.postprocess.resize(fb_w, fb_h)
+
         state = self.store.get_state()
         view_snapshot = (
             state.view_preset,
@@ -51,11 +55,20 @@ def run(self):
             state.view_cubic_grid_density,
             state.view_cube_face_opacity,
             state.view_mode_2d,
+            state.current_theme,
         )
         if view_snapshot != self._last_view_state:
             if state.view_preset != self._last_view_preset:
                 self.camera.set_view_preset(state.view_preset)
                 self._last_view_preset = state.view_preset
+
+            # Update theme if changed
+            current_theme_name = getattr(self.view_config.theme, 'name', None)
+            if state.current_theme != current_theme_name:
+                self.view_config.set_theme(state.current_theme)
+                # Also update post-processing parameters from theme
+                if hasattr(self, 'postprocess'):
+                    self.postprocess.set_theme(self.view_config.theme)
 
             self.view_config._base_major_tick = int(state.view_base_major_tick)
             self.view_config._base_minor_tick = int(state.view_base_minor_tick)
@@ -78,9 +91,10 @@ def run(self):
             self.view_config.minor_tick = int(state.view_minor_tick)
             self.view_config._base_major_tick = int(state.view_base_major_tick)
             self.view_config._base_minor_tick = int(state.view_base_minor_tick)
+            # Update cube face colors from theme with current opacity
             self.view_config.cube_face_colors = [
                 (color[0], color[1], color[2], state.view_cube_face_opacity)
-                for color in self.view_config.cube_face_colors
+                for color in self.view_config.theme.cube_face_colors
             ]
             self.camera.mode_2d = state.view_mode_2d
             self._last_view_state = view_snapshot
@@ -94,19 +108,7 @@ def run(self):
 
         scene_adapter = build_scene_adapter(state)
 
-        imgui.new_frame()
-
-        # UI workspace layout
-        self.workspace.render(
-            state=state,
-            dispatch=self.store.dispatch,
-            camera=self.camera,
-            view_config=self.view_config,
-            app=self,
-        )
-
-        # Render 3D scene using adapter (vectors from state)
-        # Determine which image to render
+        # Determine which image to render (needed before render)
         render_image = None
         color_source = None
         if state.active_image_tab == "raw" or state.processed_image is None:
@@ -123,12 +125,19 @@ def run(self):
                     render_image = current_step.output_data
                 elif current_step.input_data is not None:
                     render_image = current_step.input_data
-        # Debug: Log image rendering info
-        if render_image is not None and hasattr(render_image, 'id'):
-            _img_id = getattr(render_image, 'id', 'unknown')[:8]
-            _img_name = getattr(render_image, 'name', 'unknown')
-            # Uncomment to debug: print(f"[CVLA] Rendering image: {_img_name} (id={_img_id})")
 
+        # Begin post-processing (renders to HDR FBO)
+        use_postprocess = hasattr(self, 'postprocess') and getattr(self, 'postprocess_enabled', True)
+        if use_postprocess:
+            self.postprocess.begin_scene()
+            # Clear with theme background color
+            theme = self.view_config.theme
+            if self.view_config.grid_mode == "cube":
+                self.postprocess.clear(theme.background_color_cube)
+            else:
+                self.postprocess.clear(theme.background_color)
+
+        # Render 3D scene using adapter (vectors from state)
         self.renderer.render(
             scene_adapter,
             image_data=render_image,
@@ -138,6 +147,21 @@ def run(self):
             image_color_source=color_source,
             image_render_mode=state.image_render_mode,
             show_image_grid_overlay=state.show_image_grid_overlay,
+        )
+
+        # End post-processing (applies bloom, tonemapping, outputs to screen)
+        if use_postprocess:
+            self.postprocess.end_scene()
+
+        imgui.new_frame()
+
+        # UI workspace layout
+        self.workspace.render(
+            state=state,
+            dispatch=self.store.dispatch,
+            camera=self.camera,
+            view_config=self.view_config,
+            app=self,
         )
 
         try:

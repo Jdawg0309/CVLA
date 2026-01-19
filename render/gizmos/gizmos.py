@@ -13,6 +13,7 @@ from render.shaders.gizmo_programs import (
     _create_volume_program,
 )
 from render.buffers.gizmo_buffers import _init_buffers
+from render.shaders.grid_shader import get_grid_shaders
 
 
 def draw_lines(self, vertices, colors, vp, width=2.0, depth=True):
@@ -281,12 +282,15 @@ def draw_grid(self, vp, size=10, step=1, plane='xy',
     self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
 
 
-def draw_axes(self, vp, length=6.0, thickness=3.0):
+def draw_axes(self, vp, length=6.0, thickness=3.0,
+               color_x=(1.0, 0.3, 0.3, 1.0),
+               color_y=(0.3, 1.0, 0.3, 1.0),
+               color_z=(0.3, 0.5, 1.0, 1.0)):
     """Draw basic XYZ axes as lines with endpoints."""
     axes = [
-        ([[0, 0, 0], [length, 0, 0]], (1.0, 0.3, 0.3, 1.0)),
-        ([[0, 0, 0], [0, length, 0]], (0.3, 1.0, 0.3, 1.0)),
-        ([[0, 0, 0], [0, 0, length]], (0.3, 0.5, 1.0, 1.0)),
+        ([[0, 0, 0], [length, 0, 0]], color_x),
+        ([[0, 0, 0], [0, length, 0]], color_y),
+        ([[0, 0, 0], [0, 0, length]], color_z),
     ]
     for pts, col in axes:
         self.draw_lines(pts, [col, col], vp, width=thickness)
@@ -581,6 +585,70 @@ def draw_basis_transform(self, vp, original_basis, transformed_basis,
                     self.draw_lines(vertices, line_colors, vp, width=1.0)
 
 
+def _create_infinite_grid_program(self):
+    """Create the infinite grid shader program."""
+    vs, fs = get_grid_shaders()
+    return self.ctx.program(vertex_shader=vs, fragment_shader=fs)
+
+
+def _init_infinite_grid(self):
+    """Initialize the infinite grid VAO (no vertex buffer needed)."""
+    # Empty VAO - we use gl_VertexID in the vertex shader
+    self.grid_vao = self.ctx.vertex_array(self.grid_program, [])
+
+
+def draw_infinite_grid(self, view_matrix, projection_matrix, plane="xy",
+                       scale=1.0, major_scale=5.0, fade_distance=50.0,
+                       color_minor=(0.22, 0.24, 0.28, 0.25),
+                       color_major=(0.35, 0.37, 0.40, 0.45),
+                       color_axis_x=(0.95, 0.45, 0.45, 1.0),
+                       color_axis_y=(0.45, 0.95, 0.45, 1.0),
+                       color_axis_z=(0.55, 0.60, 1.00, 1.0)):
+    """
+    Draw an infinite procedural grid on the specified plane.
+
+    Args:
+        view_matrix: 4x4 view matrix
+        projection_matrix: 4x4 projection matrix
+        plane: "xy", "xz", or "yz"
+        scale: Base grid cell size
+        major_scale: Major grid lines every N cells
+        fade_distance: Distance at which grid fades out
+        color_minor: Minor grid line color (RGBA)
+        color_major: Major grid line color (RGBA)
+        color_axis_x: X-axis highlight color
+        color_axis_y: Y-axis highlight color
+        color_axis_z: Z-axis highlight color
+    """
+    if not hasattr(self, 'grid_program') or self.grid_program is None:
+        return
+
+    self.ctx.enable(moderngl.DEPTH_TEST)
+    self.ctx.enable(moderngl.BLEND)
+    self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
+
+    # Map plane string to integer
+    plane_map = {"xy": 0, "xz": 1, "yz": 2}
+    plane_idx = plane_map.get(plane.lower(), 0)
+
+    # Set uniforms
+    self.grid_program['u_view'].write(view_matrix.astype('f4').tobytes())
+    self.grid_program['u_projection'].write(projection_matrix.astype('f4').tobytes())
+    self.grid_program['u_scale'].value = float(scale)
+    self.grid_program['u_major_scale'].value = float(major_scale)
+    self.grid_program['u_fade_distance'].value = float(fade_distance)
+    self.grid_program['u_plane'].value = plane_idx
+
+    self.grid_program['u_color_minor'].value = color_minor
+    self.grid_program['u_color_major'].value = color_major
+    self.grid_program['u_color_axis_x'].value = color_axis_x
+    self.grid_program['u_color_axis_y'].value = color_axis_y
+    self.grid_program['u_color_axis_z'].value = color_axis_z
+
+    # Render the grid (6 vertices for fullscreen quad)
+    self.grid_vao.render(moderngl.TRIANGLES, vertices=6)
+
+
 class Gizmos:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -589,6 +657,10 @@ class Gizmos:
         self.triangle_program = self._create_triangle_program()
         self.point_program = self._create_point_program()
         self.volume_program = self._create_volume_program()
+
+        # Infinite grid program
+        self.grid_program = self._create_infinite_grid_program()
+        self.grid_vao = None
 
         self.line_vao = None
         self.line_vbo = None
@@ -600,12 +672,15 @@ class Gizmos:
         self.volume_vbo = None
 
         self._init_buffers()
+        self._init_infinite_grid()
 
     _create_line_program = _create_line_program
     _create_triangle_program = _create_triangle_program
     _create_point_program = _create_point_program
     _create_volume_program = _create_volume_program
+    _create_infinite_grid_program = _create_infinite_grid_program
     _init_buffers = _init_buffers
+    _init_infinite_grid = _init_infinite_grid
     draw_lines = draw_lines
     draw_triangles = draw_triangles
     draw_points = draw_points
@@ -620,3 +695,4 @@ class Gizmos:
     draw_basis_transform = draw_basis_transform
     draw_grid = draw_grid
     draw_axes = draw_axes
+    draw_infinite_grid = draw_infinite_grid

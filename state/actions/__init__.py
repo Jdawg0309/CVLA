@@ -34,7 +34,7 @@ from state.actions.input_actions import (
 )
 from state.actions.navigation_actions import (
     SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
-    TogglePreview, ClearSelection, SetTheme, SetActiveTool,
+    TogglePreview, ClearSelection, SetTheme, SetColorTheme, SetActiveTool,
     SetActiveImageTab,
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,
@@ -85,7 +85,7 @@ Action = Union[
     SetImageNormalizeMean, SetImageNormalizeStd, SetInputExpression,
     # Navigation actions
     SetActiveTab, SetActiveMode, ToggleMatrixEditor, ToggleMatrixValues, ToggleImageOnGrid,
-    TogglePreview, ClearSelection, SetTheme, SetActiveTool,
+    TogglePreview, ClearSelection, SetTheme, SetColorTheme, SetActiveTool,
     SetActiveImageTab,
     SetViewPreset, SetViewUpAxis, ToggleViewGrid, ToggleViewAxes, ToggleViewLabels,
     SetViewGridSize, SetViewMajorTick, SetViewMinorTick, ToggleViewAutoRotate,

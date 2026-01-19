@@ -28,6 +28,8 @@ from state.actions.tensor_actions import (
     SelectTensor,
     UpdateTensor,
 )
+from state.actions.navigation_actions import SetColorTheme
+from render.themes.color_themes import THEMES, THEME_DISPLAY_NAMES
 from state.models.tensor_model import TensorDType
 from state.selectors import get_next_color, get_tensor_count
 
@@ -759,6 +761,9 @@ class InputPanel:
                 if active_mode == "visualize":
                     # View mode - show view info
                     self._render_view_mode_content(state, dispatch, width, height)
+                elif active_mode == "settings":
+                    # Settings mode - show settings
+                    self._render_settings_mode_content(state, dispatch, width, height)
                 else:
                     # Algebra or Vision mode - show normal input
                     self._render_standard_content(state, dispatch, width, height)
@@ -774,6 +779,7 @@ class InputPanel:
         mode_labels = {
             "vectors": "TENSORS",
             "visualize": "VIEW",
+            "settings": "SETTINGS",
         }
         header = mode_labels.get(active_mode, "TENSORS")
         imgui.text(header)
@@ -864,3 +870,106 @@ class InputPanel:
             self.tensor_list.render(state, dispatch, width - 10, list_height)
 
         imgui.spacing()
+
+    def _render_settings_mode_content(self, state: "AppState", dispatch, width: float, height: float):
+        """Render Settings mode content - theme selection and app settings."""
+        # Color Theme section
+        expanded, _ = imgui.collapsing_header(
+            "Color Theme",
+            imgui.TREE_NODE_DEFAULT_OPEN
+        )
+        if expanded:
+            imgui.spacing()
+            imgui.text("Select a color theme for the 3D viewport:")
+            imgui.spacing()
+
+            current_theme = state.current_theme
+            theme_names = list(THEMES.keys())
+            theme_labels = [THEME_DISPLAY_NAMES.get(n, n) for n in theme_names]
+
+            try:
+                current_idx = theme_names.index(current_theme)
+            except ValueError:
+                current_idx = 0
+
+            imgui.push_item_width(width - 30)
+            changed, new_idx = imgui.combo("##theme_select", current_idx, theme_labels)
+            imgui.pop_item_width()
+
+            if changed:
+                dispatch(SetColorTheme(theme=theme_names[new_idx]))
+
+            imgui.spacing()
+
+            # Theme preview info
+            theme = THEMES.get(current_theme)
+            if theme:
+                imgui.text_colored("Theme Properties:", 0.6, 0.6, 0.6, 1.0)
+                imgui.spacing()
+
+                # Show color swatches
+                imgui.text("Background:")
+                imgui.same_line(100)
+                bg = theme.background_color
+                imgui.color_button("##bg_color", bg[0], bg[1], bg[2], bg[3], 0, 20, 20)
+
+                imgui.text("Grid Major:")
+                imgui.same_line(100)
+                gm = theme.grid_color_major
+                imgui.color_button("##gm_color", gm[0], gm[1], gm[2], gm[3], 0, 20, 20)
+
+                imgui.text("X Axis:")
+                imgui.same_line(100)
+                ax = theme.axis_color_x
+                imgui.color_button("##ax_color", ax[0], ax[1], ax[2], ax[3], 0, 20, 20)
+
+                imgui.text("Y Axis:")
+                imgui.same_line(100)
+                ay = theme.axis_color_y
+                imgui.color_button("##ay_color", ay[0], ay[1], ay[2], ay[3], 0, 20, 20)
+
+                imgui.text("Z Axis:")
+                imgui.same_line(100)
+                az = theme.axis_color_z
+                imgui.color_button("##az_color", az[0], az[1], az[2], az[3], 0, 20, 20)
+
+                imgui.spacing()
+                imgui.text_colored("Post-Processing:", 0.6, 0.6, 0.6, 1.0)
+                imgui.text(f"  Bloom: {theme.bloom_intensity:.1f}")
+                imgui.text(f"  Exposure: {theme.exposure:.1f}")
+                imgui.text(f"  Gamma: {theme.gamma:.1f}")
+
+        imgui.spacing()
+        imgui.separator()
+        imgui.spacing()
+
+        # Post-Processing section
+        expanded, _ = imgui.collapsing_header(
+            "Post-Processing",
+            imgui.TREE_NODE_DEFAULT_OPEN
+        )
+        if expanded:
+            imgui.spacing()
+            imgui.text_colored("HDR rendering with bloom effect.", 0.5, 0.5, 0.5, 1.0)
+            imgui.spacing()
+            imgui.text_wrapped("Post-processing settings are controlled by the selected color theme.")
+            imgui.spacing()
+
+        imgui.spacing()
+        imgui.separator()
+        imgui.spacing()
+
+        # About section
+        expanded, _ = imgui.collapsing_header("About", 0)
+        if expanded:
+            imgui.spacing()
+            imgui.text("CVLA - Computer Vision Linear Algebra")
+            imgui.text_colored("3D Vector & Tensor Visualizer", 0.5, 0.7, 0.9, 1.0)
+            imgui.spacing()
+            imgui.text_colored("Features:", 0.6, 0.6, 0.6, 1.0)
+            imgui.text("  - Tensor visualization (rank 1-3)")
+            imgui.text("  - Matrix transformations")
+            imgui.text("  - Image convolutions")
+            imgui.text("  - HDR rendering with bloom")
+            imgui.text("  - Infinite procedural grid")
+            imgui.spacing()

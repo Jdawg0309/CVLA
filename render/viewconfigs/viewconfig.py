@@ -5,6 +5,8 @@ View configuration for rendering.
 import copy
 import numpy as np
 
+from render.themes.color_themes import ColorTheme, get_theme, DEFAULT_THEME
+
 
 def __init__(
     self,
@@ -26,11 +28,11 @@ def __init__(
     fov=50.0,
     near_clip=0.1,
     far_clip=500.0,
-    background_color=(0.08, 0.08, 0.10, 1.0),
-    grid_color=(0.15, 0.16, 0.18, 0.35),
-    axis_color_x=(1.0, 0.3, 0.3, 1.0),
-    axis_color_y=(0.3, 1.0, 0.3, 1.0),
-    axis_color_z=(0.3, 0.5, 1.0, 1.0),
+    background_color=None,
+    grid_color=None,
+    axis_color_x=None,
+    axis_color_y=None,
+    axis_color_z=None,
     show_cube_faces=True,
     show_cube_corners=True,
     cube_face_opacity=0.03,
@@ -39,7 +41,17 @@ def __init__(
     rotation_speed=0.5,
     show_depth_cues=True,
     cubic_perspective=True,
+    use_infinite_grid=True,
+    theme=None,
 ):
+    # Set theme first so colors can derive from it
+    if theme is None:
+        self._theme = get_theme(DEFAULT_THEME)
+    elif isinstance(theme, str):
+        self._theme = get_theme(theme)
+    else:
+        self._theme = theme
+
     self.up_axis = up_axis.lower()
     self.grid_mode = grid_mode.lower()
     self.grid_plane = grid_plane.lower()
@@ -66,6 +78,7 @@ def __init__(
     self.rotation_speed = rotation_speed
     self.show_depth_cues = show_depth_cues
     self.cubic_perspective = cubic_perspective
+    self.use_infinite_grid = use_infinite_grid
 
     self.vector_scale = vector_scale
 
@@ -73,19 +86,17 @@ def __init__(
     self.near_clip = near_clip
     self.far_clip = far_clip
 
-    self.background_color = background_color
-    self.grid_color = grid_color
-    self.axis_color_x = axis_color_x
-    self.axis_color_y = axis_color_y
-    self.axis_color_z = axis_color_z
+    # Use theme colors as defaults, allow override
+    self.background_color = background_color if background_color is not None else self._theme.background_color
+    self.grid_color = grid_color if grid_color is not None else self._theme.grid_color_minor
+    self.axis_color_x = axis_color_x if axis_color_x is not None else self._theme.axis_color_x
+    self.axis_color_y = axis_color_y if axis_color_y is not None else self._theme.axis_color_y
+    self.axis_color_z = axis_color_z if axis_color_z is not None else self._theme.axis_color_z
 
+    # Cube face colors from theme with opacity override
     self.cube_face_colors = [
-        (0.3, 0.3, 0.8, self.cube_face_opacity),
-        (0.8, 0.3, 0.3, self.cube_face_opacity),
-        (0.3, 0.8, 0.3, self.cube_face_opacity),
-        (0.8, 0.8, 0.3, self.cube_face_opacity),
-        (0.8, 0.3, 0.8, self.cube_face_opacity),
-        (0.3, 0.8, 0.8, self.cube_face_opacity),
+        (c[0], c[1], c[2], self.cube_face_opacity)
+        for c in self._theme.cube_face_colors
     ]
 
     assert self.up_axis in ("x", "y", "z")
@@ -228,7 +239,34 @@ def _setup_cubic_view(self):
         self.major_tick = max(1, int(base_major * self.cubic_grid_density))
 
         if self.show_depth_cues:
-            self.background_color = (0.05, 0.06, 0.08, 1.0)
+            self.background_color = self._theme.background_color_cube
+
+
+@property
+def theme(self):
+    """Get the current color theme."""
+    return self._theme
+
+
+def set_theme(self, theme):
+    """Set a new color theme and update colors."""
+    if isinstance(theme, str):
+        self._theme = get_theme(theme)
+    else:
+        self._theme = theme
+
+    # Update colors from theme
+    self.background_color = self._theme.background_color
+    self.axis_color_x = self._theme.axis_color_x
+    self.axis_color_y = self._theme.axis_color_y
+    self.axis_color_z = self._theme.axis_color_z
+    self.cube_face_colors = [
+        (c[0], c[1], c[2], self.cube_face_opacity)
+        for c in self._theme.cube_face_colors
+    ]
+
+    # Re-setup cubic view to apply theme cube background
+    self._setup_cubic_view()
 
 
 def get_grid_planes(self):
@@ -330,3 +368,5 @@ class ViewConfig:
     grid_axes = grid_axes
     get_grid_normal = get_grid_normal
     get_grid_basis = get_grid_basis
+    theme = theme
+    set_theme = set_theme

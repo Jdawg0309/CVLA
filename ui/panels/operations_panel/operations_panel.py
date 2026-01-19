@@ -1477,6 +1477,9 @@ class OperationsPanel:
             if active_mode == "visualize":
                 # View mode - show visualization settings
                 self._render_view_mode(state, dispatch, width)
+            elif active_mode == "settings":
+                # Settings mode - show app settings
+                self._render_settings_mode(state, dispatch, width)
             else:
                 # Tensor mode (rank/shape-driven)
                 self._render_tensor_mode(selected, state, dispatch, width)
@@ -1578,6 +1581,87 @@ class OperationsPanel:
             flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
         ):
             self.view_settings.render(state, dispatch, width - 30)
+        imgui.end_child()
+
+    def _render_settings_mode(self, state, dispatch, width: float):
+        """Render Settings mode content - application settings."""
+        if imgui.begin_child(
+            "##settings_content",
+            0, 0,
+            border=False,
+            flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+        ):
+            imgui.spacing()
+
+            # Rendering Settings
+            expanded, _ = imgui.collapsing_header(
+                "Rendering",
+                imgui.TREE_NODE_DEFAULT_OPEN
+            )
+            if expanded:
+                imgui.spacing()
+                imgui.text_colored("Post-Processing", 0.7, 0.8, 0.9, 1.0)
+                imgui.spacing()
+
+                # Post-process toggle (if app reference available)
+                imgui.text("HDR rendering with bloom and tonemapping")
+                imgui.text_colored("is enabled by default.", 0.5, 0.5, 0.5, 1.0)
+                imgui.spacing()
+
+                imgui.text_colored("Infinite Grid", 0.7, 0.8, 0.9, 1.0)
+                imgui.spacing()
+                imgui.text("GPU-procedural infinite grid with")
+                imgui.text("anti-aliased lines and distance fade.")
+                imgui.spacing()
+
+            imgui.spacing()
+            imgui.separator()
+            imgui.spacing()
+
+            # Performance Settings
+            expanded, _ = imgui.collapsing_header(
+                "Performance",
+                imgui.TREE_NODE_DEFAULT_OPEN
+            )
+            if expanded:
+                imgui.spacing()
+                imgui.text("VSync: Enabled")
+                imgui.text("MSAA: 8x")
+                imgui.spacing()
+                imgui.text_colored(
+                    "Performance settings are optimized for",
+                    0.5, 0.5, 0.5, 1.0
+                )
+                imgui.text_colored(
+                    "visual quality and smooth rendering.",
+                    0.5, 0.5, 0.5, 1.0
+                )
+                imgui.spacing()
+
+            imgui.spacing()
+            imgui.separator()
+            imgui.spacing()
+
+            # Keyboard Shortcuts
+            expanded, _ = imgui.collapsing_header("Keyboard Shortcuts", 0)
+            if expanded:
+                imgui.spacing()
+                shortcuts = [
+                    ("R", "Toggle auto-rotation"),
+                    ("Space", "Reset camera"),
+                    ("C", "Toggle grid mode"),
+                    ("F", "Toggle cube faces"),
+                    ("V", "Toggle vector components"),
+                    ("1-4", "Switch view presets"),
+                ]
+                for key, desc in shortcuts:
+                    imgui.text_colored(f"  {key}", 0.6, 0.8, 1.0, 1.0)
+                    imgui.same_line(80)
+                    imgui.text(desc)
+                imgui.spacing()
+
+            imgui.spacing()
+
         imgui.end_child()
 
     def _render_tensor_mode(self, selected, state, dispatch, width: float):

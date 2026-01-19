@@ -60,6 +60,12 @@ class SetTheme:
 
 
 @dataclass(frozen=True)
+class SetColorTheme:
+    """Set the 3D rendering color theme."""
+    theme: str  # 'dark_modern', 'midnight_blue', 'warm_sunset', 'light_academic', 'neon_cyberpunk', 'high_contrast'
+
+
+@dataclass(frozen=True)
 class SetActiveTool:
     """Set the active tool (selection, move, add, etc.)."""
     tool: str
