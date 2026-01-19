@@ -53,6 +53,11 @@ def _render_cubic_environment(self, vp, scene):
             getattr(self.view, "cubic_grid_density", 1.0)
         )
 
+        if self.show_plane_visuals:
+            self._render_cube_faces(vp)
+
+        self._render_cube_corner_indicators(vp)
+
         # Use theme colors for grid with depth pass
         color_major_depth = (theme.grid_color_major[0], theme.grid_color_major[1],
                              theme.grid_color_major[2], theme.grid_color_major[3] * 0.9)
@@ -71,37 +76,6 @@ def _render_cubic_environment(self, vp, scene):
             depth=True,
             write_depth=False,
         )
-
-        # No-depth pass with slightly brighter colors
-        color_major_nodepth = (theme.grid_color_major[0], theme.grid_color_major[1],
-                               theme.grid_color_major[2], theme.grid_color_major[3] * 1.1)
-        color_minor_nodepth = (theme.grid_color_minor[0], theme.grid_color_minor[1],
-                               theme.grid_color_minor[2], theme.grid_color_minor[3] * 1.25)
-        color_subminor_nodepth = (theme.grid_color_subminor[0], theme.grid_color_subminor[1],
-                                  theme.grid_color_subminor[2], theme.grid_color_subminor[3] * 1.3)
-
-        self.gizmos.draw_cubic_grid(
-            vp,
-            size=size,
-            major_step=major_step,
-            minor_step=minor_step,
-            subminor_step=subminor_step,
-            color_major=color_major_nodepth,
-            color_minor=color_minor_nodepth,
-            color_subminor=color_subminor_nodepth,
-            depth=False,
-            write_depth=False,
-        )
-
-        if self.show_plane_visuals:
-            self._render_cube_faces(vp)
-
-        self._render_cube_corner_indicators(vp)
-
-    if self.view.show_axes:
-        axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
-        self._render_3d_axes_with_depths(vp, length=axis_len)
-        self.gizmos.draw_points([[0, 0, 0]], [theme.origin_color], vp, size=6.0, depth=False)
 
 
 def _render_planar_environment(self, vp):
@@ -159,35 +133,16 @@ def _render_planar_environment(self, vp):
                 write_depth=False,
             )
 
-            # No-depth pass with slightly brighter colors
-            color_major_nodepth = (theme.grid_color_major[0], theme.grid_color_major[1],
-                                   theme.grid_color_major[2], theme.grid_color_major[3] * 1.1)
-            color_minor_nodepth = (theme.grid_color_minor[0], theme.grid_color_minor[1],
-                                   theme.grid_color_minor[2], theme.grid_color_minor[3] * 1.25)
-            color_subminor_nodepth = (theme.grid_color_subminor[0], theme.grid_color_subminor[1],
-                                      theme.grid_color_subminor[2], theme.grid_color_subminor[3] * 1.3)
 
-            self.gizmos.draw_grid(
-                vp,
-                size=size,
-                step=minor_step,
-                major_step=major_step,
-                sub_step=subminor_step,
-                plane=self.view.grid_plane,
-                color_major=color_major_nodepth,
-                color_minor=color_minor_nodepth,
-                color_subminor=color_subminor_nodepth,
-                depth=False,
-                write_depth=False,
-            )
-
-    if self.view.show_axes:
-        axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
-        self.gizmos.draw_axes(vp, length=axis_len, thickness=3.0,
-                              color_x=theme.axis_color_x,
-                              color_y=theme.axis_color_y,
-                              color_z=theme.axis_color_z)
-        self.gizmos.draw_points([[0, 0, 0]], [theme.origin_color], vp, size=6.0, depth=False)
+def _render_axes_overlay(self, vp):
+    """Draw axes overlays before other geometry."""
+    if not self.view.show_axes:
+        return
+    axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
+    self._render_3d_axes_with_depths(vp, length=axis_len)
+    theme = self.view.theme
+    self.gizmos.draw_points([[0, 0, 0]], [theme.origin_color], vp,
+                            size=6.0, depth=False, write_depth=False)
 
 
 def _render_cube_faces(self, vp):
@@ -260,7 +215,7 @@ def _render_cube_faces(self, vp):
         border_color = (color[0] * 1.5, color[1] * 1.5, color[2] * 1.5, 0.8)
         self.gizmos.draw_lines(
             border_vertices, [border_color] * 8,
-            vp, width=1.0
+            vp, width=1.0, write_depth=False
         )
 
 
@@ -280,7 +235,8 @@ def _render_cube_corner_indicators(self, vp):
     ]
 
     corner_color = theme.corner_color
-    self.gizmos.draw_points(corners, [corner_color] * len(corners), vp, size=4.0)
+    self.gizmos.draw_points(corners, [corner_color] * len(corners), vp,
+                            size=4.0, depth=True, write_depth=False)
 
     # Use theme axis colors with reduced alpha for corner indicators
     axis_x_color = (theme.axis_color_x[0], theme.axis_color_x[1], theme.axis_color_x[2], 0.7)
@@ -293,21 +249,21 @@ def _render_cube_corner_indicators(self, vp):
         self.gizmos.draw_lines(
             [corner, x_end],
             [axis_x_color, axis_x_color],
-            vp, width=1.5
+            vp, width=1.5, write_depth=False
         )
 
         y_end = [corner[0], corner[1] + axis_length, corner[2]]
         self.gizmos.draw_lines(
             [corner, y_end],
             [axis_y_color, axis_y_color],
-            vp, width=1.5
+            vp, width=1.5, write_depth=False
         )
 
         z_end = [corner[0], corner[1], corner[2] + axis_length]
         self.gizmos.draw_lines(
             [corner, z_end],
             [axis_z_color, axis_z_color],
-            vp, width=1.5
+            vp, width=1.5, write_depth=False
         )
 
 
@@ -328,7 +284,7 @@ def _render_3d_axes_with_depths(self, vp, length=None):
         self.gizmos.draw_lines(
             axis["points"],
             [axis["color"], axis["color"]],
-            vp, width=3.0
+            vp, width=3.0, write_depth=False
         )
 
     size = max(20.0, self.view.grid_size) * 1.2
@@ -343,7 +299,7 @@ def _render_3d_axes_with_depths(self, vp, length=None):
         self.gizmos.draw_lines(
             axis["points"],
             [axis["color"], axis["color"]],
-            vp, width=1.0
+            vp, width=1.0, write_depth=False
         )
 
     self._draw_axis_cones(vp, length)
@@ -399,7 +355,7 @@ def _draw_axis_cones(self, vp, length):
             cone_norms.extend([normal.tolist()] * 3)
             cone_colors.extend([axis["color"]] * 3)
 
-        self.gizmos.draw_triangles(cone_verts, cone_norms, cone_colors, vp)
+        self.gizmos.draw_triangles(cone_verts, cone_norms, cone_colors, vp, write_depth=False)
 
 
 def _render_linear_algebra_visuals(self, scene, vp):
@@ -574,24 +530,27 @@ def _render_vector_projections(self, vector, vp):
         proj_color = (vector.color[0], vector.color[1], vector.color[2], 0.3)
 
         line = [[tip[0], tip[1], tip[2]], [proj_tip[0], proj_tip[1], proj_tip[2]]]
-        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0, depth=False)
-        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False)
+        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0,
+                               depth=False, write_depth=False)
+        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False, write_depth=False)
 
     elif self.camera.view_preset == "xz":
         proj_tip = np.array([tip[0], 0, tip[2]])
         proj_color = (vector.color[0], vector.color[1], vector.color[2], 0.3)
 
         line = [[tip[0], tip[1], tip[2]], [proj_tip[0], proj_tip[1], proj_tip[2]]]
-        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0, depth=False)
-        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False)
+        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0,
+                               depth=False, write_depth=False)
+        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False, write_depth=False)
 
     elif self.camera.view_preset == "yz":
         proj_tip = np.array([0, tip[1], tip[2]])
         proj_color = (vector.color[0], vector.color[1], vector.color[2], 0.3)
 
         line = [[tip[0], tip[1], tip[2]], [proj_tip[0], proj_tip[1], proj_tip[2]]]
-        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0, depth=False)
-        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False)
+        self.gizmos.draw_lines(line, [proj_color, proj_color], vp, width=1.0,
+                               depth=False, write_depth=False)
+        self.gizmos.draw_points([proj_tip], [proj_color], vp, size=4.0, depth=False, write_depth=False)
 
 
 def _render_selection_highlight(self, vector, vp):
@@ -618,14 +577,17 @@ def _render_selection_highlight(self, vector, vp):
         pulse_color = (1.0, 1.0, 0.2, 0.7 * pulse)
         circle_colors.extend([pulse_color, pulse_color])
 
-    self.gizmos.draw_lines(circle_verts, circle_colors, vp, width=2.0, depth=False)
+    self.gizmos.draw_lines(circle_verts, circle_colors, vp, width=2.0,
+                          depth=False, write_depth=False)
 
     origin_line = [[0, 0, 0], tip.tolist()]
     highlight_color = (1.0, 1.0, 0.2, 0.8)
-    self.gizmos.draw_lines(origin_line, [highlight_color, highlight_color], vp, width=2.0, depth=False)
+    self.gizmos.draw_lines(origin_line, [highlight_color, highlight_color], vp, width=2.0,
+                          depth=False, write_depth=False)
 
     sphere_color = (1.0, 1.0, 0.2, 0.9)
-    self.gizmos.draw_points([tip.tolist()], [sphere_color], vp, size=14.0, depth=False)
+    self.gizmos.draw_points([tip.tolist()], [sphere_color], vp, size=14.0,
+                            depth=False, write_depth=False)
 
 
 def _resolve_image_matrix(image_data):
@@ -887,13 +849,23 @@ class Renderer:
         self._clear_with_gradient()
 
         vp = self._get_view_projection()
+        self._render_axes_overlay(vp)
 
-        if self.view.grid_mode == "cube":
-            self._render_cubic_environment(vp, scene)
-        else:
-            self._render_planar_environment(vp)
+        self._render_linear_algebra_visuals(scene, vp)
+        self._render_tensor_faces(scene, vp)
+        self._render_vectors_with_enhancements(scene, vp)
 
+        if scene.selected_object and scene.selection_type == 'vector':
+            self._render_selection_highlight(scene.selected_object, vp)
+
+        overlay_grid_size = None
+        overlay_matrix = None
         if image_data is not None and show_image_on_grid:
+            try:
+                overlay_matrix, _ = _resolve_image_matrix(image_data)
+            except Exception:
+                overlay_matrix = None
+
             self.draw_image_plane(
                 image_data,
                 vp,
@@ -902,30 +874,32 @@ class Renderer:
                 color_source=image_color_source,
                 render_mode=image_render_mode,
             )
-            if show_image_grid_overlay:
-                try:
-                    matrix, _ = _resolve_image_matrix(image_data)
-                    height, width = matrix.shape[:2]
-                    grid_size = int(max(1.0, max(width, height) * image_render_scale * 0.5))
-                    self.gizmos.draw_grid(
-                        vp,
-                        size=grid_size,
-                        step=1,
-                        plane="xy",
-                        color_major=(0.35, 0.35, 0.4, 0.6),
-                        color_minor=(0.22, 0.22, 0.25, 0.4),
-                        depth=False,
-                        write_depth=False,
-                    )
-                except Exception:
-                    pass
 
-        self._render_linear_algebra_visuals(scene, vp)
-        self._render_tensor_faces(scene, vp)
-        self._render_vectors_with_enhancements(scene, vp)
+            if show_image_grid_overlay and overlay_matrix is not None:
+                height, width = overlay_matrix.shape[:2]
+                overlay_grid_size = int(
+                    max(1.0, max(width, height) * image_render_scale * 0.5)
+                )
 
-        if scene.selected_object and scene.selection_type == 'vector':
-            self._render_selection_highlight(scene.selected_object, vp)
+        if self.view.grid_mode == "cube":
+            self._render_cubic_environment(vp, scene)
+        else:
+            self._render_planar_environment(vp)
+
+        if overlay_grid_size is not None:
+            try:
+                self.gizmos.draw_grid(
+                    vp,
+                    size=overlay_grid_size,
+                    step=1,
+                    plane="xy",
+                    color_major=(0.35, 0.35, 0.4, 0.6),
+                    color_minor=(0.22, 0.22, 0.25, 0.4),
+                    depth=False,
+                    write_depth=False,
+                )
+            except Exception:
+                pass
 
     def _clear_with_gradient(self):
         """Clear with a subtle gradient background."""
@@ -954,4 +928,5 @@ class Renderer:
     _render_matrix_3d_plot = _render_matrix_3d_plot
     _render_vectors_with_enhancements = _render_vectors_with_enhancements
     _render_vector_projections = _render_vector_projections
+    _render_axes_overlay = _render_axes_overlay
     _render_selection_highlight = _render_selection_highlight

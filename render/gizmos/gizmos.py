@@ -127,7 +127,7 @@ def draw_triangles(self, vertices, normals, colors, vp, model_matrix=None,
         self.triangle_vao.render(moderngl.TRIANGLES, vertices=vertices.shape[0])
 
 
-def draw_points(self, vertices, colors, vp, size=8.0, depth=True):
+def draw_points(self, vertices, colors, vp, size=8.0, depth=True, write_depth=True):
     """Draw points with per-vertex colors."""
     if not vertices or len(vertices) == 0:
         return
@@ -149,7 +149,8 @@ def draw_points(self, vertices, colors, vp, size=8.0, depth=True):
     self.point_program['mvp'].write(vp.astype('f4').tobytes())
     self.point_program['point_size'].value = float(size)
 
-    self.point_vao.render(moderngl.POINTS, vertices=vertices.shape[0])
+    with _temporary_depth_mask(self.ctx, write_depth):
+        self.point_vao.render(moderngl.POINTS, vertices=vertices.shape[0])
 
 
 def draw_volume(self, vertices, colors, vp, opacity=0.3, depth=True):
@@ -244,10 +245,10 @@ def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
 
     self.draw_lines(vertices, colors, vp, width=1.0, depth=depth, write_depth=write_depth)
     self.draw_cube(vp, [-size, -size, -size], [size, size, size],
-                  (0.35, 0.35, 0.38, 0.25), width=1.6, depth=depth)
+                  (0.35, 0.35, 0.38, 0.25), width=1.6, depth=depth, write_depth=write_depth)
 
 
-def draw_cube(self, vp, min_corner, max_corner, color, width=2.0, depth=True):
+def draw_cube(self, vp, min_corner, max_corner, color, width=2.0, depth=True, write_depth=True):
     """Draw a wireframe cube."""
     x0, y0, z0 = min_corner
     x1, y1, z1 = max_corner
@@ -270,7 +271,7 @@ def draw_cube(self, vp, min_corner, max_corner, color, width=2.0, depth=True):
     ]
 
     colors = [color] * len(vertices)
-    self.draw_lines(vertices, colors, vp, width=width, depth=depth)
+    self.draw_lines(vertices, colors, vp, width=width, depth=depth, write_depth=write_depth)
 
 
 def draw_grid(self, vp, size=10, step=1, plane='xy',
@@ -522,7 +523,7 @@ def draw_vector_span(self, vp, vector1, vector2, color=None, scale=1.0):
     ]
     border_color = _span_color([vector1, vector2], _SPAN_BORDER_ALPHA)
     border_colors = [border_color] * 8
-    self.draw_lines(border_vertices, border_colors, vp, width=_SPAN_LINE_WIDTH)
+    self.draw_lines(border_vertices, border_colors, vp, width=_SPAN_LINE_WIDTH, write_depth=False)
 
 
 def draw_parallelepiped(self, vp, vectors, color=None, scale=1.0):
@@ -562,7 +563,7 @@ def draw_parallelepiped(self, vp, vectors, color=None, scale=1.0):
         edge_vertices.append(vertices[j].tolist())
 
     edge_colors = [(color[0], color[1], color[2], min(_SPAN_BORDER_ALPHA, 0.35))] * len(edge_vertices)
-    self.draw_lines(edge_vertices, edge_colors, vp, width=_SUBSPACE_EDGE_WIDTH)
+    self.draw_lines(edge_vertices, edge_colors, vp, width=_SUBSPACE_EDGE_WIDTH, write_depth=False)
 
     faces = [
         [vertices[0], vertices[1], vertices[4], vertices[2]],
