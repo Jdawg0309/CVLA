@@ -69,6 +69,7 @@ def _render_cubic_environment(self, vp, scene):
             color_minor=color_minor_depth,
             color_subminor=color_subminor_depth,
             depth=True,
+            write_depth=False,
         )
 
         # No-depth pass with slightly brighter colors
@@ -89,6 +90,7 @@ def _render_cubic_environment(self, vp, scene):
             color_minor=color_minor_nodepth,
             color_subminor=color_subminor_nodepth,
             depth=False,
+            write_depth=False,
         )
 
         if self.show_plane_visuals:
@@ -154,6 +156,7 @@ def _render_planar_environment(self, vp):
                 color_minor=color_minor_depth,
                 color_subminor=color_subminor_depth,
                 depth=True,
+                write_depth=False,
             )
 
             # No-depth pass with slightly brighter colors
@@ -175,6 +178,7 @@ def _render_planar_environment(self, vp):
                 color_minor=color_minor_nodepth,
                 color_subminor=color_subminor_nodepth,
                 depth=False,
+                write_depth=False,
             )
 
     if self.view.show_axes:
@@ -244,7 +248,7 @@ def _render_cube_faces(self, vp):
 
         self.gizmos.draw_triangles(
             tri_vertices, normals, [color] * 6,
-            vp, use_lighting=False
+            vp, use_lighting=False, write_depth=False
         )
 
         border_vertices = [
@@ -815,7 +819,8 @@ def draw_image_plane(self, image_data, vp, scale=1.0, color_mode="grayscale", co
         return
 
     for verts, norms, colors in batches:
-        self.gizmos.draw_triangles(verts, norms, colors, vp, use_lighting=False, depth=False)
+        self.gizmos.draw_triangles(verts, norms, colors, vp, use_lighting=False, depth=False,
+                                   write_depth=False)
 
 
 class Renderer:
@@ -909,6 +914,8 @@ class Renderer:
                         plane="xy",
                         color_major=(0.35, 0.35, 0.4, 0.6),
                         color_minor=(0.22, 0.22, 0.25, 0.4),
+                        depth=False,
+                        write_depth=False,
                     )
                 except Exception:
                     pass

@@ -2,7 +2,10 @@
 Gizmos: immediate-mode debug drawing.
 """
 
+import ctypes
 import math
+from contextlib import contextmanager
+
 import moderngl
 import numpy as np
 
@@ -16,7 +19,41 @@ from render.buffers.gizmo_buffers import _init_buffers
 from render.shaders.grid_shader import get_grid_shaders
 
 
-def draw_lines(self, vertices, colors, vp, width=2.0, depth=True):
+def _get_gl_depth_mask(ctx):
+    extra = getattr(ctx, "extra", None)
+    if extra is None:
+        return True
+    gl_obj = extra.get("gl") if isinstance(extra, dict) else getattr(extra, "gl", None)
+    if gl_obj is None:
+        # assume default writable mask when GL object unavailable
+        return True
+    buf = (ctypes.c_int * 1)(0)
+    gl_obj.glGetIntegerv(moderngl.GL_DEPTH_WRITEMASK, buf)
+    return bool(buf[0])
+
+
+def _set_gl_depth_mask(ctx, mask):
+    extra = getattr(ctx, "extra", None)
+    if extra is None:
+        return
+    gl_obj = extra.get("gl") if isinstance(extra, dict) else getattr(extra, "gl", None)
+    if gl_obj is None:
+        return
+    gl_obj.glDepthMask(moderngl.GL_TRUE if mask else moderngl.GL_FALSE)
+
+
+@contextmanager
+def _temporary_depth_mask(ctx, mask=True):
+    """Temporarily override the context depth mask."""
+    prev_mask = _get_gl_depth_mask(ctx)
+    _set_gl_depth_mask(ctx, mask)
+    try:
+        yield
+    finally:
+        _set_gl_depth_mask(ctx, prev_mask)
+
+
+def draw_lines(self, vertices, colors, vp, width=2.0, depth=True, write_depth=True):
     """Draw line segments with per-vertex colors."""
     if not vertices or len(vertices) == 0:
         return
@@ -38,7 +75,8 @@ def draw_lines(self, vertices, colors, vp, width=2.0, depth=True):
     self.line_vbo.write(interleaved.tobytes())
     self.line_program['mvp'].write(vp.astype('f4').tobytes())
 
-    self.line_vao.render(moderngl.LINES, vertices=vertices.shape[0])
+    with _temporary_depth_mask(self.ctx, write_depth):
+        self.line_vao.render(moderngl.LINES, vertices=vertices.shape[0])
 
 
 def _ensure_float_array(buffer, components):
@@ -52,7 +90,7 @@ def _ensure_float_array(buffer, components):
 
 def draw_triangles(self, vertices, normals, colors, vp, model_matrix=None,
                    light_pos=(20, 20, 20), view_pos=(0, 0, 20), use_lighting=True,
-                   depth=True):
+                   depth=True, write_depth=True):
     """Draw triangles with normals and colors."""
     if depth:
         self.ctx.enable(moderngl.DEPTH_TEST)
@@ -80,7 +118,13 @@ def draw_triangles(self, vertices, normals, colors, vp, model_matrix=None,
     self.triangle_program['view_pos'].write(np.array(view_pos, dtype='f4').tobytes())
     self.triangle_program['use_lighting'].value = bool(use_lighting)
 
-    self.triangle_vao.render(moderngl.TRIANGLES, vertices=vertices.shape[0])
+    transparent = np.any(colors[:, 3] < 0.999)
+    if transparent:
+        self.ctx.enable(moderngl.BLEND)
+        self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
+
+    with _temporary_depth_mask(self.ctx, write_depth):
+        self.triangle_vao.render(moderngl.TRIANGLES, vertices=vertices.shape[0])
 
 
 def draw_points(self, vertices, colors, vp, size=8.0, depth=True):
@@ -152,7 +196,8 @@ def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
                    color_subminor=(0.18, 0.20, 0.22, 0.12),
                    subminor_step=None,
                    fade_power=1.6,
-                   depth=True):
+                   depth=True,
+                   write_depth=True):
     """Draw a semantic 3D cubic grid."""
     vertices = []
     colors = []
@@ -197,7 +242,7 @@ def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
     add_tier(minor_step, color_minor, skip_steps=(major_step,))
     add_tier(major_step, color_major, skip_steps=())
 
-    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth, write_depth=write_depth)
     self.draw_cube(vp, [-size, -size, -size], [size, size, size],
                   (0.35, 0.35, 0.38, 0.25), width=1.6, depth=depth)
 
@@ -235,7 +280,8 @@ def draw_grid(self, vp, size=10, step=1, plane='xy',
               major_step=None,
               sub_step=None,
               fade_power=1.6,
-              depth=True):
+              depth=True,
+              write_depth=True):
     """Draw a semantic planar grid on specified plane ('xy','xz','yz')."""
     vertices = []
     colors = []
@@ -279,7 +325,7 @@ def draw_grid(self, vp, size=10, step=1, plane='xy',
     add_tier(step, color_minor, skip_steps=(major_step,))
     add_tier(major_step, color_major, skip_steps=())
 
-    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth, write_depth=write_depth)
 
 
 def draw_axes(self, vp, length=6.0, thickness=3.0,
@@ -466,7 +512,7 @@ def draw_vector_span(self, vp, vector1, vector2, color=None, scale=1.0):
         color = _span_color([vector1, vector2], _SPAN_FILL_ALPHA)
     colors = [color] * 6
 
-    self.draw_triangles(tri_vertices, normals, colors, vp, use_lighting=True)
+    self.draw_triangles(tri_vertices, normals, colors, vp, use_lighting=True, write_depth=False)
 
     border_vertices = [
         vertices[0], vertices[1],
@@ -541,7 +587,7 @@ def draw_parallelepiped(self, vp, vectors, color=None, scale=1.0):
         face_color = (color[0], color[1], color[2], _SUBSPACE_FACE_ALPHA)
         face_colors = [face_color] * 6
 
-        self.draw_triangles(tri_vertices, normals, face_colors, vp, use_lighting=False)
+        self.draw_triangles(tri_vertices, normals, face_colors, vp, use_lighting=False, write_depth=False)
 
 
 def draw_basis_transform(self, vp, original_basis, transformed_basis,
@@ -646,7 +692,8 @@ def draw_infinite_grid(self, view_matrix, projection_matrix, plane="xy",
     self.grid_program['u_color_axis_z'].value = color_axis_z
 
     # Render the grid (6 vertices for fullscreen quad)
-    self.grid_vao.render(moderngl.TRIANGLES, vertices=6)
+    with _temporary_depth_mask(self.ctx, False):
+        self.grid_vao.render(moderngl.TRIANGLES, vertices=6)
 
 
 class Gizmos:
