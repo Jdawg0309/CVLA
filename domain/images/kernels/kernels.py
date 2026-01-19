@@ -5,14 +5,85 @@ Convolution kernel registry and utilities.
 import numpy as np
 from typing import Dict, List, Tuple
 
-from domain.images.kernels.kernels_edges import (
-    SOBEL_X, SOBEL_Y, LAPLACIAN, EDGE_DETECT,
-    PREWITT_X, PREWITT_Y, RIDGE_DETECT,
-)
-from domain.images.kernels.kernels_blur import BOX_BLUR, GAUSSIAN_BLUR, GAUSSIAN_BLUR_5x5
-from domain.images.kernels.kernels_sharpen import SHARPEN, EMBOSS
-from domain.images.kernels.kernels_utility import IDENTITY
+SOBEL_X = np.array([
+    [-1, 0, 1],
+    [-2, 0, 2],
+    [-1, 0, 1]
+], dtype=np.float32)
 
+SOBEL_Y = np.array([
+    [-1, -2, -1],
+    [0, 0, 0],
+    [1, 2, 1]
+], dtype=np.float32)
+
+LAPLACIAN = np.array([
+    [0, 1, 0],
+    [1, -4, 1],
+    [0, 1, 0]
+], dtype=np.float32)
+
+EDGE_DETECT = np.array([
+    [-1, -1, -1],
+    [-1, 8, -1],
+    [-1, -1, -1]
+], dtype=np.float32)
+
+PREWITT_X = np.array([
+    [-1, 0, 1],
+    [-1, 0, 1],
+    [-1, 0, 1]
+], dtype=np.float32)
+
+PREWITT_Y = np.array([
+    [-1, -1, -1],
+    [0, 0, 0],
+    [1, 1, 1]
+], dtype=np.float32)
+
+RIDGE_DETECT = np.array([
+    [-1, -1, -1],
+    [2, 2, 2],
+    [-1, -1, -1]
+], dtype=np.float32)
+
+BOX_BLUR = np.array([
+    [1, 1, 1],
+    [1, 1, 1],
+    [1, 1, 1]
+], dtype=np.float32) / 9.0
+
+GAUSSIAN_BLUR = np.array([
+    [1, 2, 1],
+    [2, 4, 2],
+    [1, 2, 1]
+], dtype=np.float32) / 16.0
+
+GAUSSIAN_BLUR_5x5 = np.array([
+    [1, 4, 6, 4, 1],
+    [4, 16, 24, 16, 4],
+    [6, 24, 36, 24, 6],
+    [4, 16, 24, 16, 4],
+    [1, 4, 6, 4, 1]
+], dtype=np.float32) / 256.0
+
+SHARPEN = np.array([
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0]
+], dtype=np.float32)
+
+EMBOSS = np.array([
+    [-2, -1, 0],
+    [-1, 1, 1],
+    [0, 1, 2]
+], dtype=np.float32)
+
+IDENTITY = np.array([
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, 0, 0]
+], dtype=np.float32)
 
 KERNEL_REGISTRY: Dict[str, np.ndarray] = {
     'sobel_x': SOBEL_X,
@@ -54,8 +125,8 @@ def get_kernel_by_name(name: str) -> np.ndarray:
 
 def list_kernels() -> List[Tuple[str, str]]:
     """List all available kernels with descriptions."""
-    return [(name, KERNEL_DESCRIPTIONS.get(name, ''))
-            for name in KERNEL_REGISTRY.keys()]
+    return [(kernel, KERNEL_DESCRIPTIONS.get(kernel, ''))
+            for kernel in KERNEL_REGISTRY.keys()]
 
 
 def create_gaussian_kernel(size: int = 3, sigma: float = 1.0) -> np.ndarray:
