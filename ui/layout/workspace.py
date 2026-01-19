@@ -31,10 +31,6 @@ from ui.panels.timeline.timeline_panel import TimelinePanel
 from ui.themes.theme_manager import apply_theme
 from state.actions import DismissError
 
-# Legacy imports (for fallback if new panels fail)
-from ui.panels.sidebar.sidebar import Sidebar
-from ui.inspectors.inspector import Inspector
-
 
 class WorkspaceLayout:
     """
@@ -61,15 +57,8 @@ class WorkspaceLayout:
         self.input_panel = InputPanel()
         self.operations_panel = OperationsPanel()
 
-        # Legacy panels (kept for fallback)
-        self._legacy_sidebar = Sidebar()
-        self._legacy_inspector = Inspector()
-
         self.timeline = TimelinePanel()
         self._last_theme = None
-
-        # Layout mode toggle (for gradual migration)
-        self._use_new_layout = True
 
         # Resizable layout state (new layout only)
         self._rail_w = 60
@@ -101,10 +90,7 @@ class WorkspaceLayout:
                 _DOCK_SPACE(dockspace_id, 0, 0, _DOCK_PASSTHRU_FLAG)
             imgui.end()
 
-        if self._use_new_layout:
-            self._render_new_layout(state, dispatch, camera, view_config, app, display)
-        else:
-            self._render_legacy_layout(state, dispatch, camera, view_config, app, display)
+        self._render_new_layout(state, dispatch, camera, view_config, app, display)
 
         # Render error modal on top of everything
         if state and state.show_error_modal:
@@ -230,39 +216,6 @@ class WorkspaceLayout:
             if overflow > 0:
                 reduce_left = min(self._left_w - min_left, overflow)
                 self._left_w -= reduce_left
-
-    def _render_legacy_layout(self, state, dispatch, camera, view_config, app, display):
-        """Render the legacy layout (original Photoshop-style)."""
-        top_h = 40
-        rail_w = 120
-        mode_h = 190
-        left_w = 320
-        right_w = 320
-
-        # Top toolbar
-        self.toolbar.render(state, dispatch, camera, view_config, app)
-
-        # Left mode selector
-        mode_rect = (0, top_h, rail_w, mode_h)
-        self.mode_selector.render(mode_rect, state, dispatch)
-
-        # Left operations panel (sidebar)
-        bottom_h = 120
-        left_rect = (rail_w, top_h, left_w, display.y - top_h - bottom_h)
-        self._legacy_sidebar.render(left_rect, camera, view_config, state, dispatch)
-
-        # Right inspector panel
-        right_rect = (display.x - right_w, top_h, right_w, display.y - top_h - bottom_h)
-        self._legacy_inspector.render(state, dispatch, right_rect)
-
-        # Bottom timeline
-        bottom_rect = (0, display.y - bottom_h, display.x, bottom_h)
-        self.timeline.render(bottom_rect, state, dispatch)
-
-    def toggle_layout(self):
-        """Toggle between new and legacy layout."""
-        self._use_new_layout = not self._use_new_layout
-        return self._use_new_layout
 
     def _render_error_modal(self, state, dispatch):
         """Render the error modal popup."""
