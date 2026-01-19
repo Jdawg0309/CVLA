@@ -2,6 +2,8 @@
 Gizmos: immediate-mode debug drawing.
 """
 
+import math
+import moderngl
 import numpy as np
 
 from render.shaders.gizmo_programs import (
@@ -11,12 +13,284 @@ from render.shaders.gizmo_programs import (
     _create_volume_program,
 )
 from render.buffers.gizmo_buffers import _init_buffers
-from render.gizmos.gizmo_draw_lines import draw_lines
-from render.gizmos.gizmo_draw_triangles import draw_triangles
-from render.gizmos.gizmo_draw_points import draw_points
-from render.gizmos.gizmo_draw_volume import draw_volume
-from render.gizmos.gizmo_cubic_grid import draw_cubic_grid, draw_cube
-from render.gizmos.gizmo_planar_grid import draw_grid, draw_axes
+
+
+def draw_lines(self, vertices, colors, vp, width=2.0, depth=True):
+    """Draw line segments with per-vertex colors."""
+    if not vertices or len(vertices) == 0:
+        return
+
+    if depth:
+        self.ctx.enable(moderngl.DEPTH_TEST)
+    else:
+        self.ctx.disable(moderngl.DEPTH_TEST)
+
+    self.ctx.line_width = float(width)
+
+    vertices = np.array(vertices, dtype='f4').reshape(-1, 3)
+    colors = np.array(colors, dtype='f4').reshape(-1, 4)
+
+    interleaved = np.zeros((vertices.shape[0], 7), dtype='f4')
+    interleaved[:, :3] = vertices
+    interleaved[:, 3:7] = colors
+
+    self.line_vbo.write(interleaved.tobytes())
+    self.line_program['mvp'].write(vp.astype('f4').tobytes())
+
+    self.line_vao.render(moderngl.LINES, vertices=vertices.shape[0])
+
+
+def _ensure_float_array(buffer, components):
+    """Ensure the buffer is a numpy array with the given component stride."""
+    if isinstance(buffer, np.ndarray):
+        array = buffer
+    else:
+        array = np.array(buffer, dtype='f4')
+    return array.reshape(-1, components)
+
+
+def draw_triangles(self, vertices, normals, colors, vp, model_matrix=None,
+                   light_pos=(20, 20, 20), view_pos=(0, 0, 20), use_lighting=True,
+                   depth=True):
+    """Draw triangles with normals and colors."""
+    if depth:
+        self.ctx.enable(moderngl.DEPTH_TEST)
+    else:
+        self.ctx.disable(moderngl.DEPTH_TEST)
+    vertices = _ensure_float_array(vertices, 3)
+    if vertices.size == 0:
+        return
+    normals = _ensure_float_array(normals, 3)
+    colors = _ensure_float_array(colors, 4)
+
+    interleaved = np.zeros((vertices.shape[0], 10), dtype='f4')
+    interleaved[:, :3] = vertices
+    interleaved[:, 3:6] = normals
+    interleaved[:, 6:10] = colors
+
+    self.triangle_vbo.write(interleaved.tobytes())
+
+    if model_matrix is None:
+        model_matrix = np.eye(4, dtype='f4')
+
+    self.triangle_program['mvp'].write(vp.astype('f4').tobytes())
+    self.triangle_program['model'].write(model_matrix.astype('f4').tobytes())
+    self.triangle_program['light_pos'].write(np.array(light_pos, dtype='f4').tobytes())
+    self.triangle_program['view_pos'].write(np.array(view_pos, dtype='f4').tobytes())
+    self.triangle_program['use_lighting'].value = bool(use_lighting)
+
+    self.triangle_vao.render(moderngl.TRIANGLES, vertices=vertices.shape[0])
+
+
+def draw_points(self, vertices, colors, vp, size=8.0, depth=True):
+    """Draw points with per-vertex colors."""
+    if not vertices or len(vertices) == 0:
+        return
+
+    if depth:
+        self.ctx.enable(moderngl.DEPTH_TEST)
+    else:
+        self.ctx.disable(moderngl.DEPTH_TEST)
+
+    vertices = np.array(vertices, dtype='f4').reshape(-1, 3)
+    colors = np.array(colors, dtype='f4').reshape(-1, 4)
+
+    interleaved = np.zeros((vertices.shape[0], 7), dtype='f4')
+    interleaved[:, :3] = vertices
+    interleaved[:, 3:7] = colors
+
+    self.point_vbo.write(interleaved.tobytes())
+
+    self.point_program['mvp'].write(vp.astype('f4').tobytes())
+    self.point_program['point_size'].value = float(size)
+
+    self.point_vao.render(moderngl.POINTS, vertices=vertices.shape[0])
+
+
+def draw_volume(self, vertices, colors, vp, opacity=0.3, depth=True):
+    """Draw volume visualization (transparent cube)."""
+    if not vertices or len(vertices) == 0:
+        return
+
+    if depth:
+        self.ctx.enable(moderngl.DEPTH_TEST)
+    else:
+        self.ctx.disable(moderngl.DEPTH_TEST)
+
+    vertices = np.array(vertices, dtype='f4').reshape(-1, 3)
+    colors = np.array(colors, dtype='f4').reshape(-1, 4)
+
+    interleaved = np.zeros((vertices.shape[0], 7), dtype='f4')
+    interleaved[:, :3] = vertices
+    interleaved[:, 3:7] = colors
+
+    self.volume_vbo.write(interleaved.tobytes())
+    self.volume_program['mvp'].write(vp.astype('f4').tobytes())
+    self.volume_program['opacity'].value = float(opacity)
+
+    self.volume_vao.render(moderngl.TRIANGLES, vertices=vertices.shape[0])
+
+
+def _is_multiple(value, step, eps=1e-6):
+    if step <= 0:
+        return False
+    scaled = value / step
+    return abs(scaled - round(scaled)) <= eps
+
+
+def _fade(dist, max_dist, power=1.6):
+    if max_dist <= 0:
+        return 1.0
+    t = min(1.0, max(0.0, dist / max_dist))
+    return max(0.0, 1.0 - (t ** power))
+
+
+def draw_cubic_grid(self, vp, size=10, major_step=5, minor_step=1,
+                   color_major=(0.28, 0.30, 0.34, 0.45),
+                   color_minor=(0.18, 0.20, 0.22, 0.22),
+                   color_subminor=(0.18, 0.20, 0.22, 0.12),
+                   subminor_step=None,
+                   fade_power=1.6,
+                   depth=True):
+    """Draw a semantic 3D cubic grid."""
+    vertices = []
+    colors = []
+    size = float(size)
+    major_step = float(major_step) if major_step else 5.0
+    minor_step = float(minor_step) if minor_step else 1.0
+    subminor_step = float(subminor_step) if subminor_step else None
+
+    def add_line(plane, i, color):
+        fade = _fade(abs(i), size, fade_power)
+        if fade <= 0.0:
+            return
+        c = (color[0], color[1], color[2], color[3] * fade)
+        if plane == 'xy':
+            vertices.extend([[i, -size, 0], [i, size, 0]])
+            colors.extend([c, c])
+            vertices.extend([[-size, i, 0], [size, i, 0]])
+            colors.extend([c, c])
+        elif plane == 'xz':
+            vertices.extend([[i, 0, -size], [i, 0, size]])
+            colors.extend([c, c])
+            vertices.extend([[-size, 0, i], [size, 0, i]])
+            colors.extend([c, c])
+        elif plane == 'yz':
+            vertices.extend([[0, i, -size], [0, i, size]])
+            colors.extend([c, c])
+            vertices.extend([[0, -size, i], [0, size, i]])
+            colors.extend([c, c])
+
+    def add_tier(step_size, color, skip_steps=()):
+        if step_size is None or step_size <= 0:
+            return
+        count = int(math.floor(size / step_size))
+        for idx in range(-count, count + 1):
+            i = idx * step_size
+            if any(_is_multiple(i, s) for s in skip_steps if s):
+                continue
+            for plane in ['xy', 'xz', 'yz']:
+                add_line(plane, i, color)
+
+    add_tier(subminor_step, color_subminor, skip_steps=(minor_step, major_step))
+    add_tier(minor_step, color_minor, skip_steps=(major_step,))
+    add_tier(major_step, color_major, skip_steps=())
+
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
+    self.draw_cube(vp, [-size, -size, -size], [size, size, size],
+                  (0.35, 0.35, 0.38, 0.25), width=1.6, depth=depth)
+
+
+def draw_cube(self, vp, min_corner, max_corner, color, width=2.0, depth=True):
+    """Draw a wireframe cube."""
+    x0, y0, z0 = min_corner
+    x1, y1, z1 = max_corner
+
+    vertices = [
+        [x0, y0, z0], [x1, y0, z0],
+        [x1, y0, z0], [x1, y1, z0],
+        [x1, y1, z0], [x0, y1, z0],
+        [x0, y1, z0], [x0, y0, z0],
+
+        [x0, y0, z1], [x1, y0, z1],
+        [x1, y0, z1], [x1, y1, z1],
+        [x1, y1, z1], [x0, y1, z1],
+        [x0, y1, z1], [x0, y0, z1],
+
+        [x0, y0, z0], [x0, y0, z1],
+        [x1, y0, z0], [x1, y0, z1],
+        [x1, y1, z0], [x1, y1, z1],
+        [x0, y1, z0], [x0, y1, z1]
+    ]
+
+    colors = [color] * len(vertices)
+    self.draw_lines(vertices, colors, vp, width=width, depth=depth)
+
+
+def draw_grid(self, vp, size=10, step=1, plane='xy',
+              color_major=(0.28, 0.30, 0.34, 0.45),
+              color_minor=(0.18, 0.20, 0.22, 0.22),
+              color_subminor=(0.18, 0.20, 0.22, 0.12),
+              major_step=None,
+              sub_step=None,
+              fade_power=1.6,
+              depth=True):
+    """Draw a semantic planar grid on specified plane ('xy','xz','yz')."""
+    vertices = []
+    colors = []
+    half = float(size)
+    step = float(step) if step > 0 else 1.0
+    major_step = float(major_step) if major_step is not None else step * 5.0
+    sub_step = float(sub_step) if sub_step is not None else None
+
+    def add_line(i, color):
+        fade = _fade(abs(i), half, fade_power)
+        if fade <= 0.0:
+            return
+        c = (color[0], color[1], color[2], color[3] * fade)
+        if plane == 'xy':
+            vertices.extend([[i, -half, 0], [i, half, 0]])
+            colors.extend([c, c])
+            vertices.extend([[-half, i, 0], [half, i, 0]])
+            colors.extend([c, c])
+        elif plane == 'xz':
+            vertices.extend([[i, 0, -half], [i, 0, half]])
+            colors.extend([c, c])
+            vertices.extend([[-half, 0, i], [half, 0, i]])
+            colors.extend([c, c])
+        elif plane == 'yz':
+            vertices.extend([[0, i, -half], [0, i, half]])
+            colors.extend([c, c])
+            vertices.extend([[0, -half, i], [0, half, i]])
+            colors.extend([c, c])
+
+    def add_tier(step_size, color, skip_steps=()):
+        if step_size is None or step_size <= 0:
+            return
+        count = int(math.floor(half / step_size))
+        for idx in range(-count, count + 1):
+            i = idx * step_size
+            if any(_is_multiple(i, s) for s in skip_steps if s):
+                continue
+            add_line(i, color)
+
+    add_tier(sub_step, color_subminor, skip_steps=(step, major_step))
+    add_tier(step, color_minor, skip_steps=(major_step,))
+    add_tier(major_step, color_major, skip_steps=())
+
+    self.draw_lines(vertices, colors, vp, width=1.0, depth=depth)
+
+
+def draw_axes(self, vp, length=6.0, thickness=3.0):
+    """Draw basic XYZ axes as lines with endpoints."""
+    axes = [
+        ([[0, 0, 0], [length, 0, 0]], (1.0, 0.3, 0.3, 1.0)),
+        ([[0, 0, 0], [0, length, 0]], (0.3, 1.0, 0.3, 1.0)),
+        ([[0, 0, 0], [0, 0, length]], (0.3, 0.5, 1.0, 1.0)),
+    ]
+    for pts, col in axes:
+        self.draw_lines(pts, [col, col], vp, width=thickness)
+
 
 
 def draw_vector_with_details(self, vp, vector, selected=False, scale=1.0,
