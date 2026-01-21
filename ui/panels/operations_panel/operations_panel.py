@@ -1007,22 +1007,13 @@ class OperationsPanel:
         imgui.separator()
         imgui.spacing()
 
-        # 3. Operation Tree (scrollable)
-        available_height = imgui.get_content_region_available()[1]
-        tree_height = max(available_height - 140, 200)  # Minimum 200px height
-        if imgui.begin_child("##op_tree", width - 10, tree_height, border=False,
+        # 3. Operation Tree (scrollable, fills remaining space)
+        if imgui.begin_child("##op_tree", width - 10, 0, border=False,
                             flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR):
             self.operation_tree.render(selected, state, dispatch, width - 25,
                                        self.calculator)
             self.operation_tree.render_popups(selected, state, dispatch, self.calculator)
         imgui.end_child()
-
-        imgui.spacing()
-        imgui.separator()
-        imgui.spacing()
-
-        # 4. CLI Log (at bottom)
-        self.cli_log.render(width)
 
     def _render_view_mode(self, state: "AppState", dispatch, width: float):
         """Render view settings mode."""
