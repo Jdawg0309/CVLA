@@ -505,6 +505,26 @@ def _render_tensor_faces(self, scene, vp):
             continue
         self.gizmos.draw_triangles(vertices, normals, colors, vp, use_lighting=False)
 
+        try:
+            outline_color = (0.0, 0.0, 0.0, 0.9)
+            outline_lines = []
+            outline_colors = []
+            tri_vertices = vertices.reshape(-1, 3)
+            tri_count = len(tri_vertices) // 3
+            for i in range(tri_count):
+                v0 = tri_vertices[i * 3]
+                v1 = tri_vertices[i * 3 + 1]
+                v2 = tri_vertices[i * 3 + 2]
+                edges = [(v0, v1), (v1, v2), (v2, v0)]
+                for a, b in edges:
+                    outline_lines.extend([a.tolist(), b.tolist()])
+                    outline_colors.extend([outline_color, outline_color])
+            if outline_lines:
+                self.gizmos.draw_lines(outline_lines, outline_colors, vp,
+                                       width=2.5, depth=True, write_depth=False)
+        except Exception:
+            pass
+
 
 def _render_vectors_with_enhancements(self, scene, vp):
     """Render all vectors with enhanced visualizations."""
