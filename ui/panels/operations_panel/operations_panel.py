@@ -505,9 +505,12 @@ class OperationTreeWidget:
                     imgui.same_line()
 
                 # Style based on applicability and selection
+                # Capture selection state BEFORE rendering to ensure push/pop match
+                is_selected = self._selected_op and self._selected_op.id == op.id
+
                 if not is_applicable:
                     imgui.push_style_var(imgui.STYLE_ALPHA, 0.4)
-                elif self._selected_op and self._selected_op.id == op.id:
+                elif is_selected:
                     imgui.push_style_color(imgui.COLOR_BUTTON, 0.2, 0.5, 0.3, 1.0)
 
                 if imgui.button(f"{op.name}##{op.id}", button_width, 24):
@@ -516,7 +519,7 @@ class OperationTreeWidget:
 
                 if not is_applicable:
                     imgui.pop_style_var()
-                elif self._selected_op and self._selected_op.id == op.id:
+                elif is_selected:
                     imgui.pop_style_color(1)
 
                 # Tooltip
@@ -563,6 +566,9 @@ class OperationTreeWidget:
     def render_popups(self, tensor: "TensorData", state: "AppState", dispatch,
                       calculator: CalculatorViewWidget):
         """Render any open popups for operation configuration."""
+        if tensor is None:
+            return
+
         if self._selected_op and self._selected_op.requires_second_tensor:
             self._render_second_tensor_popup(tensor, state, dispatch, calculator)
 
@@ -574,7 +580,7 @@ class OperationTreeWidget:
                                      dispatch, calculator: CalculatorViewWidget):
         """Render popup for selecting second tensor."""
         op = self._selected_op
-        if not op:
+        if not op or tensor is None:
             return
 
         # Get compatible tensors
@@ -605,6 +611,8 @@ class OperationTreeWidget:
     def _render_scale_popup(self, tensor: "TensorData", state: "AppState",
                             dispatch, calculator: CalculatorViewWidget):
         """Render popup for scale factor input."""
+        if tensor is None:
+            return
         if imgui.begin_popup("##scale_input"):
             imgui.text("Scale Factor:")
             _, self._scale_value = imgui.input_float("##scale_val", self._scale_value)
@@ -634,7 +642,7 @@ class OperationTreeWidget:
     def _get_compatible_tensors(self, op: OperationDef, tensor: "TensorData",
                                  state: "AppState") -> List["TensorData"]:
         """Get tensors compatible with the operation."""
-        if state is None:
+        if state is None or tensor is None:
             return []
 
         compatible = []
@@ -684,6 +692,8 @@ class OperationTreeWidget:
                            second_tensor: Optional["TensorData"], state: "AppState",
                            dispatch, calculator: CalculatorViewWidget):
         """Execute the operation and update state."""
+        if tensor is None:
+            return
         # Build parameters
         params = ()
         target_ids = (tensor.id,)
