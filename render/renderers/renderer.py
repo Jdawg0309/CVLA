@@ -136,8 +136,6 @@ def _render_planar_environment(self, vp):
 
 def _render_axes_overlay(self, vp):
     """Draw axes overlays before other geometry."""
-    if not self.view.show_axes:
-        return
     axis_len = float(max(8.0, getattr(self.camera, "radius", 10.0) * 0.7))
     self._render_3d_axes_with_depths(vp, length=axis_len)
     theme = self.view.theme
@@ -274,21 +272,28 @@ def _render_3d_axes_with_depths(self, vp, length=None):
     if length is None:
         length = max(10.0, self.view.grid_size * 0.75)
 
+    def _highlight(color, boost=0.25, min_alpha=0.9):
+        r = min(1.0, color[0] + boost)
+        g = min(1.0, color[1] + boost)
+        b = min(1.0, color[2] + boost)
+        a = max(min_alpha, color[3])
+        return (r, g, b, a)
+
     axes = [
-        {"points": [[0, 0, 0], [length, 0, 0]], "color": theme.axis_color_x},
-        {"points": [[0, 0, 0], [0, length, 0]], "color": theme.axis_color_y},
-        {"points": [[0, 0, 0], [0, 0, length]], "color": theme.axis_color_z},
+        {"points": [[0, 0, 0], [length, 0, 0]], "color": _highlight(theme.axis_color_x, boost=0.3)},
+        {"points": [[0, 0, 0], [0, length, 0]], "color": _highlight(theme.axis_color_y, boost=0.3)},
+        {"points": [[0, 0, 0], [0, 0, length]], "color": _highlight(theme.axis_color_z, boost=0.3)},
     ]
 
     for axis in axes:
         self.gizmos.draw_lines(
             axis["points"],
             [axis["color"], axis["color"]],
-            vp, width=3.0, write_depth=False
+            vp, width=4.5, depth=False, write_depth=False
         )
 
     size = max(20.0, self.view.grid_size) * 1.2
-    faint_color = theme.faint_axis_color
+    faint_color = _highlight(theme.faint_axis_color, boost=0.1, min_alpha=0.5)
     faint_axes = [
         {"points": [[-size, 0, 0], [size, 0, 0]], "color": faint_color},
         {"points": [[0, -size, 0], [0, size, 0]], "color": faint_color},
@@ -299,7 +304,7 @@ def _render_3d_axes_with_depths(self, vp, length=None):
         self.gizmos.draw_lines(
             axis["points"],
             [axis["color"], axis["color"]],
-            vp, width=1.0, write_depth=False
+            vp, width=2.0, depth=False, write_depth=False
         )
 
     self._draw_axis_cones(vp, length)

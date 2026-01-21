@@ -30,7 +30,7 @@ vec3 unproject_point(float x, float y, float z, mat4 view, mat4 projection) {
 
 void main() {
     vec3 p = grid_plane[gl_VertexID];
-    v_near_point = unproject_point(p.x, p.y, 0.0, u_view, u_projection);
+    v_near_point = unproject_point(p.x, p.y, -1.0, u_view, u_projection);
     v_far_point = unproject_point(p.x, p.y, 1.0, u_view, u_projection);
     gl_Position = vec4(p, 1.0);
 }
@@ -88,29 +88,34 @@ void main() {
     float t;
     vec2 grid_uv;
     int axis1, axis2;  // The two axes that form the grid plane
-    int normal_axis;   // The axis perpendicular to the plane
+    float plane_denominator = 0.0;
+    float near_coord = 0.0;
 
     if (u_plane == 0) {
         // XY plane (Z = 0)
-        t = -v_near_point.z / ray_dir.z;
         axis1 = 0;  // X
         axis2 = 1;  // Y
-        normal_axis = 2;  // Z
+        plane_denominator = ray_dir.z;
+        near_coord = v_near_point.z;
     } else if (u_plane == 1) {
         // XZ plane (Y = 0)
-        t = -v_near_point.y / ray_dir.y;
         axis1 = 0;  // X
         axis2 = 2;  // Z
-        normal_axis = 1;  // Y
+        plane_denominator = ray_dir.y;
+        near_coord = v_near_point.y;
     } else {
         // YZ plane (X = 0)
-        t = -v_near_point.x / ray_dir.x;
         axis1 = 1;  // Y
         axis2 = 2;  // Z
-        normal_axis = 0;  // X
+        plane_denominator = ray_dir.x;
+        near_coord = v_near_point.x;
     }
 
-    // Discard if intersection is behind camera
+    if (abs(plane_denominator) < 1e-5) {
+        discard;
+    }
+
+    t = -near_coord / plane_denominator;
     if (t < 0.0) {
         discard;
     }

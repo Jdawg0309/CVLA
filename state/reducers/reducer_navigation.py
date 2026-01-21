@@ -78,7 +78,7 @@ def reduce_navigation(state, action):
     if isinstance(action, SetColorTheme):
         valid_themes = ("dark_modern", "midnight_blue", "warm_sunset",
                         "light_academic", "neon_cyberpunk", "high_contrast")
-        theme = action.theme if action.theme in valid_themes else "dark_modern"
+        theme = action.theme if action.theme in valid_themes else "neon_cyberpunk"
         return replace(state, current_theme=theme)
 
     if isinstance(action, SetActiveTool):
@@ -98,11 +98,13 @@ def reduce_navigation(state, action):
                 view_grid_plane=state.view_grid_plane,
                 view_major_tick=major,
                 view_minor_tick=minor,
+                view_mode_2d=False,
             )
         return replace(state,
             view_preset=preset,
             view_grid_mode="plane",
             view_grid_plane=preset,
+            view_mode_2d=True,
         )
 
     if isinstance(action, SetViewUpAxis):

@@ -8,7 +8,7 @@ import moderngl
 import numpy as np
 
 from render.postprocess.bloom import BloomEffect
-from render.themes.color_themes import ColorTheme, get_theme
+from render.themes.color_themes import ColorTheme, DEFAULT_THEME, get_theme
 
 
 # Composite shader with ACES tonemapping
@@ -106,7 +106,7 @@ class PostProcessPipeline:
 
         # Theme parameters
         if theme is None:
-            theme = get_theme("dark_modern")
+            theme = get_theme(DEFAULT_THEME)
         self.bloom_intensity = theme.bloom_intensity
         self.bloom_threshold = theme.bloom_threshold
         self.exposure = theme.exposure

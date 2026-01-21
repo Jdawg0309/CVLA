@@ -173,7 +173,7 @@ class AppState:
     active_mode: str = "vectors"
     active_tab: str = "vectors"
     ui_theme: str = "dark"
-    current_theme: str = "dark_modern"  # Color theme for 3D rendering
+    current_theme: str = "neon_cyberpunk"  # Color theme for 3D rendering
     active_tool: str = "select"
     show_matrix_editor: bool = False
     show_matrix_values: bool = False

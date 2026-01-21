@@ -258,7 +258,7 @@ THEME_DISPLAY_NAMES: Dict[str, str] = {
     "high_contrast": "High Contrast",
 }
 
-DEFAULT_THEME = "dark_modern"
+DEFAULT_THEME = "neon_cyberpunk"
 
 
 def get_theme(name: str) -> ColorTheme:
