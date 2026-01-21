@@ -92,6 +92,19 @@ class ConfirmPreview:
 
 
 @dataclass(frozen=True)
+class SetBinaryOperation:
+    """Set a pending binary operation waiting for second tensor."""
+    operation_name: str
+    first_tensor_id: str
+
+
+@dataclass(frozen=True)
+class ClearBinaryOperation:
+    """Clear the pending binary operation."""
+    pass
+
+
+@dataclass(frozen=True)
 class ClearAllTensors:
     """Clear all tensors from the scene."""
     pass

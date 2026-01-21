@@ -77,6 +77,10 @@ class AppState:
     operation_preview_tensor: Optional[TensorData] = None
     show_operation_preview: bool = True
 
+    # Binary operation state (waiting for second tensor)
+    awaiting_second_tensor: Optional[str] = None  # Operation name if waiting
+    first_tensor_id: Optional[str] = None  # First tensor for binary op
+
     # =========================================================================
     # OPERATION HISTORY (for timeline)
     # =========================================================================

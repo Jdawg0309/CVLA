@@ -23,6 +23,8 @@ from state.actions.input_panel_actions import (
     SetTextInput,
 )
 from state.actions.tensor_actions import (
+    ApplyOperation,
+    ClearBinaryOperation,
     DeleteTensor,
     DeselectTensor,
     SelectTensor,
@@ -568,8 +570,21 @@ class TensorListWidget:
             )
             imgui.spacing()
 
+        # Binary operation indicator
+        awaiting_op = state.awaiting_second_tensor if state else None
+        if awaiting_op:
+            imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.3, 0.3, 0.15, 1.0)
+            imgui.begin_child("##binary_op_hint", width - 10, 28, border=True)
+            imgui.text_colored(f"Select second tensor for: {awaiting_op}", 1.0, 0.9, 0.3, 1.0)
+            imgui.same_line(width - 70)
+            if imgui.small_button("Cancel"):
+                dispatch(ClearBinaryOperation())
+            imgui.end_child()
+            imgui.pop_style_color(1)
+            imgui.spacing()
+
         # Tensor list
-        list_height = height - 60
+        list_height = height - 60 - (36 if awaiting_op else 0)
         imgui.begin_child("tensor_list", width - 10, list_height, border=True)
 
         tensors = state.tensors
@@ -582,7 +597,7 @@ class TensorListWidget:
             imgui.text_colored("No tensors", 0.5, 0.5, 0.5, 1.0)
         else:
             for tensor in filtered:
-                self._render_tensor_item(tensor, selection_id, dispatch, width - 30)
+                self._render_tensor_item(tensor, selection_id, state, dispatch, width - 30)
 
         imgui.end_child()
 
@@ -618,9 +633,12 @@ class TensorListWidget:
             result.append(t)
         return result
 
-    def _render_tensor_item(self, tensor, selection_id, dispatch, width):
+    def _render_tensor_item(self, tensor, selection_id, state, dispatch, width):
         """Render a single tensor item in the list."""
         is_selected = tensor.id == selection_id
+        awaiting_op = state.awaiting_second_tensor if state else None
+        first_tensor_id = state.first_tensor_id if state else None
+
         if tensor.rank == 1:
             tensor_type = "r1"
         elif tensor.rank == 2:
@@ -632,8 +650,22 @@ class TensorListWidget:
         icon = self.TYPE_ICONS.get(tensor_type, '[?]')
         color = self.TYPE_COLORS.get(tensor_type, (0.8, 0.8, 0.8, 1.0))
 
+        # Highlight style for binary operation mode
+        is_first_tensor = awaiting_op and tensor.id == first_tensor_id
+        is_candidate = awaiting_op and tensor.id != first_tensor_id
+
         # Selection background
-        if is_selected:
+        if is_first_tensor:
+            # First tensor highlighted in green
+            imgui.push_style_color(imgui.COLOR_HEADER, 0.2, 0.6, 0.3, 1.0)
+            imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.25, 0.65, 0.35, 1.0)
+            imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.3, 0.7, 0.4, 1.0)
+        elif is_candidate:
+            # Candidates highlighted in yellow
+            imgui.push_style_color(imgui.COLOR_HEADER, 0.5, 0.5, 0.2, 1.0)
+            imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.6, 0.6, 0.3, 1.0)
+            imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.7, 0.7, 0.4, 1.0)
+        elif is_selected:
             imgui.push_style_color(imgui.COLOR_HEADER, 0.3, 0.5, 0.7, 1.0)
             imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.35, 0.55, 0.75, 1.0)
             imgui.push_style_color(imgui.COLOR_HEADER_ACTIVE, 0.4, 0.6, 0.8, 1.0)
@@ -641,16 +673,25 @@ class TensorListWidget:
         # Render selectable item
         clicked, _ = imgui.selectable(
             f"##tensor_{tensor.id}",
-            is_selected,
+            is_selected or is_first_tensor or is_candidate,
             width=width,
             height=24
         )
 
-        if is_selected:
+        if is_first_tensor or is_candidate or is_selected:
             imgui.pop_style_color(3)
 
         if clicked:
-            if is_selected:
+            if awaiting_op and tensor.id != first_tensor_id:
+                # Second tensor selected - execute binary operation
+                dispatch(ApplyOperation(
+                    operation_name=awaiting_op,
+                    parameters=(),
+                    target_ids=(first_tensor_id, tensor.id),
+                    create_new=True
+                ))
+                dispatch(ClearBinaryOperation())
+            elif is_selected:
                 dispatch(DeselectTensor())
             else:
                 dispatch(SelectTensor(id=tensor.id))

@@ -41,8 +41,10 @@ from state.actions import (
 from state.actions.matrix_actions import ToggleMatrixPlot
 from state.actions.tensor_actions import (
     ApplyOperation,
+    ClearBinaryOperation,
     DuplicateTensor,
     PreviewOperation,
+    SetBinaryOperation,
     UpdateTensor,
     CancelPreview,
     ConfirmPreview,
@@ -251,8 +253,8 @@ class CalculatorViewWidget:
         """Render the calculator view."""
         imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.08, 0.08, 0.12, 1.0)
 
-        calc_height = 180
-        if imgui.begin_child("##calculator_view", width - 20, calc_height, border=True):
+        calc_height = 150
+        if imgui.begin_child("##calculator_view", width - 10, calc_height, border=True):
             self._render_calculator_content(tensor, state, dispatch, width - 40)
         imgui.end_child()
 
@@ -494,8 +496,8 @@ class OperationTreeWidget:
         if expanded:
             imgui.spacing()
 
-            # Render operations as buttons in a grid
-            button_width = max((width - 50) / 3, 80)
+            # Render operations as buttons in a 2-column grid
+            button_width = max((width - 30) / 2, 100)
             col = 0
 
             for op in operations:
@@ -513,7 +515,7 @@ class OperationTreeWidget:
                 elif is_selected:
                     imgui.push_style_color(imgui.COLOR_BUTTON, 0.2, 0.5, 0.3, 1.0)
 
-                if imgui.button(f"{op.name}##{op.id}", button_width, 24):
+                if imgui.button(f"{op.name}##{op.id}", button_width, 26):
                     if is_applicable:
                         self._handle_operation_click(op, tensor, state, dispatch, calculator)
 
@@ -526,9 +528,7 @@ class OperationTreeWidget:
                 if imgui.is_item_hovered():
                     imgui.set_tooltip(f"{op.description}\nSymbol: {op.symbol}")
 
-                col = (col + 1) % 3
-                if col == 0:
-                    pass  # New row happens automatically
+                col = (col + 1) % 2
 
             imgui.tree_pop()
             imgui.spacing()
@@ -557,8 +557,11 @@ class OperationTreeWidget:
         calculator.set_operation(op)
 
         if op.requires_second_tensor:
-            # Open second tensor selector
-            imgui.open_popup(f"##select_second_{op.id}")
+            # Set binary operation mode - user will click second tensor in input panel
+            dispatch(SetBinaryOperation(
+                operation_name=op.id,
+                first_tensor_id=tensor.id
+            ))
         else:
             # Execute immediately for unary operations
             self._execute_operation(op, tensor, None, state, dispatch, calculator)
@@ -968,7 +971,7 @@ class OperationsPanel:
         set_next_window_position(x, y, cond=_SET_WINDOW_POS_FIRST)
         set_next_window_size((width, height), cond=_SET_WINDOW_SIZE_FIRST)
         imgui.set_next_window_size_constraints(
-            (300, 400),
+            (350, 400),
             (width + 100, height + 200),
         )
 
@@ -1012,6 +1015,7 @@ class OperationsPanel:
                             flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR):
             self.operation_tree.render(selected, state, dispatch, width - 25,
                                        self.calculator)
+            # Popups must be rendered in same ID stack where they were opened
             self.operation_tree.render_popups(selected, state, dispatch, self.calculator)
         imgui.end_child()
 

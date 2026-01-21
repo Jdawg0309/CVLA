@@ -63,7 +63,7 @@ class WorkspaceLayout:
         # Resizable layout state (new layout only)
         self._rail_w = 60
         self._left_w = 360
-        self._right_w = 380
+        self._right_w = 420
         self._bottom_h = 110
         self._splitter_thickness = 6
 
@@ -189,7 +189,7 @@ class WorkspaceLayout:
     def _apply_layout_constraints(self, display, top_h):
         """Clamp panel sizes so the center area remains usable."""
         min_left = 240
-        min_right = 280
+        min_right = 350
         min_center = 360
         min_bottom = 90
         min_main_h = 220

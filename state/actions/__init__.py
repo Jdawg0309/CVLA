@@ -48,6 +48,7 @@ from state.actions.history_actions import Undo, Redo
 from state.actions.tensor_actions import (
     AddTensor, DeleteTensor, UpdateTensor, SelectTensor, DeselectTensor,
     ApplyOperation, PreviewOperation, CancelPreview, ConfirmPreview,
+    SetBinaryOperation, ClearBinaryOperation,
     ClearAllTensors, DuplicateTensor,
     AddVectorTensor, AddMatrixTensor, AddImageTensor,
 )
@@ -97,6 +98,7 @@ Action = Union[
     # Tensor actions (new unified model)
     AddTensor, DeleteTensor, UpdateTensor, SelectTensor, DeselectTensor,
     ApplyOperation, PreviewOperation, CancelPreview, ConfirmPreview,
+    SetBinaryOperation, ClearBinaryOperation,
     ClearAllTensors, DuplicateTensor,
     AddVectorTensor, AddMatrixTensor, AddImageTensor,
     # Input panel actions (new UI)

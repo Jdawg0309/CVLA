@@ -15,6 +15,7 @@ from state.actions import Action
 from state.actions.tensor_actions import (
     AddTensor, DeleteTensor, UpdateTensor, SelectTensor, DeselectTensor,
     ApplyOperation, PreviewOperation, CancelPreview, ConfirmPreview,
+    SetBinaryOperation, ClearBinaryOperation,
     ClearAllTensors, DuplicateTensor,
     AddVectorTensor, AddMatrixTensor, AddImageTensor,
 )
@@ -87,6 +88,18 @@ def reduce_tensors(
 
     if isinstance(action, ConfirmPreview):
         return _handle_confirm_preview(state, with_history)
+
+    if isinstance(action, SetBinaryOperation):
+        return replace(state,
+            awaiting_second_tensor=action.operation_name,
+            first_tensor_id=action.first_tensor_id,
+        )
+
+    if isinstance(action, ClearBinaryOperation):
+        return replace(state,
+            awaiting_second_tensor=None,
+            first_tensor_id=None,
+        )
 
     return None
 
