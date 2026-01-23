@@ -413,26 +413,10 @@ class OperationTreeWidget:
                          tensor: "TensorData", state: "AppState", dispatch,
                          width: float):
         """Render a category with its operations."""
-        # Count applicable operations
-        applicable = sum(1 for op in operations if self._is_op_applicable(op, tensor))
-
-        # Color based on applicability
-        if applicable == len(operations):
-            header_color = (0.4, 0.8, 0.4)  # All applicable - green
-        elif applicable > 0:
-            header_color = (0.8, 0.8, 0.4)  # Some applicable - yellow
-        else:
-            header_color = (0.5, 0.5, 0.5)  # None applicable - gray
-
-        # Use tree_node instead of collapsing_header for better control
-        imgui.push_style_color(imgui.COLOR_TEXT, *header_color, 1.0)
-
-        # Default to expanded for first 4 categories
         if category not in self._expanded_categories:
             self._expanded_categories[category] = True
 
-        expanded = imgui.tree_node(f"{category} ({applicable}/{len(operations)})##{category}")
-        imgui.pop_style_color(1)
+        expanded = imgui.tree_node(f"{category}##{category}")
 
         if expanded:
             imgui.spacing()
@@ -442,71 +426,29 @@ class OperationTreeWidget:
             col = 0
 
             for op in operations:
-                is_applicable = self._is_op_applicable(op, tensor)
+                is_selected = self._selected_op and self._selected_op.id == op.id
 
                 if col > 0:
                     imgui.same_line()
 
-                # Style based on applicability and selection
-                # Capture selection state BEFORE rendering to ensure push/pop match
-                is_selected = self._selected_op and self._selected_op.id == op.id
-
-                if not is_applicable:
-                    imgui.push_style_var(imgui.STYLE_ALPHA, 0.4)
-                elif is_selected:
+                if is_selected:
                     imgui.push_style_color(imgui.COLOR_BUTTON, 0.2, 0.5, 0.3, 1.0)
 
                 if imgui.button(f"{op.name}##{op.id}", button_width, 26):
-                    if is_applicable:
-                        self._handle_operation_click(op, tensor, state, dispatch)
+                    self._handle_operation_click(op, tensor, state, dispatch)
 
-                if not is_applicable:
-                    imgui.pop_style_var()
-                elif is_selected:
+                if is_selected:
                     imgui.pop_style_color(1)
 
                 # Tooltip
                 if imgui.is_item_hovered():
-                    imgui.set_tooltip(f"{op.description}\nSymbol: {op.symbol}")
+                    tooltip = f"{op.description}\nSymbol: {op.symbol}"
+                    imgui.set_tooltip(tooltip)
 
                 col = (col + 1) % 2
 
             imgui.tree_pop()
             imgui.spacing()
-
-    def _is_op_applicable(self, op: OperationDef, tensor: "TensorData") -> bool:
-        """Check if operation is applicable to the current tensor."""
-        if tensor is None:
-            return False
-
-        # Check square matrix requirement
-        if op.requires_square:
-            if tensor.rank != 2 or tensor.rows != tensor.cols:
-                return False
-
-        # Matrix-only operations (not applicable to vectors)
-        matrix_only_ops = {
-            "transpose", "inverse", "pseudoinverse", "adjoint", "cofactor", "adjugate",
-            "determinant", "trace", "rank", "condition_number", "nullity",
-            "eigen", "svd", "qr", "lu", "cholesky", "schur",
-            "eigenvalues", "eigenvectors", "spectral_radius", "power_iteration",
-            "symmetrize", "skew_symmetrize", "diagonalize", "triangular_upper", "triangular_lower",
-            "gaussian_elimination", "rref", "back_substitution",
-            "kronecker", "change_basis", "similarity_transform", "orthogonalize",
-        }
-        if op.id in matrix_only_ops and tensor.rank != 2:
-            return False
-
-        # Vector-only operations
-        vector_only_ops = {"normalize", "cross", "dot", "project", "reject", "angle_between"}
-        if op.id in vector_only_ops and tensor.rank != 1:
-            return False
-
-        # Cross product requires 3D vectors
-        if op.id == "cross" and tensor.rank == 1 and len(tensor.data) != 3:
-            return False
-
-        return True
 
     def _handle_operation_click(self, op: OperationDef, tensor: "TensorData",
                                  state: "AppState", dispatch):

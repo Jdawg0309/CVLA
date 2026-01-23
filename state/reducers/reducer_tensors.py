@@ -1124,9 +1124,9 @@ def _op_determinant(targets: list, params: dict, create_new: bool) -> list:
     results = []
     for t in targets:
         if not _is_rank2(t):
-            continue
+            raise OperationError(f"Determinant requires a rank-2 tensor, got rank {t.rank}.")
         if t.rows != t.cols:
-            continue
+            raise OperationError(f"Matrix '{t.label}' is not square ({t.rows}x{t.cols}).")
         value = float(np.linalg.det(t.to_numpy()))
         new_data = ((value,),)
         if create_new:

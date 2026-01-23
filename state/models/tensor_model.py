@@ -5,7 +5,7 @@ TensorData represents vectors, matrices, and images in a unified structure.
 Semantic behavior is derived from rank and dtype.
 """
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, field
 from enum import Enum
 from typing import Tuple, Union, Optional
 from uuid import uuid4
@@ -36,11 +36,18 @@ class TensorData:
     visible: bool = True
     history: Tuple[str, ...] = ()
     original_data: Optional[Tuple[Union[float, Tuple], ...]] = None  # For reset functionality
+    order: int = field(default=-1, repr=False)
+
+    def __post_init__(self):
+        """Infer order once at creation if not explicitly provided."""
+        if self.order < 0:
+            inferred = _infer_order_from_data(self.data)
+            object.__setattr__(self, "order", inferred)
 
     @property
     def rank(self) -> int:
         """Number of dimensions."""
-        return len(self.shape)
+        return self.order
 
     @property
     def is_image_dtype(self) -> bool:
@@ -61,7 +68,8 @@ class TensorData:
             label=label,
             color=color,
             visible=True,
-            history=()
+            history=(),
+            order=1
         )
 
     @staticmethod
@@ -84,7 +92,8 @@ class TensorData:
             label=label,
             color=color,
             visible=True,
-            history=()
+            history=(),
+            order=2
         )
 
     @staticmethod
@@ -102,7 +111,8 @@ class TensorData:
             label=label,
             color=color,
             visible=True,
-            history=()
+            history=(),
+            order=parsed.order
         )
 
     @staticmethod
@@ -140,7 +150,8 @@ class TensorData:
             color=(0.8, 0.8, 0.8),
             visible=True,
             history=history,
-            original_data=original
+            original_data=original,
+            order=len(shape)
         )
 
     def to_numpy(self) -> np.ndarray:
@@ -151,10 +162,20 @@ class TensorData:
         """Return new TensorData with operation appended to history."""
         return replace(self, history=self.history + (operation,))
 
-    def with_data(self, new_data: Tuple, new_shape: Optional[Tuple[int, ...]] = None) -> 'TensorData':
+    def with_data(
+        self,
+        new_data: Tuple,
+        new_shape: Optional[Tuple[int, ...]] = None,
+        new_order: Optional[int] = None
+    ) -> 'TensorData':
         """Return new TensorData with updated data."""
         shape = new_shape if new_shape is not None else self.shape
-        return replace(self, data=new_data, shape=shape)
+        return replace(
+            self,
+            data=new_data,
+            shape=shape,
+            order=new_order if new_order is not None else self.order
+        )
 
     def with_label(self, label: str) -> 'TensorData':
         """Return new TensorData with updated label."""
@@ -259,3 +280,18 @@ def _normalize_matrix_values(values: Tuple[Tuple[float, ...], ...]) -> Tuple[Tup
             row = row[:max_cols]
         normalized.append(row)
     return tuple(normalized)
+
+
+def _infer_order_from_data(data) -> int:
+    """Infer tensor order from nested tuple data once at creation."""
+    if isinstance(data, (int, float)):
+        return 0
+    if isinstance(data, tuple):
+        if not data:
+            return 1
+        first_order = _infer_order_from_data(data[0])
+        for item in data:
+            if _infer_order_from_data(item) != first_order:
+                raise ValueError("Tensor data must be uniform across dimensions.")
+        return first_order + 1
+    raise ValueError("Unsupported tensor data type for order inference.")
