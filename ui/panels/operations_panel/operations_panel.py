@@ -239,18 +239,25 @@ class LatexInspectorWidget:
         result_tensor = self._resolve_result_tensor(record, state, tensor)
 
         tensor_label = tensor.label if tensor else "—"
+        tensor_id = tensor.id if tensor else "—"
         tensor_type = self._tensor_type(tensor)
         tensor_space = self._tensor_space(tensor)
         tensor_rank = tensor.rank if tensor else "—"
+        tensor_components_latex = format_tensor_value(tensor)
 
         imgui.text_colored("CVLA LaTeX Inspector — Canonical Spec", 0.56, 0.78, 0.95, 1.0)
         imgui.separator()
 
         # Tensor header
         imgui.text_colored(f"Tensor: {tensor_label}", 0.6, 0.9, 0.6, 1.0)
+        imgui.text(f"Tensor ID: {tensor_id}")
         imgui.text(f"Type: {tensor_type}")
+        imgui.text(f"Order (rank): {tensor_rank}")
         imgui.text(f"Space: {tensor_space}")
-        imgui.text(f"Rank: {tensor_rank}")
+
+        imgui.spacing()
+        imgui.text_colored("Components (LaTeX):", 0.7, 0.85, 0.8, 1.0)
+        imgui.text_unformatted(rf"${tensor_components_latex}$")
 
         imgui.spacing()
 

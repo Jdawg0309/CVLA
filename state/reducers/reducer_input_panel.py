@@ -42,10 +42,7 @@ def reduce_input_panel(
 
     # Text input actions
     if isinstance(action, SetTextInput):
-        parsed_type, _ = parse_input(
-            action.content,
-            matrix_only=state.active_input_method == "matrix"
-        )
+        parsed_type, _ = parse_input(action.content)
         return replace(
             state,
             input_text_content=action.content,
@@ -60,10 +57,7 @@ def reduce_input_panel(
         )
 
     if isinstance(action, ParseTextInput):
-        parsed_type, _ = parse_input(
-            state.input_text_content,
-            matrix_only=state.active_input_method == "matrix"
-        )
+        parsed_type, _ = parse_input(state.input_text_content)
         return replace(state, input_text_parsed_type=parsed_type)
 
     # File input actions
@@ -256,10 +250,7 @@ def _create_tensor_from_text(
 ) -> Optional["AppState"]:
     """Create a tensor from text input."""
     content = state.input_text_content
-    parsed_type, parsed_data = parse_input(
-        content,
-        matrix_only=state.active_input_method == "matrix"
-    )
+    parsed_type, parsed_data = parse_input(content)
 
     if parsed_type == "vector":
         data = parsed_data
@@ -358,16 +349,17 @@ def _create_tensor_from_grid(
     if not cells:
         return state
 
-    # Infer rank from shape: single row -> vector, otherwise matrix.
-    if len(cells) == 1 and cells[0]:
+    rows = tuple(tuple(row) for row in cells)
+    coords = _infer_grid_vector_coords(rows)
+    if coords is not None:
         tensor = TensorData.create_vector(
-            coords=cells[0],
+            coords=coords,
             label=action.label,
             color=action.color
         )
     else:
         tensor = TensorData.create_matrix(
-            values=cells,
+            values=rows,
             label=action.label,
             color=action.color
         )
@@ -378,6 +370,22 @@ def _create_tensor_from_grid(
         selected_tensor_id=tensor.id
     )
     return with_history(new_state)
+
+
+def _infer_grid_vector_coords(rows: Tuple[Tuple[float, ...], ...]) -> Optional[Tuple[float, ...]]:
+    """Return vector coordinates when the grid encodes a flat row."""
+    if not rows:
+        return None
+    if len(rows) == 1:
+        return rows[0]
+
+    nonzero_rows = []
+    for row in rows:
+        if any(cell != 0 for cell in row):
+            nonzero_rows.append(row)
+    if len(nonzero_rows) == 1:
+        return nonzero_rows[0]
+    return None
 
 
 def _load_matrix_from_file(path: str, file_type: str) -> Tuple[Tuple[float, ...], ...]:

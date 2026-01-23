@@ -35,10 +35,10 @@ def _format_scalar(value: Optional[float]) -> str:
 def _format_vector(arr: np.ndarray) -> str:
     flat = arr.flatten()
     entries = flat[:4]
-    text = ", ".join(_format_scalar(float(x)) for x in entries)
+    rows = " \\\\ ".join(_format_scalar(float(x)) for x in entries)
     if flat.size > len(entries):
-        text += ", \\dots"
-    return rf"\left({text}\right)"
+        rows += " \\\\ \\dots"
+    return rf"\begin{{bmatrix}} {rows} \end{{bmatrix}}"
 
 
 def _format_matrix(arr: np.ndarray) -> str:
@@ -453,7 +453,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Orthogonalize",
         domain="Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{orth}\\left({A}\\right)",
+        latex_template="\\mathrm{{orth}}\\left({A}\\right)",
         placeholders={"A": _target(0)},
         symbol_map={"A": r"\mathbf{A}"},
     ),
@@ -461,7 +461,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Project Subspace",
         domain="Matrix × Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{proj}_{ {B} }\\left({A}\\right)",
+        latex_template="\\mathrm{{proj}}_{ {B} }\\left({A}\\right)",
         placeholders={"A": _target(0), "B": _target(1)},
         symbol_map={"A": r"\mathbf{A}", "B": r"\mathbf{B}"},
     ),
@@ -533,7 +533,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Project",
         domain="Vector × Vector",
         codomain="Vector",
-        latex_template="\\mathrm{proj}_{ {b} }({a})",
+        latex_template="\\mathrm{{proj}}_{ {b} }({a})",
         placeholders={"a": _target(0), "b": _target(1)},
         symbol_map={"a": r"\mathbf{a}", "b": r"\mathbf{b}"},
     ),
@@ -541,7 +541,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Reject",
         domain="Vector × Vector",
         codomain="Vector",
-        latex_template="\\mathrm{rej}_{ {b} }({a})",
+        latex_template="\\mathrm{{rej}}_{ {b} }({a})",
         placeholders={"a": _target(0), "b": _target(1)},
         symbol_map={"a": r"\mathbf{a}", "b": r"\mathbf{b}"},
     ),
@@ -557,7 +557,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Gaussian Elimination",
         domain="Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{ref}({A})",
+        latex_template="\\mathrm{{ref}}({A})",
         placeholders={"A": _target(0)},
         symbol_map={"A": r"\mathbf{A}"},
     ),
@@ -565,7 +565,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="RREF",
         domain="Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{rref}({A})",
+        latex_template="\\mathrm{{rref}}({A})",
         placeholders={"A": _target(0)},
         symbol_map={"A": r"\mathbf{A}"},
     ),
@@ -613,7 +613,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Diagonalize",
         domain="Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{diag}({A})",
+        latex_template="\\mathrm{{diag}}({A})",
         placeholders={"A": _target(0)},
         symbol_map={"A": r"\mathbf{A}"},
     ),
@@ -621,7 +621,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Upper Triangular",
         domain="Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{triu}({A})",
+        latex_template="\\mathrm{{triu}}({A})",
         placeholders={"A": _target(0)},
         symbol_map={"A": r"\mathbf{A}"},
     ),
@@ -629,7 +629,7 @@ OPERATION_METADATA: Dict[str, OperationMetadata] = {
         name="Lower Triangular",
         domain="Matrix",
         codomain="Matrix",
-        latex_template="\\mathrm{tril}({A})",
+        latex_template="\\mathrm{{tril}}({A})",
         placeholders={"A": _target(0)},
         symbol_map={"A": r"\mathbf{A}"},
     ),
