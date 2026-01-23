@@ -289,7 +289,7 @@ def _render_3d_axes_with_depths(self, vp, length=None):
         self.gizmos.draw_lines(
             axis["points"],
             [axis["color"], axis["color"]],
-            vp, width=4.5, depth=False, write_depth=False
+            vp, width=6.5, depth=False, write_depth=False
         )
 
     size = max(20.0, self.view.grid_size) * 1.2
@@ -304,7 +304,7 @@ def _render_3d_axes_with_depths(self, vp, length=None):
         self.gizmos.draw_lines(
             axis["points"],
             [axis["color"], axis["color"]],
-            vp, width=2.0, depth=False, write_depth=False
+            vp, width=3.0, depth=False, write_depth=False
         )
 
     self._draw_axis_cones(vp, length)

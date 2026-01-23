@@ -192,7 +192,7 @@ class AppState:
     view_show_grid: bool = True
     view_show_axes: bool = True
     view_show_labels: bool = True
-    view_show_tensor_faces: bool = False
+    view_show_tensor_faces: bool = True
     view_grid_size: int = 15
     view_base_major_tick: int = 5
     view_base_minor_tick: int = 1

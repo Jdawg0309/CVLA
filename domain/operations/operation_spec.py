@@ -7,6 +7,7 @@ All math operations must implement this interface.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, Sequence
 
+from domain.operations.operation_metadata import OperationMetadata, get_operation_metadata
 from state.models.operation_step import OperationStep
 
 
@@ -29,3 +30,7 @@ class OperationSpec(ABC):
     def render_hints(self, inputs: Dict[str, Any], params: Dict[str, Any], result: Any) -> Dict[str, Any]:
         """Optional render hints for the operation."""
         return {}
+
+    def metadata(self) -> OperationMetadata:
+        """Return LaTeX metadata associated with this operation."""
+        return get_operation_metadata(self.id)

@@ -18,13 +18,13 @@ if TYPE_CHECKING:
     from state.models.tensor_model import TensorData
 
 from ui.utils import set_next_window_position, set_next_window_size
+from domain.operations.operation_metadata import format_tensor_value, get_operation_metadata
 from domain.vectors.vector_ops import gaussian_elimination_steps
 from state.actions import (
     SetPipeline,
     SetViewPreset,
     SetViewUpAxis,
     ToggleViewGrid,
-    ToggleViewAxes,
     ToggleViewLabels,
     ToggleView2D,
     SetViewGridSize,
@@ -50,6 +50,7 @@ from state.actions.tensor_actions import (
     ConfirmPreview,
 )
 from state.models import EducationalStep
+from state.models.operation_record import OperationRecord
 from state.models.tensor_model import TensorDType
 from state.selectors import (
     get_matrices,
@@ -212,224 +213,144 @@ cli_log = CLIOperationLog()
 
 
 # ============================================================================
-# CALCULATOR VIEW WIDGET
+# LaTeX Inspector Widget
 # ============================================================================
 
-class CalculatorViewWidget:
-    """
-    Calculator-style view showing tensor math operations.
-
-    Displays operations like:
-    ┌─────────┐     ┌─────────┐     ┌─────────┐
-    │  T1     │  ×  │   T2    │  =  │ Result  │
-    │ [1 2]   │     │ [5 6]   │     │ [19 22] │
-    │ [3 4]   │     │ [7 8]   │     │ [43 50] │
-    └─────────┘     └─────────┘     └─────────┘
-    """
+class LatexInspectorWidget:
+    """Read-only CLI-style inspector rendering LaTeX math from operations."""
 
     def __init__(self):
-        self._pending_operation: Optional[OperationDef] = None
-        self._second_tensor_id: Optional[str] = None
-        self._result_preview: Optional[np.ndarray] = None
-        self._operation_history: List[Dict] = []
+        self._panel_height = 240
 
-    def set_operation(self, op: OperationDef):
-        """Set the current operation for the calculator."""
-        self._pending_operation = op
-        self._second_tensor_id = None
-        self._result_preview = None
-
-    def set_second_tensor(self, tensor_id: str):
-        """Set the second tensor for binary operations."""
-        self._second_tensor_id = tensor_id
-
-    def clear(self):
-        """Clear the calculator state."""
-        self._pending_operation = None
-        self._second_tensor_id = None
-        self._result_preview = None
-
-    def render(self, tensor: "TensorData", state: "AppState", dispatch, width: float):
-        """Render the calculator view."""
-        imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.08, 0.08, 0.12, 1.0)
-
-        calc_height = 150
-        if imgui.begin_child("##calculator_view", width - 10, calc_height, border=True):
-            self._render_calculator_content(tensor, state, dispatch, width - 40)
+    def render(self, tensor: "TensorData", state: "AppState", width: float):
+        """Render the inspector with canonical math expressions."""
+        imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.04, 0.04, 0.08, 1.0)
+        flags = _WINDOW_ALWAYS_VERTICAL_SCROLLBAR
+        if imgui.begin_child("##latex_inspector", width - 10, self._panel_height,
+                             border=True, flags=flags):
+            self._render_content(tensor, state, width)
         imgui.end_child()
-
         imgui.pop_style_color(1)
 
-    def _render_calculator_content(self, tensor: "TensorData", state: "AppState",
-                                    dispatch, width: float):
-        """Render the calculator content."""
-        imgui.spacing()
+    def _render_content(self, tensor: "TensorData", state: "AppState", width: float):
+        record = state.operation_history[-1] if state.operation_history else None
+        active_op = state.operations.current_operation or (record.operation_name if record else None)
+        metadata = get_operation_metadata(active_op) if active_op else None
+        result_tensor = self._resolve_result_tensor(record, state, tensor)
 
-        # Title
-        imgui.text_colored("CALCULATOR", 0.6, 0.8, 1.0, 1.0)
-        imgui.same_line()
-        if self._pending_operation:
-            imgui.text_colored(f"[ {self._pending_operation.name} ]", 0.4, 0.9, 0.4, 1.0)
+        tensor_label = tensor.label if tensor else "—"
+        tensor_type = self._tensor_type(tensor)
+        tensor_space = self._tensor_space(tensor)
+        tensor_rank = tensor.rank if tensor else "—"
+
+        imgui.text_colored("CVLA LaTeX Inspector — Canonical Spec", 0.56, 0.78, 0.95, 1.0)
         imgui.separator()
+
+        # Tensor header
+        imgui.text_colored(f"Tensor: {tensor_label}", 0.6, 0.9, 0.6, 1.0)
+        imgui.text(f"Type: {tensor_type}")
+        imgui.text(f"Space: {tensor_space}")
+        imgui.text(f"Rank: {tensor_rank}")
+
         imgui.spacing()
 
+        # Operation header
+        op_label = metadata.name if metadata else (active_op or "—")
+        domain_label = metadata.domain if metadata else "—"
+        codomain_label = metadata.codomain if metadata else "—"
+        imgui.text_colored(f"Operation: {op_label}", 0.8, 0.8, 1.0, 1.0)
+        imgui.text(f"Domain: {domain_label}")
+        imgui.text(f"Codomain: {codomain_label}")
+
+        imgui.spacing()
+
+        expr = metadata.render_latex() if metadata else r"\text{waiting\ for\ math}"
+        numeric = metadata.render_numeric(record, state, result_tensor) if metadata else r"\text{waiting\ for\ math}"
+
+        self._render_cli_block("LaTeX Expression", rf"${expr}$", width, 70)
+        imgui.spacing()
+        self._render_cli_block("Numerical Substitution", rf"${numeric}$", width, 70)
+        imgui.spacing()
+        result_display = format_tensor_value(result_tensor)
+        self._render_cli_block("Result", rf"${result_display}$", width, 60)
+
+        if state.error_message:
+            imgui.spacing()
+            imgui.text_colored("Error:", 0.9, 0.4, 0.4, 1.0)
+            sanitized = state.error_message.replace("{", "\\{").replace("}", "\\}")
+            imgui.text_unformatted(rf"$\text{{{sanitized}}}$")
+
+        steps, idx = self._active_steps(state)
+        if steps:
+            imgui.spacing()
+            step = steps[min(idx, len(steps) - 1)]
+            imgui.text_colored(
+                f"Step {idx + 1} of {len(steps)}: {step.title}",
+                0.85, 0.85, 0.6, 1.0
+            )
+            if step.description:
+                desc = step.description.replace("{", "\\{").replace("}", "\\}")
+                imgui.text_unformatted(rf"$\text{{{desc}}}$")
+
+    def _resolve_result_tensor(
+        self,
+        record: Optional[OperationRecord],
+        state: "AppState",
+        fallback: Optional["TensorData"],
+    ) -> Optional["TensorData"]:
+        if record and record.result_ids:
+            for rid in record.result_ids:
+                candidate = next((t for t in state.tensors if t.id == rid), None)
+                if candidate:
+                    return candidate
+        return fallback
+
+    def _tensor_type(self, tensor: Optional["TensorData"]) -> str:
         if tensor is None:
-            imgui.text_colored("Select a tensor to begin", 0.5, 0.5, 0.5, 1.0)
-            return
+            return "None"
+        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
+            return "Image"
+        if tensor.rank == 1:
+            return "Vector"
+        if tensor.rank == 2:
+            return "Matrix"
+        return f"Tensor (rank {tensor.rank})"
 
-        # Layout: T1 [OP] T2 = Result (or just T1 [OP] = Result for unary)
-        box_width = (width - 80) / 3
+    def _tensor_space(self, tensor: Optional["TensorData"]) -> str:
+        if tensor is None:
+            return "ℝ"
+        if tensor.rank == 1:
+            return f"ℝ^{tensor.shape[0]}"
+        if tensor.rank == 2:
+            return f"ℝ^{tensor.shape[0]}×ℝ^{tensor.shape[1]}"
+        return f"ℝ^{tensor.rank}"
 
-        # First tensor
-        self._render_tensor_box(tensor, "T1", box_width, (0.4, 0.7, 1.0))
+    def _active_steps(self, state: "AppState"):
+        if state.operations and state.operations.steps:
+            return state.operations.steps, state.operations.step_index
+        if state.pipeline_steps:
+            return state.pipeline_steps, state.pipeline_step_index
+        return None, 0
 
-        imgui.same_line()
-
-        # Operation symbol
-        if self._pending_operation:
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() + 30)
-            imgui.text_colored(f" {self._pending_operation.symbol} ", 1.0, 0.9, 0.3, 1.0)
-            imgui.same_line()
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() - 30)
-        else:
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() + 30)
-            imgui.text_colored(" ? ", 0.5, 0.5, 0.5, 1.0)
-            imgui.same_line()
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() - 30)
-
-        # Second tensor (for binary ops) or equals sign
-        if self._pending_operation and self._pending_operation.requires_second_tensor:
-            second_tensor = None
-            if self._second_tensor_id and state:
-                for t in state.tensors:
-                    if t.id == self._second_tensor_id:
-                        second_tensor = t
-                        break
-
-            if second_tensor:
-                self._render_tensor_box(second_tensor, "T2", box_width, (1.0, 0.7, 0.4))
-            else:
-                self._render_placeholder_box("T2?", box_width)
-
-            imgui.same_line()
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() + 30)
-            imgui.text_colored(" = ", 0.7, 0.7, 0.7, 1.0)
-            imgui.same_line()
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() - 30)
-        else:
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() + 30)
-            imgui.text_colored(" = ", 0.7, 0.7, 0.7, 1.0)
-            imgui.same_line()
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() - 30)
-
-        # Result preview
-        if self._result_preview is not None:
-            self._render_result_box(self._result_preview, box_width)
-        else:
-            self._render_placeholder_box("?", box_width, (0.3, 0.3, 0.3))
-
-        imgui.spacing()
-        imgui.separator()
-        imgui.spacing()
-
-        # Math formula display
-        self._render_math_formula(tensor, state)
-
-    def _render_tensor_box(self, tensor: "TensorData", label: str,
-                           width: float, color: Tuple[float, float, float]):
-        """Render a tensor in a box."""
-        imgui.push_style_color(imgui.COLOR_BORDER, *color, 1.0)
-
-        if imgui.begin_child(f"##{label}_box", width, 80, border=True):
-            imgui.text_colored(f"{tensor.label}", *color, 1.0)
-            imgui.separator()
-
-            if tensor.rank == 1:
-                # Vector: show as row
-                coords = tensor.coords
-                if len(coords) <= 4:
-                    row_str = " ".join(f"{c:.2f}" for c in coords)
-                else:
-                    row_str = " ".join(f"{c:.2f}" for c in coords[:3]) + " ..."
-                imgui.text_colored(f"[{row_str}]", 0.8, 0.8, 0.8, 1.0)
-            elif tensor.rank == 2:
-                # Matrix: show first 2-3 rows
-                values = tensor.values
-                for i, row in enumerate(values[:3]):
-                    if len(row) <= 4:
-                        row_str = " ".join(f"{v:.1f}" for v in row)
-                    else:
-                        row_str = " ".join(f"{v:.1f}" for v in row[:3]) + ".."
-                    imgui.text_colored(f"[{row_str}]", 0.7, 0.7, 0.7, 1.0)
-                if len(values) > 3:
-                    imgui.text_colored(" ...", 0.5, 0.5, 0.5, 1.0)
-
-        imgui.end_child()
-        imgui.pop_style_color(1)
-
-    def _render_placeholder_box(self, label: str, width: float,
-                                 color: Tuple[float, float, float] = (0.4, 0.4, 0.4)):
-        """Render a placeholder box."""
-        if imgui.begin_child(f"##placeholder_{label}", width, 80, border=True):
-            imgui.set_cursor_pos_y(imgui.get_cursor_pos_y() + 25)
-            text_width = imgui.calc_text_size(label)[0]
-            imgui.set_cursor_pos_x((width - text_width) / 2)
-            imgui.text_colored(label, *color, 1.0)
-        imgui.end_child()
-
-    def _render_result_box(self, result: np.ndarray, width: float):
-        """Render the result preview."""
-        imgui.push_style_color(imgui.COLOR_BORDER, 0.4, 0.9, 0.4, 1.0)
-
-        if imgui.begin_child("##result_box", width, 80, border=True):
-            imgui.text_colored("Result", 0.4, 0.9, 0.4, 1.0)
-            imgui.separator()
-
-            if result.ndim == 0:
-                # Scalar
-                imgui.text_colored(f"{float(result):.4f}", 0.9, 0.9, 0.9, 1.0)
-            elif result.ndim == 1:
-                # Vector
-                if len(result) <= 4:
-                    row_str = " ".join(f"{v:.2f}" for v in result)
-                else:
-                    row_str = " ".join(f"{v:.2f}" for v in result[:3]) + " ..."
-                imgui.text_colored(f"[{row_str}]", 0.8, 0.8, 0.8, 1.0)
-            else:
-                # Matrix
-                for i, row in enumerate(result[:3]):
-                    if len(row) <= 4:
-                        row_str = " ".join(f"{v:.1f}" for v in row)
-                    else:
-                        row_str = " ".join(f"{v:.1f}" for v in row[:3]) + ".."
-                    imgui.text_colored(f"[{row_str}]", 0.7, 0.7, 0.7, 1.0)
-                if len(result) > 3:
-                    imgui.text_colored(" ...", 0.5, 0.5, 0.5, 1.0)
-
-        imgui.end_child()
-        imgui.pop_style_color(1)
-
-    def _render_math_formula(self, tensor: "TensorData", state: "AppState"):
-        """Render the mathematical formula for the current operation."""
-        if not self._pending_operation:
-            imgui.text_colored("Select an operation from the tree below", 0.5, 0.5, 0.5, 1.0)
-            return
-
-        op = self._pending_operation
-        formula = f"{tensor.label}"
-
-        if op.requires_second_tensor:
-            if self._second_tensor_id and state:
-                for t in state.tensors:
-                    if t.id == self._second_tensor_id:
-                        formula = f"{tensor.label} {op.symbol} {t.label}"
-                        break
-            else:
-                formula = f"{tensor.label} {op.symbol} ?"
-        else:
-            formula = f"{op.symbol}({tensor.label})"
-
-        imgui.text_colored(f"Formula: {formula}", 0.7, 0.8, 0.9, 1.0)
+    def _render_cli_block(self, label: str, content: str, width: float, min_height: int = 60):
+        """Render a CLI-style read-only block for LaTeX and numeric snippets."""
+        text = (content or "").strip() or "—"
+        lines = max(1, text.count("\n") + 1)
+        height = min(max(min_height, lines * 18 + 12), 140)
+        block_width = max(width - 24, 120)
+        read_only_flag = getattr(imgui, "INPUT_TEXT_READ_ONLY", 1 << 20)
+        no_scroll_flag = getattr(imgui, "INPUT_TEXT_NO_HORIZONTAL_SCROLL", 1 << 24)
+        imgui.text_colored(label, 0.7, 0.9, 1.0, 1.0)
+        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.03, 0.03, 0.05, 1.0)
+        imgui.push_style_color(imgui.COLOR_TEXT, 0.8, 0.9, 1.0, 1.0)
+        _, _ = imgui.input_text_multiline(
+            f"##latex_cli_{label.replace(' ', '_')}",
+            text,
+            block_width,
+            height,
+            read_only_flag | no_scroll_flag,
+        )
+        imgui.pop_style_color(2)
 
 
 # ============================================================================
@@ -445,11 +366,9 @@ class OperationTreeWidget:
     def __init__(self):
         self._expanded_categories: Dict[str, bool] = {}
         self._selected_op: Optional[OperationDef] = None
-        self._second_tensor_idx: int = 0
         self._scale_value: float = 1.0
 
-    def render(self, tensor: "TensorData", state: "AppState", dispatch, width: float,
-               calculator: CalculatorViewWidget):
+    def render(self, tensor: "TensorData", state: "AppState", dispatch, width: float):
         """Render the operation tree."""
         total_ops = sum(len(ops) for ops in OPERATION_CATEGORIES.values())
         imgui.text_colored(f"OPERATIONS ({total_ops})", 0.6, 0.8, 1.0, 1.0)
@@ -466,11 +385,11 @@ class OperationTreeWidget:
         # Render each category
         for category, operations in OPERATION_CATEGORIES.items():
             self._render_category(category, operations, tensor, state, dispatch,
-                                  width, calculator)
+                                  width)
 
     def _render_category(self, category: str, operations: List[OperationDef],
                          tensor: "TensorData", state: "AppState", dispatch,
-                         width: float, calculator: CalculatorViewWidget):
+                         width: float):
         """Render a category with its operations."""
         # Count applicable operations
         applicable = sum(1 for op in operations if self._is_op_applicable(op, tensor))
@@ -517,7 +436,7 @@ class OperationTreeWidget:
 
                 if imgui.button(f"{op.name}##{op.id}", button_width, 26):
                     if is_applicable:
-                        self._handle_operation_click(op, tensor, state, dispatch, calculator)
+                        self._handle_operation_click(op, tensor, state, dispatch)
 
                 if not is_applicable:
                     imgui.pop_style_var()
@@ -568,11 +487,9 @@ class OperationTreeWidget:
         return True
 
     def _handle_operation_click(self, op: OperationDef, tensor: "TensorData",
-                                 state: "AppState", dispatch,
-                                 calculator: CalculatorViewWidget):
+                                 state: "AppState", dispatch):
         """Handle clicking an operation button."""
         self._selected_op = op
-        calculator.set_operation(op)
 
         if op.requires_second_tensor:
             # Set binary operation mode - user will click second tensor in input panel
@@ -582,23 +499,22 @@ class OperationTreeWidget:
             ))
         else:
             # Execute immediately for unary operations
-            self._execute_operation(op, tensor, None, state, dispatch, calculator)
+            self._execute_operation(op, tensor, None, state, dispatch)
 
-    def render_popups(self, tensor: "TensorData", state: "AppState", dispatch,
-                      calculator: CalculatorViewWidget):
+    def render_popups(self, tensor: "TensorData", state: "AppState", dispatch):
         """Render any open popups for operation configuration."""
         if tensor is None:
             return
 
         if self._selected_op and self._selected_op.requires_second_tensor:
-            self._render_second_tensor_popup(tensor, state, dispatch, calculator)
+            self._render_second_tensor_popup(tensor, state, dispatch)
 
         # Scale value popup
         if self._selected_op and self._selected_op.id == "scale":
-            self._render_scale_popup(tensor, state, dispatch, calculator)
+            self._render_scale_popup(tensor, state, dispatch)
 
     def _render_second_tensor_popup(self, tensor: "TensorData", state: "AppState",
-                                     dispatch, calculator: CalculatorViewWidget):
+                                     dispatch):
         """Render popup for selecting second tensor."""
         op = self._selected_op
         if not op or tensor is None:
@@ -617,20 +533,18 @@ class OperationTreeWidget:
             else:
                 for t in compatible:
                     if imgui.selectable(f"{t.label} ({self._format_shape(t)})")[0]:
-                        calculator.set_second_tensor(t.id)
-                        self._execute_operation(op, tensor, t, state, dispatch, calculator)
+                        self._execute_operation(op, tensor, t, state, dispatch)
                         imgui.close_current_popup()
 
             imgui.spacing()
             if imgui.button("Cancel", 100, 24):
                 self._selected_op = None
-                calculator.clear()
                 imgui.close_current_popup()
 
             imgui.end_popup()
 
     def _render_scale_popup(self, tensor: "TensorData", state: "AppState",
-                            dispatch, calculator: CalculatorViewWidget):
+                            dispatch):
         """Render popup for scale factor input."""
         if tensor is None:
             return
@@ -711,7 +625,7 @@ class OperationTreeWidget:
 
     def _execute_operation(self, op: OperationDef, tensor: "TensorData",
                            second_tensor: Optional["TensorData"], state: "AppState",
-                           dispatch, calculator: CalculatorViewWidget):
+                           dispatch):
         """Execute the operation and update state."""
         if tensor is None:
             return
@@ -743,7 +657,6 @@ class OperationTreeWidget:
 
         # Clear selection
         self._selected_op = None
-        calculator.clear()
 
 
 # ============================================================================
@@ -935,9 +848,16 @@ class ViewSettingsWidget:
         if changed:
             dispatch(ToggleViewGrid())
 
-        changed, _ = imgui.checkbox("Show Axes", state.view_show_axes)
+        imgui.text_colored(
+            "Axes stay visible and inherit the current theme colors.",
+            0.6, 0.7, 0.9, 1.0
+        )
+
+        changed, _ = imgui.checkbox("Render Tensor Faces", state.view_show_tensor_faces)
         if changed:
-            dispatch(ToggleViewAxes())
+            dispatch(ToggleViewTensorFaces())
+        if imgui.is_item_hovered():
+            imgui.set_tooltip("Rank-2 tensors get translucent faces with black outlines.")
 
         changed, _ = imgui.checkbox("Show Labels", state.view_show_labels)
         if changed:
@@ -964,7 +884,7 @@ class OperationsPanel:
     """
 
     def __init__(self):
-        self.calculator = CalculatorViewWidget()
+        self.inspector = LatexInspectorWidget()
         self.tensor_info = TensorInfoWidget()
         self.operation_tree = OperationTreeWidget()
         self.cli_log = CLILogWidget()
@@ -1017,7 +937,7 @@ class OperationsPanel:
                                  dispatch, width: float):
         """Render the main operations mode."""
         # 1. Calculator View (always at top)
-        self.calculator.render(selected, state, dispatch, width)
+        self.inspector.render(selected, state, width)
 
         imgui.spacing()
 
@@ -1031,10 +951,9 @@ class OperationsPanel:
         # 3. Operation Tree (scrollable, fills remaining space)
         if imgui.begin_child("##op_tree", width - 10, 0, border=False,
                             flags=_WINDOW_ALWAYS_VERTICAL_SCROLLBAR):
-            self.operation_tree.render(selected, state, dispatch, width - 25,
-                                       self.calculator)
+            self.operation_tree.render(selected, state, dispatch, width - 25)
             # Popups must be rendered in same ID stack where they were opened
-            self.operation_tree.render_popups(selected, state, dispatch, self.calculator)
+            self.operation_tree.render_popups(selected, state, dispatch)
         imgui.end_child()
 
     def _render_view_mode(self, state: "AppState", dispatch, width: float):

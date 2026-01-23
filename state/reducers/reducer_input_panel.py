@@ -8,7 +8,6 @@ from dataclasses import replace
 from typing import Optional, Callable, TYPE_CHECKING, List, Tuple
 import csv
 import json
-import re
 from pathlib import Path
 
 if TYPE_CHECKING:
@@ -23,6 +22,7 @@ from state.actions.input_panel_actions import (
     CreateTensorFromTextInput, CreateTensorFromFileInput, CreateTensorFromGridInput,
 )
 from state.models.tensor_model import TensorData
+from state.input_parser import parse_input
 
 
 def reduce_input_panel(
@@ -42,7 +42,7 @@ def reduce_input_panel(
 
     # Text input actions
     if isinstance(action, SetTextInput):
-        parsed_type = _parse_input_type(
+        parsed_type, _ = parse_input(
             action.content,
             matrix_only=state.active_input_method == "matrix"
         )
@@ -60,7 +60,7 @@ def reduce_input_panel(
         )
 
     if isinstance(action, ParseTextInput):
-        parsed_type = _parse_input_type(
+        parsed_type, _ = parse_input(
             state.input_text_content,
             matrix_only=state.active_input_method == "matrix"
         )
@@ -150,148 +150,6 @@ def reduce_input_panel(
 
     if isinstance(action, CreateTensorFromGridInput):
         return _create_tensor_from_grid(state, action, with_history)
-
-    return None
-
-
-def _parse_input_type(content: str, matrix_only: bool = False) -> str:
-    """
-    Parse text input to determine type.
-
-    Follows the same logic as input_panel.py:parse_input:
-    - Explicit brackets [1, 2, 3] → vector (rank-1)
-    - Everything else → matrix (rank-2) if parseable
-
-    Returns:
-        "vector" if 1D data
-        "matrix" if 2D data
-        "" if unparseable
-    """
-    content = content.strip()
-    if not content:
-        return ""
-
-    if matrix_only:
-        if _try_parse_matrix(content) is not None:
-            return "matrix"
-        if _try_parse_vector(content) is not None:
-            return "vector"
-        return ""
-
-    # Rank-1 tensors require explicit brackets: [1, 2, 3]
-    # This matches the input_panel.py display logic
-    if _is_rank1_bracketed(content):
-        if _try_parse_vector(content) is not None:
-            return "vector"
-        return ""
-
-    # Everything else parses as rank-2 (matrix) if valid
-    if _try_parse_matrix(content) is not None:
-        return "matrix"
-
-    return ""
-
-
-def _is_rank1_bracketed(content: str) -> bool:
-    """Detect explicit rank-1 syntax: single bracket pair with no nesting."""
-    text = content.strip()
-    if not (text.startswith("[") and text.endswith("]")):
-        return False
-    if text.startswith("[["):
-        return False
-    if text.count("[") != 1 or text.count("]") != 1:
-        return False
-    if ";" in text or "\n" in text:
-        return False
-    return True
-
-
-def _try_parse_vector(content: str) -> Optional[tuple]:
-    """Try to parse content as a vector."""
-    content = content.strip()
-
-    # Remove brackets
-    content = content.strip("[]")
-
-    # Split by comma or whitespace
-    if "," in content:
-        parts = content.split(",")
-    else:
-        parts = content.split()
-
-    try:
-        values = tuple(float(p.strip()) for p in parts if p.strip())
-        return values if values else None
-    except ValueError:
-        return None
-
-
-def _try_parse_matrix(content: str) -> Optional[tuple]:
-    """Try to parse content as a matrix."""
-    content = content.strip()
-
-    # Handle Python-style nested lists
-    if content.startswith("[["):
-        try:
-            # Simple eval-like parsing (safe subset)
-            content = content.replace("[", "(").replace("]", ")")
-            # Only allow numbers, parens, commas, whitespace, minus, dots
-            if re.match(r'^[\d\s,.\-()eE+]+$', content):
-                result = eval(content)
-                if isinstance(result, tuple) and all(isinstance(r, tuple) for r in result):
-                    return tuple(tuple(float(v) for v in row) for row in result)
-        except Exception:
-            pass
-
-    # Handle semicolon-separated rows
-    if ";" in content:
-        rows = content.split(";")
-        try:
-            result = []
-            for row in rows:
-                row = row.strip().strip("[]")
-                if "," in row:
-                    values = [float(v.strip()) for v in row.split(",") if v.strip()]
-                else:
-                    values = [float(v.strip()) for v in row.split() if v.strip()]
-                if values:
-                    result.append(tuple(values))
-            return tuple(result) if result else None
-        except ValueError:
-            return None
-
-    # Handle newline-separated rows
-    if "\n" in content:
-        rows = content.strip().split("\n")
-        try:
-            result = []
-            for row in rows:
-                row = row.strip().strip("[]")
-                if not row:
-                    continue
-                if "," in row:
-                    values = [float(v.strip()) for v in row.split(",") if v.strip()]
-                else:
-                    values = [float(v.strip()) for v in row.split() if v.strip()]
-                if values:
-                    result.append(tuple(values))
-            return tuple(result) if result else None
-        except ValueError:
-            return None
-
-    # Handle single-row matrix (no delimiters - just comma or space separated)
-    # This matches the display logic in input_panel.py
-    row = content.strip().strip("[]()").strip()
-    if row:
-        try:
-            if "," in row:
-                values = [float(v.strip()) for v in row.split(",") if v.strip()]
-            else:
-                values = [float(v.strip()) for v in row.split() if v.strip()]
-            if values:
-                return (tuple(values),)
-        except ValueError:
-            pass
 
     return None
 
@@ -398,10 +256,13 @@ def _create_tensor_from_text(
 ) -> Optional["AppState"]:
     """Create a tensor from text input."""
     content = state.input_text_content
-    parsed_type = state.input_text_parsed_type
+    parsed_type, parsed_data = parse_input(
+        content,
+        matrix_only=state.active_input_method == "matrix"
+    )
 
     if parsed_type == "vector":
-        data = _try_parse_vector(content)
+        data = parsed_data
         if data is None:
             return state
         tensor = TensorData.create_vector(
@@ -410,7 +271,7 @@ def _create_tensor_from_text(
             color=action.color
         )
     elif parsed_type == "matrix":
-        data = _try_parse_matrix(content)
+        data = parsed_data
         if data is None:
             return state
         tensor = TensorData.create_matrix(
