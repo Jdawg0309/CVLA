@@ -56,3 +56,14 @@ def test_transpose_preserves_order():
     results = _op_transpose([tensor], {}, True)
     assert results
     assert results[0].rank == 2
+
+
+def test_column_input_preserves_dims():
+    """Column data should collapse to a vector but keep row/column metadata."""
+    parsed = parse_tensor("1; 2; 3")
+    tensor = TensorData.from_parsed(parsed=parsed, label="col", color=(0.5, 0.5, 0.5))
+    assert parsed.order == 1
+    assert parsed.shape == (3, 1)
+    assert parsed.logical_shape == (3,)
+    assert tensor.order == 1
+    assert tensor.shape == (3, 1)

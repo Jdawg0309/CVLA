@@ -34,6 +34,7 @@ class ParsedTensor:
     data: Union[float, Tuple["ParsedTensorData", ...]]
     order: int
     shape: Tuple[int, ...]
+    logical_shape: Tuple[int, ...]
     kind: TensorKind
 
 
@@ -80,9 +81,28 @@ def build_parsed_tensor(data: NestedData) -> ParsedTensor:
     Convert a nested structure of numbers/lists into a ParsedTensor.
     """
     normalized, shape = _normalize_structure(data)
-    order = len(shape)
+    collapsed_data, logical_shape = _collapse_degenerate_axes(normalized, shape)
+    order = len(logical_shape)
     kind = _kind_from_order(order)
-    return ParsedTensor(data=normalized, order=order, shape=shape, kind=kind)
+    return ParsedTensor(
+        data=collapsed_data,
+        order=order,
+        shape=shape,
+        logical_shape=logical_shape,
+        kind=kind,
+    )
+
+
+def _collapse_degenerate_axes(normalized: ParsedTensorData, shape: Tuple[int, ...]) -> Tuple[ParsedTensorData, Tuple[int, ...]]:
+    """Treat Nx1 or 1xN structures as vectors (rank 1) without changing data semantics."""
+    if len(shape) == 2:
+        rows, cols = shape
+        if rows == 1 and cols >= 1:
+            return normalized[0], (cols,)
+        if cols == 1 and rows >= 1:
+            collapsed = tuple(row[0] for row in normalized)
+            return collapsed, (rows,)
+    return normalized, shape
 
 
 def _kind_from_order(order: int) -> TensorKind:
@@ -111,7 +131,9 @@ def _normalize_structure(value: NestedData) -> Tuple[ParsedTensorData, Tuple[int
         for shape in child_shapes:
             if shape != first_shape:
                 raise ValueError("Tensor dimensions are not uniform.")
-        return tuple(normalized_items), (len(normalized_items),) + first_shape
+        normalized_data = tuple(normalized_items)
+        shape = (len(normalized_items),) + first_shape
+        return normalized_data, shape
     raise ValueError("Unsupported tensor element.")
 
 

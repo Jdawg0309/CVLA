@@ -23,7 +23,7 @@ def _as_column(tensor: TensorData) -> TensorData:
         tensor,
         data=column_data,
         shape=(len(column_data), 1),
-        order=tensor.order
+        _order=tensor.order
     )
 
 
@@ -34,13 +34,19 @@ def _as_row(tensor: TensorData) -> TensorData:
         tensor,
         data=row_data,
         shape=(1, len(row_data[0])),
-        order=tensor.order
+        _order=tensor.order
     )
 
 
 def test_flat_vector_order():
     tensor = _make_tensor("1 2 3", label="v")
     assert tensor.order == 1
+
+
+def test_column_input_reads_as_vector():
+    tensor = _make_tensor("1; 2; 3", label="col")
+    assert tensor.order == 1
+    assert tensor.shape == (3, 1)
 
 
 def test_representation_helpers_preserve_order():

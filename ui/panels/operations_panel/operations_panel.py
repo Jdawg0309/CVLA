@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from state.models.tensor_model import TensorData
 
 from ui.utils import set_next_window_position, set_next_window_size
-from domain.operations.operation_metadata import format_tensor_value, get_operation_metadata
 from domain.vectors.vector_ops import gaussian_elimination_steps
 from state.actions import (
     SetPipeline,
@@ -213,152 +212,69 @@ cli_log = CLIOperationLog()
 
 
 # ============================================================================
-# LaTeX Inspector Widget
+# Tensor Inspector Widget
 # ============================================================================
 
-class LatexInspectorWidget:
-    """Read-only CLI-style inspector rendering LaTeX math from operations."""
+
+class TensorInspectorWidget:
+    """Read-only inspector that displays basic tensor metadata."""
 
     def __init__(self):
-        self._panel_height = 240
+        self._panel_height = 200
 
-    def render(self, tensor: "TensorData", state: "AppState", width: float):
-        """Render the inspector with canonical math expressions."""
+    def render(self, tensor: Optional["TensorData"], width: float):
         imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.04, 0.04, 0.08, 1.0)
         flags = _WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-        if imgui.begin_child("##latex_inspector", width - 10, self._panel_height,
+        if imgui.begin_child("##tensor_inspector", width - 10, self._panel_height,
                              border=True, flags=flags):
-            self._render_content(tensor, state, width)
+            if tensor is None:
+                imgui.text_colored("No tensor selected.", 0.8, 0.4, 0.4, 1.0)
+            else:
+                self._render_content(tensor, width)
         imgui.end_child()
         imgui.pop_style_color(1)
 
-    def _render_content(self, tensor: "TensorData", state: "AppState", width: float):
-        record = state.operation_history[-1] if state.operation_history else None
-        active_op = state.operations.current_operation or (record.operation_name if record else None)
-        metadata = get_operation_metadata(active_op) if active_op else None
-        result_tensor = self._resolve_result_tensor(record, state, tensor)
-
-        tensor_label = tensor.label if tensor else "—"
-        tensor_id = tensor.id if tensor else "—"
-        tensor_kind_label = self._tensor_kind_label(tensor)
-        tensor_shape_label = self._tensor_shape_label(tensor)
-        tensor_space = self._tensor_space(tensor)
-        tensor_rank = tensor.rank if tensor else "—"
-        tensor_components_latex = format_tensor_value(tensor)
-
-        imgui.text_colored("CVLA LaTeX Inspector — Canonical Spec", 0.56, 0.78, 0.95, 1.0)
-        imgui.separator()
-
-        # Tensor header
-        imgui.text_colored(f"Tensor: {tensor_label}", 0.6, 0.9, 0.6, 1.0)
-        imgui.text(f"Tensor ID: {tensor_id}")
-        imgui.text(f"Kind: {tensor_kind_label}")
-        imgui.text(f"Order (rank): {tensor_rank}")
-        imgui.text(f"Shape: {tensor_shape_label}")
-        imgui.text(f"Space: {tensor_space}")
-
+    def _render_content(self, tensor: "TensorData", width: float):
+        shape_label = self._format_shape(tensor)
+        imgui.text_colored(f"{tensor.label}", 0.6, 0.9, 0.6, 1.0)
+        imgui.text(f"Order: {tensor.rank}")
+        imgui.text(f"Shape: {shape_label}")
         imgui.spacing()
-        imgui.text_colored("Components (LaTeX):", 0.7, 0.85, 0.8, 1.0)
-        imgui.text_unformatted(rf"${tensor_components_latex}$")
+        values = self._matrix_view_text(tensor)
+        if values:
+            self._render_cli_block("Values", values, width, 80)
 
-        imgui.spacing()
-
-        # Operation header
-        op_label = metadata.name if metadata else (active_op or "—")
-        domain_label = metadata.domain if metadata else "—"
-        codomain_label = metadata.codomain if metadata else "—"
-        imgui.text_colored(f"Operation: {op_label}", 0.8, 0.8, 1.0, 1.0)
-        imgui.text(f"Domain: {domain_label}")
-        imgui.text(f"Codomain: {codomain_label}")
-
-        imgui.spacing()
-
-        expr = metadata.render_latex() if metadata else r"\text{waiting\ for\ math}"
-        numeric = metadata.render_numeric(record, state, result_tensor) if metadata else r"\text{waiting\ for\ math}"
-
-        self._render_cli_block("LaTeX Expression", rf"${expr}$", width, 70)
-        imgui.spacing()
-        self._render_cli_block("Numerical Substitution", rf"${numeric}$", width, 70)
-        imgui.spacing()
-        result_display = format_tensor_value(result_tensor)
-        self._render_cli_block("Result", rf"${result_display}$", width, 60)
-
-        if state.error_message:
-            imgui.spacing()
-            imgui.text_colored("Error:", 0.9, 0.4, 0.4, 1.0)
-            sanitized = state.error_message.replace("{", "\\{").replace("}", "\\}")
-            imgui.text_unformatted(rf"$\text{{{sanitized}}}$")
-
-        steps, idx = self._active_steps(state)
-        if steps:
-            imgui.spacing()
-            step = steps[min(idx, len(steps) - 1)]
-            imgui.text_colored(
-                f"Step {idx + 1} of {len(steps)}: {step.title}",
-                0.85, 0.85, 0.6, 1.0
-            )
-            if step.description:
-                desc = step.description.replace("{", "\\{").replace("}", "\\}")
-                imgui.text_unformatted(rf"$\text{{{desc}}}$")
-
-    def _resolve_result_tensor(
-        self,
-        record: Optional[OperationRecord],
-        state: "AppState",
-        fallback: Optional["TensorData"],
-    ) -> Optional["TensorData"]:
-        if record and record.result_ids:
-            for rid in record.result_ids:
-                candidate = next((t for t in state.tensors if t.id == rid), None)
-                if candidate:
-                    return candidate
-        return fallback
-
-    def _tensor_kind_label(self, tensor: Optional["TensorData"]) -> str:
-        if tensor is None:
-            return "None"
-        if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
-            return "Image"
+    def _format_shape(self, tensor: "TensorData") -> str:
         if tensor.rank == 0:
-            return "Scalar"
-        if tensor.rank == 1:
-            return "Vector"
-        if tensor.rank == 2:
-            return "Matrix"
-        return f"Tensor (rank {tensor.rank})"
-
-    def _tensor_shape_label(self, tensor: Optional["TensorData"]) -> str:
-        if tensor is None:
-            return "—"
-        if not tensor.shape:
             return "()"
-        if len(tensor.shape) == 1:
-            return f"({tensor.shape[0]},)"
-        if len(tensor.shape) == 2:
-            return f"({tensor.shape[0]}x{tensor.shape[1]})"
-        return "(" + "×".join(str(dim) for dim in tensor.shape) + ")"
-
-    def _tensor_space(self, tensor: Optional["TensorData"]) -> str:
-        if tensor is None:
-            return "ℝ"
         if tensor.rank == 1:
-            return f"ℝ^{tensor.shape[0]}"
+            if len(tensor.shape) == 2:
+                rows, cols = tensor.shape
+                orientation = "column" if cols == 1 else "row" if rows == 1 else "vector"
+                return f"{rows}×{cols} ({orientation})"
+            return f"({tensor.shape[0]},)"
         if tensor.rank == 2:
-            return f"ℝ^{tensor.shape[0]}×ℝ^{tensor.shape[1]}"
-        return f"ℝ^{tensor.rank}"
+            return f"{tensor.shape[0]}×{tensor.shape[1]}"
+        if tensor.shape:
+            return "×".join(str(dim) for dim in tensor.shape)
+        return "—"
 
-    def _active_steps(self, state: "AppState"):
-        if state.operations and state.operations.steps:
-            return state.operations.steps, state.operations.step_index
-        if state.pipeline_steps:
-            return state.pipeline_steps, state.pipeline_step_index
-        return None, 0
+    def _matrix_view_text(self, tensor: "TensorData") -> str:
+        arr = tensor.to_numpy()
+        if arr.ndim == 0:
+            return str(float(arr))
+        if arr.ndim == 1:
+            separator = "\n" if len(tensor.shape) == 2 and tensor.shape[1] == 1 else " "
+            return separator.join(str(float(x)) for x in arr)
+        lines = []
+        for row in arr:
+            lines.append("  ".join(str(float(v)) for v in row))
+        return "\n".join(lines)
 
     def _render_cli_block(self, label: str, content: str, width: float, min_height: int = 60):
-        """Render a CLI-style read-only block for LaTeX and numeric snippets."""
         text = (content or "").strip() or "—"
         lines = max(1, text.count("\n") + 1)
-        height = min(max(min_height, lines * 18 + 12), 140)
+        height = min(max(min_height, lines * 18 + 12), 120)
         block_width = max(width - 24, 120)
         read_only_flag = getattr(imgui, "INPUT_TEXT_READ_ONLY", 1 << 20)
         no_scroll_flag = getattr(imgui, "INPUT_TEXT_NO_HORIZONTAL_SCROLL", 1 << 24)
@@ -366,13 +282,14 @@ class LatexInspectorWidget:
         imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.03, 0.03, 0.05, 1.0)
         imgui.push_style_color(imgui.COLOR_TEXT, 0.8, 0.9, 1.0, 1.0)
         _, _ = imgui.input_text_multiline(
-            f"##latex_cli_{label.replace(' ', '_')}",
+            f"##tensor_cli_{label.replace(' ', '_')}",
             text,
             block_width,
             height,
             read_only_flag | no_scroll_flag,
         )
         imgui.pop_style_color(2)
+
 
 
 # ============================================================================
@@ -848,7 +765,7 @@ class OperationsPanel:
     """
 
     def __init__(self):
-        self.inspector = LatexInspectorWidget()
+        self.inspector = TensorInspectorWidget()
         self.tensor_info = TensorInfoWidget()
         self.operation_tree = OperationTreeWidget()
         self.cli_log = CLILogWidget()
@@ -900,9 +817,7 @@ class OperationsPanel:
     def _render_operations_mode(self, selected: "TensorData", state: "AppState",
                                  dispatch, width: float):
         """Render the main operations mode."""
-        # 1. Calculator View (always at top)
-        self.inspector.render(selected, state, width)
-
+        self.inspector.render(selected, width)
         imgui.spacing()
 
         # 2. Tensor Info (compact)

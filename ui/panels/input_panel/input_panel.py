@@ -519,13 +519,18 @@ class TensorListWidget:
             dispatch(UpdateTensor(id=tensor.id, visible=not tensor.visible))
 
     def _format_shape(self, tensor) -> str:
-        """Format tensor shape for display."""
+        """Format tensor shape for display using logical_shape when available."""
         if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
             if len(tensor.shape) == 2:
                 return f"{tensor.shape[0]}x{tensor.shape[1]}"
             return f"{tensor.shape[0]}x{tensor.shape[1]}x{tensor.shape[2]}"
         if tensor.rank == 1:
-            return f"({len(tensor.data)},)"
+            if len(tensor.shape) == 2:
+                rows, cols = tensor.shape
+                orientation = "column" if cols == 1 else "row" if rows == 1 else "vector"
+                return f"{rows}x{cols} ({orientation})"
+            if tensor.shape:
+                return f"{tensor.shape[0]} (vector)"
         elif tensor.rank == 2:
             return f"({tensor.rows}x{tensor.cols})"
         return str(tensor.shape)
@@ -533,7 +538,12 @@ class TensorListWidget:
     def _format_feedback_shape(self, tensor) -> str:
         """Format shape for creation feedback."""
         if tensor.rank == 1:
-            return f"({tensor.shape[0]},)"
+            if len(tensor.shape) == 2:
+                rows, cols = tensor.shape
+                orientation = "column" if cols == 1 else "row" if rows == 1 else "vector"
+                return f"{rows}x{cols} ({orientation})"
+            if tensor.shape:
+                return f"({tensor.shape[0]},)"
         if tensor.rank == 2:
             return f"({tensor.shape[0]}x{tensor.shape[1]})"
         return str(tensor.shape)

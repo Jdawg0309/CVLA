@@ -36,18 +36,26 @@ class TensorData:
     visible: bool = True
     history: Tuple[str, ...] = ()
     original_data: Optional[Tuple[Union[float, Tuple], ...]] = None  # For reset functionality
-    order: int = field(default=-1, repr=False)
+    _order: int = field(default=-1, repr=False)
+    logical_shape: Tuple[int, ...] = field(default=(), repr=False)
 
     def __post_init__(self):
         """Infer order once at creation if not explicitly provided."""
-        if self.order < 0:
+        if self._order < 0:
             inferred = _infer_order_from_data(self.data)
-            object.__setattr__(self, "order", inferred)
+            object.__setattr__(self, "_order", inferred)
+        if not self.logical_shape:
+            object.__setattr__(self, "logical_shape", self.shape)
 
     @property
     def rank(self) -> int:
         """Number of dimensions."""
-        return self.order
+        return self._order
+
+    @property
+    def order(self) -> int:
+        """Tensor order (rank) exposed as read-only."""
+        return self._order
 
     @property
     def is_image_dtype(self) -> bool:
@@ -69,7 +77,8 @@ class TensorData:
             color=color,
             visible=True,
             history=(),
-            order=1
+            _order=1,
+            logical_shape=(len(coords),)
         )
 
     @staticmethod
@@ -93,7 +102,8 @@ class TensorData:
             color=color,
             visible=True,
             history=(),
-            order=2
+            _order=2,
+            logical_shape=shape
         )
 
     @staticmethod
@@ -112,7 +122,8 @@ class TensorData:
             color=color,
             visible=True,
             history=(),
-            order=parsed.order
+            _order=parsed.order,
+            logical_shape=parsed.logical_shape
         )
 
     @staticmethod
@@ -151,7 +162,8 @@ class TensorData:
             visible=True,
             history=history,
             original_data=original,
-            order=len(shape)
+            _order=len(shape),
+            logical_shape=shape
         )
 
     def to_numpy(self) -> np.ndarray:
@@ -174,7 +186,7 @@ class TensorData:
             self,
             data=new_data,
             shape=shape,
-            order=new_order if new_order is not None else self.order
+            _order=new_order if new_order is not None else self.order
         )
 
     def with_label(self, label: str) -> 'TensorData':
