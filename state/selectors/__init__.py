@@ -41,7 +41,7 @@ from state.selectors.tensor_selectors import (
     get_pending_operation,
     get_active_input_method,
     get_text_input_content,
-    get_text_input_type,
+    get_text_input_kind,
     get_grid_size,
     get_grid_cells,
     get_file_path,

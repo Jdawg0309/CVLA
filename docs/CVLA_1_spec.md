@@ -745,7 +745,7 @@ class AppState:
     # Input panel (text/file/grid + controlled inputs)
     active_input_method: str = "text"
     input_text_content: str = ""
-    input_text_parsed_type: str = ""
+    input_text_parsed_kind: str = ""
     input_file_path: str = ""
     input_grid_rows: int = 3
     input_grid_cols: int = 3

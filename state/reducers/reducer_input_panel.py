@@ -22,7 +22,7 @@ from state.actions.input_panel_actions import (
     CreateTensorFromTextInput, CreateTensorFromFileInput, CreateTensorFromGridInput,
 )
 from state.models.tensor_model import TensorData
-from state.input_parser import parse_input
+from state.input_parser import parse_tensor
 
 
 def reduce_input_panel(
@@ -42,23 +42,33 @@ def reduce_input_panel(
 
     # Text input actions
     if isinstance(action, SetTextInput):
-        parsed_type, _ = parse_input(action.content)
+        parsed_kind = ""
+        try:
+            parsed = parse_tensor(action.content)
+            parsed_kind = parsed.kind.value
+        except ValueError:
+            parsed_kind = ""
         return replace(
             state,
             input_text_content=action.content,
-            input_text_parsed_type=parsed_type
+            input_text_parsed_kind=parsed_kind
         )
 
     if isinstance(action, ClearTextInput):
         return replace(
             state,
             input_text_content="",
-            input_text_parsed_type=""
+            input_text_parsed_kind=""
         )
 
     if isinstance(action, ParseTextInput):
-        parsed_type, _ = parse_input(state.input_text_content)
-        return replace(state, input_text_parsed_type=parsed_type)
+        parsed_kind = ""
+        try:
+            parsed = parse_tensor(state.input_text_content)
+            parsed_kind = parsed.kind.value
+        except ValueError:
+            parsed_kind = ""
+        return replace(state, input_text_parsed_kind=parsed_kind)
 
     # File input actions
     if isinstance(action, SetFilePath):
@@ -250,35 +260,23 @@ def _create_tensor_from_text(
 ) -> Optional["AppState"]:
     """Create a tensor from text input."""
     content = state.input_text_content
-    parsed_type, parsed_data = parse_input(content)
-
-    if parsed_type == "vector":
-        data = parsed_data
-        if data is None:
-            return state
-        tensor = TensorData.create_vector(
-            coords=data,
-            label=action.label,
-            color=action.color
-        )
-    elif parsed_type == "matrix":
-        data = parsed_data
-        if data is None:
-            return state
-        tensor = TensorData.create_matrix(
-            values=data,
-            label=action.label,
-            color=action.color
-        )
-    else:
+    try:
+        parsed = parse_tensor(content)
+    except ValueError:
         return state
+
+    tensor = TensorData.from_parsed(
+        parsed=parsed,
+        label=action.label,
+        color=action.color
+    )
 
     new_state = replace(
         state,
         tensors=state.tensors + (tensor,),
         selected_tensor_id=tensor.id,
         input_text_content="",
-        input_text_parsed_type=""
+        input_text_parsed_kind=""
     )
     return with_history(new_state)
 

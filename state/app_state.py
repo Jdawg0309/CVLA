@@ -59,7 +59,7 @@ class AppState:
     # =========================================================================
     active_input_method: str = "matrix"  # "matrix", "json", "csv", "excel", "image"
     input_text_content: str = ""
-    input_text_parsed_type: str = ""  # What the parser detected: "vector", "matrix", ""
+    input_text_parsed_kind: str = ""  # What the parser detected: "scalar", "vector", "matrix", "tensor"
     input_file_path: str = ""
     input_grid_rows: int = 3
     input_grid_cols: int = 3

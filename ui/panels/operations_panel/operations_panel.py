@@ -240,7 +240,8 @@ class LatexInspectorWidget:
 
         tensor_label = tensor.label if tensor else "—"
         tensor_id = tensor.id if tensor else "—"
-        tensor_type = self._tensor_type(tensor)
+        tensor_kind_label = self._tensor_kind_label(tensor)
+        tensor_shape_label = self._tensor_shape_label(tensor)
         tensor_space = self._tensor_space(tensor)
         tensor_rank = tensor.rank if tensor else "—"
         tensor_components_latex = format_tensor_value(tensor)
@@ -251,8 +252,9 @@ class LatexInspectorWidget:
         # Tensor header
         imgui.text_colored(f"Tensor: {tensor_label}", 0.6, 0.9, 0.6, 1.0)
         imgui.text(f"Tensor ID: {tensor_id}")
-        imgui.text(f"Type: {tensor_type}")
+        imgui.text(f"Kind: {tensor_kind_label}")
         imgui.text(f"Order (rank): {tensor_rank}")
+        imgui.text(f"Shape: {tensor_shape_label}")
         imgui.text(f"Space: {tensor_space}")
 
         imgui.spacing()
@@ -312,16 +314,29 @@ class LatexInspectorWidget:
                     return candidate
         return fallback
 
-    def _tensor_type(self, tensor: Optional["TensorData"]) -> str:
+    def _tensor_kind_label(self, tensor: Optional["TensorData"]) -> str:
         if tensor is None:
             return "None"
         if tensor.dtype in (TensorDType.IMAGE_RGB, TensorDType.IMAGE_GRAYSCALE):
             return "Image"
+        if tensor.rank == 0:
+            return "Scalar"
         if tensor.rank == 1:
             return "Vector"
         if tensor.rank == 2:
             return "Matrix"
         return f"Tensor (rank {tensor.rank})"
+
+    def _tensor_shape_label(self, tensor: Optional["TensorData"]) -> str:
+        if tensor is None:
+            return "—"
+        if not tensor.shape:
+            return "()"
+        if len(tensor.shape) == 1:
+            return f"({tensor.shape[0]},)"
+        if len(tensor.shape) == 2:
+            return f"({tensor.shape[0]}x{tensor.shape[1]})"
+        return "(" + "×".join(str(dim) for dim in tensor.shape) + ")"
 
     def _tensor_space(self, tensor: Optional["TensorData"]) -> str:
         if tensor is None:

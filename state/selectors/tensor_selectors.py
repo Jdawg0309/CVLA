@@ -256,9 +256,9 @@ def get_text_input_content(state: "AppState") -> str:
     return state.input_text_content
 
 
-def get_text_input_type(state: "AppState") -> str:
-    """Get the parsed type of text input."""
-    return state.input_text_parsed_type
+def get_text_input_kind(state: "AppState") -> str:
+    """Get the parsed kind of text input."""
+    return state.input_text_parsed_kind
 
 
 def get_grid_size(state: "AppState") -> Tuple[int, int]:
@@ -278,7 +278,7 @@ def get_file_path(state: "AppState") -> str:
 
 def can_create_tensor_from_text(state: "AppState") -> bool:
     """Check if a tensor can be created from current text input."""
-    return state.input_text_parsed_type in ("vector", "matrix")
+    return bool(state.input_text_parsed_kind)
 
 
 def can_create_tensor_from_file(state: "AppState") -> bool:

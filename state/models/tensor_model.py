@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Tuple, Union, Optional
 from uuid import uuid4
 import numpy as np
+from state.input_parser import ParsedTensor
 
 
 class TensorDType(Enum):
@@ -79,6 +80,24 @@ class TensorData:
             id=str(uuid4()),
             data=normalized,
             shape=shape,
+            dtype=TensorDType.NUMERIC,
+            label=label,
+            color=color,
+            visible=True,
+            history=()
+        )
+
+    @staticmethod
+    def from_parsed(
+        parsed: ParsedTensor,
+        label: str,
+        color: Tuple[float, float, float] = (0.8, 0.8, 0.8)
+    ) -> 'TensorData':
+        """Create a tensor from a parsed tensor payload."""
+        return TensorData(
+            id=str(uuid4()),
+            data=parsed.data,
+            shape=parsed.shape,
             dtype=TensorDType.NUMERIC,
             label=label,
             color=color,

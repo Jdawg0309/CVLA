@@ -30,7 +30,7 @@ from state.actions.tensor_actions import (
     UpdateTensor,
 )
 from state.actions.navigation_actions import SetColorTheme
-from state.input_parser import parse_input
+from state.input_parser import TensorKind, try_parse_tensor
 from render.themes.color_themes import THEMES, THEME_DISPLAY_NAMES
 from state.models.tensor_model import TensorDType
 from state.selectors import get_next_color, get_tensor_count
@@ -45,25 +45,31 @@ _WINDOW_ALWAYS_VERTICAL_SCROLLBAR = getattr(
 )
 
 
-def get_type_description(type_name: str) -> str:
-    """Get human-readable description of type."""
-    descriptions = {
-        "vector": "Rank-1 Tensor",
-        "matrix": "Rank-2 Tensor",
-        "": "Unknown",
-    }
-    return descriptions.get(type_name, type_name)
+KIND_LABELS = {
+    TensorKind.SCALAR: "Scalar (Rank 0)",
+    TensorKind.VECTOR: "Vector (Rank 1)",
+    TensorKind.MATRIX: "Matrix (Rank 2)",
+    TensorKind.TENSOR: "Higher-order Tensor",
+}
 
 
-def get_shape_string(type_name: str, data) -> str:
-    """Get shape string for parsed data."""
-    if type_name == "vector" and data:
-        return f"({len(data)},)"
-    if type_name == "matrix" and data:
-        rows = len(data)
-        cols = len(data[0]) if data else 0
-        return f"({rows}, {cols})"
-    return ""
+def describe_tensor_kind(kind: TensorKind, order: int) -> str:
+    """Return a human-friendly label for the detected kind."""
+    base = KIND_LABELS.get(kind, kind.value.title())
+    if kind == TensorKind.TENSOR:
+        return f"{base} (Rank {order})"
+    return base
+
+
+def format_tensor_shape(shape: Tuple[int, ...]) -> str:
+    """Format the shape tuple for display."""
+    if not shape:
+        return "()"
+    if len(shape) == 1:
+        return f"({shape[0]},)"
+    if len(shape) == 2:
+        return f"({shape[0]}x{shape[1]})"
+    return "(" + "×".join(str(dim) for dim in shape) + ")"
 
 
 class TextInputWidget:
@@ -92,19 +98,12 @@ class TextInputWidget:
             dispatch(SetTextInput(content=new_text))
 
         # Show parsed type and shape
-        parsed_type, parsed_data = parse_input(
-            state.input_text_content,
-            matrix_only=matrix_only
-        )
-        if parsed_type:
-            if matrix_only and parsed_type != "matrix":
-                type_desc = "Invalid"
-                shape_str = ""
-            else:
-                type_desc = get_type_description(parsed_type)
-                shape_str = get_shape_string(parsed_type, parsed_data)
+        parsed_tensor = try_parse_tensor(state.input_text_content)
+        if parsed_tensor:
+            kind_desc = describe_tensor_kind(parsed_tensor.kind, parsed_tensor.order)
+            shape_str = format_tensor_shape(parsed_tensor.shape)
             imgui.text_colored(
-                f"Detected: {type_desc} {shape_str}",
+                f"Detected: {kind_desc} {shape_str}",
                 0.4, 0.8, 0.4, 1.0
             )
         elif state.input_text_content.strip():
@@ -129,20 +128,17 @@ class TextInputWidget:
         imgui.spacing()
 
         # Action buttons
-        can_create = parsed_type in ("vector", "matrix")
-        if matrix_only and parsed_type not in ("vector", "matrix"):
-            can_create = False
+        can_create = parsed_tensor is not None
 
         if not can_create:
             imgui.push_style_var(imgui.STYLE_ALPHA, 0.5)
 
         button_label = "Create Tensor"
-        if parsed_type in ("vector", "matrix"):
-            type_desc = get_type_description(parsed_type)
-            button_label = f"Create {type_desc}"
+        if parsed_tensor:
+            button_label = f"Create {parsed_tensor.kind.value.title()}"
         if imgui.button(button_label, width - 20, 30):
             if can_create:
-                label = self._label_buffer.strip() or self._generate_label(state, parsed_type)
+                label = self._label_buffer.strip() or self._generate_label(state)
                 color, _ = get_next_color(state)
                 dispatch(CreateTensorFromTextInput(
                     label=label,
@@ -163,13 +159,12 @@ class TextInputWidget:
         imgui.separator()
         imgui.spacing()
         imgui.text_colored("Input formats:", 0.6, 0.6, 0.6, 1.0)
-        if not matrix_only:
-            imgui.text_colored("  Rank-1: [1, 2, 3]", 0.5, 0.5, 0.5, 1.0)
-            imgui.text_colored("  Rank-2 (1x3): 1, 2, 3", 0.5, 0.5, 0.5, 1.0)
-        imgui.text_colored("  Rank-2: 1, 2; 3, 4", 0.5, 0.5, 0.5, 1.0)
-        imgui.text_colored("  Or multi-line entries", 0.5, 0.5, 0.5, 1.0)
+        imgui.text_colored("  Scalar: 5", 0.5, 0.5, 0.5, 1.0)
+        imgui.text_colored("  Vector: 1 2 3 or [1 2 3]", 0.5, 0.5, 0.5, 1.0)
+        imgui.text_colored("  Matrix: 1 2; 3 4 or newline rows or [[1 2], [3 4]]", 0.5, 0.5, 0.5, 1.0)
+        imgui.text_colored("  Higher-order: nest matrices/groups (e.g. [[[1]], [[2]]])", 0.5, 0.5, 0.5, 1.0)
 
-    def _generate_label(self, state: "AppState", tensor_type: str) -> str:
+    def _generate_label(self, state: "AppState") -> str:
         """Generate an automatic label for the tensor."""
         count = get_tensor_count(state)
         return f"T{count + 1}"

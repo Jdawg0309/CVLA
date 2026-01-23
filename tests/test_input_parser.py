@@ -7,33 +7,52 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from state.input_parser import parse_input
+from state.input_parser import TensorKind, parse_tensor
+from state.models.tensor_model import TensorData
+from state.reducers.reducer_tensors import _op_transpose
 
 
 @pytest.mark.parametrize(
     "content",
     [
-        "[1 2 3]",
         "1 2 3",
-        "1,2,3",
+        "[1 2 3]",
     ],
 )
-def test_flat_list_parses_as_vector(content):
-    """Flat tokens should always infer rank-1 when matrix_only is False."""
-    parsed_type, parsed_data = parse_input(content, matrix_only=False)
-    assert parsed_type == "vector"
-    assert parsed_data == (1.0, 2.0, 3.0)
+def test_flat_input_parses_as_vector(content):
+    """Flat vector input should always yield order-1 tensors."""
+    parsed = parse_tensor(content)
+    assert parsed.kind == TensorKind.VECTOR
+    assert parsed.order == 1
+    assert parsed.shape == (3,)
 
 
-def test_semicolon_input_is_matrix():
-    """Semicolons force a matrix rank."""
-    parsed_type, parsed_data = parse_input("[1;2;3]")
-    assert parsed_type == "matrix"
-    assert parsed_data == ((1.0,), (2.0,), (3.0,))
+def test_matrix_input_parses_as_order_two():
+    """Row-separated input should produce a rank-2 tensor."""
+    parsed = parse_tensor("1 2; 3 4")
+    assert parsed.kind == TensorKind.MATRIX
+    assert parsed.order == 2
+    assert parsed.shape == (2, 2)
 
 
-def test_matrix_only_mode_prefers_matrix():
-    """Matrix-only mode should not demote single rows to vectors."""
-    parsed_type, parsed_data = parse_input("1 2 3", matrix_only=True)
-    assert parsed_type == "matrix"
-    assert parsed_data == ((1.0, 2.0, 3.0),)
+def test_scalar_input_parses_as_order_zero():
+    """Single numeric value is treated as a scalar (rank 0)."""
+    parsed = parse_tensor("5")
+    assert parsed.kind == TensorKind.SCALAR
+    assert parsed.order == 0
+    assert parsed.shape == ()
+
+
+def test_ragged_input_raises():
+    """Ragged rows (different column counts) should fail cleanly."""
+    with pytest.raises(ValueError):
+        parse_tensor("1 2; 3")
+
+
+def test_transpose_preserves_order():
+    """Transposing a rank-2 tensor must keep its order (rank)."""
+    parsed = parse_tensor("1 2; 3 4")
+    tensor = TensorData.from_parsed(parsed=parsed, label="T", color=(0.5, 0.5, 0.5))
+    results = _op_transpose([tensor], {}, True)
+    assert results
+    assert results[0].rank == 2
