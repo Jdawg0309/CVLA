@@ -2,7 +2,7 @@
 App input handlers.
 
 This module handles keyboard, mouse, and window events.
-Uses SceneAdapter for picking and dispatches SelectVector actions.
+Uses SceneAdapter for picking and dispatches tensor selection actions.
 """
 
 import time
@@ -11,7 +11,7 @@ import imgui
 from engine.picking_system import pick_vector
 from app.app_logging import dlog, DEBUG
 from app.app_state_bridge import build_scene_adapter
-from state.actions import SelectVector, AddVector, AddMatrix, SetSelectedPixel, StepForward
+from state.actions import SelectTensor, AddVectorTensor, AddMatrixTensor, SetSelectedPixel, StepForward
 from state.selectors import get_vectors
 
 
@@ -81,10 +81,10 @@ def on_mouse_button(self, win, btn, action, mods):
                 dlog(f"[App] Selected vector: {picked.label}")
                 self.camera.focus_on_vector(picked.coords)
 
-                # Find vector ID by label and dispatch selection
+                # Find tensor ID by label and dispatch selection
                 for v in get_vectors(state):
                     if v.label == picked.label:
-                        self.store.dispatch(SelectVector(id=v.id))
+                        self.store.dispatch(SelectTensor(id=v.id))
                         break
             return
 
@@ -114,7 +114,7 @@ def on_mouse_button(self, win, btn, action, mods):
                 return
             hit = origin + direction * t
             coords = (float(hit[0]), float(hit[1]), float(hit[2]))
-            self.store.dispatch(AddVector(
+            self.store.dispatch(AddVectorTensor(
                 coords=coords,
                 color=(0.8, 0.2, 0.2),
                 label="",
@@ -146,7 +146,7 @@ def on_mouse_button(self, win, btn, action, mods):
 
         if active_tool == "add_matrix":
             matrix = tuple(tuple(row) for row in state.input_matrix)
-            self.store.dispatch(AddMatrix(values=matrix, label=state.input_matrix_label))
+            self.store.dispatch(AddMatrixTensor(values=matrix, label=state.input_matrix_label))
             return
 
     if btn == glfw.MOUSE_BUTTON_RIGHT:

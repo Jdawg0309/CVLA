@@ -532,6 +532,9 @@ def _handle_apply_operation(
         image_status_level="info" if processed_image is not None else state.image_status_level,
         selected_tensor_id=selection_id,
         show_image_on_grid=True if processed_image is not None else state.show_image_on_grid,
+        # Clear binary operation state after operation completes
+        awaiting_second_tensor=None,
+        first_tensor_id=None,
         operations=replace(
             state.operations,
             current_operation=None,
@@ -649,8 +652,18 @@ def _execute_operation(
         return _op_cross(targets, params, create_new)
     if operation_name == "project":
         return _op_project(targets, params, create_new)
+    if operation_name == "reject":
+        return _op_reject(targets, params, create_new)
+    if operation_name == "angle_between":
+        return _op_angle_between(targets, params, create_new)
     if operation_name == "to_origin":
         return _op_to_origin(targets, params, create_new)
+    if operation_name == "hadamard":
+        return _op_hadamard(targets, params, create_new)
+    if operation_name == "outer_product":
+        return _op_outer_product(targets, params, create_new)
+    if operation_name == "kronecker":
+        return _op_kronecker(targets, params, create_new)
 
     # Matrix operations
     if operation_name == "transpose":
@@ -671,6 +684,84 @@ def _execute_operation(
         return _op_qr(targets, params, create_new)
     if operation_name == "lu":
         return _op_lu(targets, params, create_new)
+    if operation_name == "cholesky":
+        return _op_cholesky(targets, params, create_new)
+    if operation_name == "schur":
+        return _op_schur(targets, params, create_new)
+
+    # Matrix properties
+    if operation_name == "rank":
+        return _op_rank(targets, params, create_new)
+    if operation_name == "condition_number":
+        return _op_condition_number(targets, params, create_new)
+    if operation_name == "nullity":
+        return _op_nullity(targets, params, create_new)
+
+    # Transformations
+    if operation_name == "pseudoinverse":
+        return _op_pseudoinverse(targets, params, create_new)
+    if operation_name == "adjoint":
+        return _op_adjoint(targets, params, create_new)
+    if operation_name == "cofactor":
+        return _op_cofactor(targets, params, create_new)
+    if operation_name == "adjugate":
+        return _op_adjugate(targets, params, create_new)
+
+    # Eigenvalues
+    if operation_name == "eigenvalues":
+        return _op_eigenvalues(targets, params, create_new)
+    if operation_name == "eigenvectors":
+        return _op_eigenvectors(targets, params, create_new)
+    if operation_name == "spectral_radius":
+        return _op_spectral_radius(targets, params, create_new)
+    if operation_name == "power_iteration":
+        return _op_power_iteration(targets, params, create_new)
+
+    # Change of basis
+    if operation_name == "change_basis":
+        return _op_change_basis(targets, params, create_new)
+    if operation_name == "similarity_transform":
+        return _op_similarity_transform(targets, params, create_new)
+    if operation_name == "orthogonalize":
+        return _op_orthogonalize(targets, params, create_new)
+    if operation_name == "project_subspace":
+        return _op_project_subspace(targets, params, create_new)
+
+    # Norms
+    if operation_name == "frobenius_norm":
+        return _op_frobenius_norm(targets, params, create_new)
+    if operation_name == "l1_norm":
+        return _op_l1_norm(targets, params, create_new)
+    if operation_name == "l2_norm":
+        return _op_l2_norm(targets, params, create_new)
+    if operation_name == "inf_norm":
+        return _op_inf_norm(targets, params, create_new)
+    if operation_name == "nuclear_norm":
+        return _op_nuclear_norm(targets, params, create_new)
+
+    # Linear systems
+    if operation_name == "gaussian_elimination":
+        return _op_gaussian_elimination(targets, params, create_new)
+    if operation_name == "rref":
+        return _op_rref(targets, params, create_new)
+    if operation_name == "back_substitution":
+        return _op_back_substitution(targets, params, create_new)
+    if operation_name == "solve_linear":
+        return _op_solve_linear(targets, params, create_new)
+    if operation_name == "least_squares":
+        return _op_least_squares(targets, params, create_new)
+
+    # Special matrices
+    if operation_name == "symmetrize":
+        return _op_symmetrize(targets, params, create_new)
+    if operation_name == "skew_symmetrize":
+        return _op_skew_symmetrize(targets, params, create_new)
+    if operation_name == "diagonalize":
+        return _op_diagonalize(targets, params, create_new)
+    if operation_name == "triangular_upper":
+        return _op_triangular_upper(targets, params, create_new)
+    if operation_name == "triangular_lower":
+        return _op_triangular_lower(targets, params, create_new)
 
     # Image operations
     if operation_name == "apply_kernel":
@@ -948,29 +1039,44 @@ def _op_to_origin(targets: list, params: dict, create_new: bool) -> list:
 
 
 def _op_transpose(targets: list, params: dict, create_new: bool) -> list:
-    """Transpose matrices."""
+    """Transpose matrices. Vectors are unchanged (transpose doesn't apply to 1D)."""
     import numpy as np
     results = []
     for t in targets:
-        if not _is_rank2(t):
-            continue
-        arr = t.to_numpy().T
-        new_data = _numpy_to_tuples(arr)
-        new_shape = (t.shape[1], t.shape[0])
-        if create_new:
-            new_t = TensorData(
-                id=_generate_id(),
-                data=new_data,
-                shape=new_shape,
-                dtype=t.dtype,
-                label=f"{t.label}^T",
-                color=t.color,
-                visible=True,
-                history=t.history + ("transpose",)
-            )
-        else:
-            new_t = replace(t, data=new_data, shape=new_shape, history=t.history + ("transpose",))
-        results.append(new_t)
+        if _is_rank1(t):
+            # Vectors don't transpose - return unchanged
+            if create_new:
+                new_t = TensorData(
+                    id=_generate_id(),
+                    data=t.data,
+                    shape=t.shape,
+                    dtype=t.dtype,
+                    label=f"{t.label}",
+                    color=t.color,
+                    visible=True,
+                    history=t.history
+                )
+            else:
+                new_t = t
+            results.append(new_t)
+        elif _is_rank2(t):
+            arr = t.to_numpy().T
+            new_data = _numpy_to_tuples(arr)
+            new_shape = (t.shape[1], t.shape[0])
+            if create_new:
+                new_t = TensorData(
+                    id=_generate_id(),
+                    data=new_data,
+                    shape=new_shape,
+                    dtype=t.dtype,
+                    label=f"{t.label}ᵀ",
+                    color=t.color,
+                    visible=True,
+                    history=t.history + ("transpose",)
+                )
+            else:
+                new_t = replace(t, data=new_data, shape=new_shape, history=t.history + ("transpose",))
+            results.append(new_t)
     return results
 
 
@@ -1481,6 +1587,977 @@ def _op_reset_image(targets: list, params: dict, create_new: bool) -> list:
         else:
             # No original data stored, just clear history
             new_t = replace(t, history=())
+        results.append(new_t)
+    return results
+
+
+# =============================================================================
+# ADDITIONAL VECTOR OPERATIONS
+# =============================================================================
+
+def _op_reject(targets: list, params: dict, create_new: bool) -> list:
+    """Vector rejection: a - proj_b(a)."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (_is_rank1(a) and _is_rank1(b)):
+        return []
+    arr_a = a.to_numpy()
+    arr_b = b.to_numpy()
+    dot_ab = np.dot(arr_a, arr_b)
+    dot_bb = np.dot(arr_b, arr_b)
+    if abs(dot_bb) < 1e-10:
+        return []
+    proj = (dot_ab / dot_bb) * arr_b
+    rej = arr_a - proj
+    new_data = tuple(float(x) for x in rej)
+    new_t = TensorData(
+        id=_generate_id() if create_new else a.id,
+        data=new_data,
+        shape=(len(new_data),),
+        dtype=a.dtype,
+        label=f"rej_{b.label}({a.label})",
+        color=a.color,
+        visible=True,
+        history=a.history + ("reject",)
+    )
+    return [new_t]
+
+
+def _op_angle_between(targets: list, params: dict, create_new: bool) -> list:
+    """Angle between two vectors in radians."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (_is_rank1(a) and _is_rank1(b)):
+        return []
+    arr_a = a.to_numpy()
+    arr_b = b.to_numpy()
+    norm_a = np.linalg.norm(arr_a)
+    norm_b = np.linalg.norm(arr_b)
+    if norm_a < 1e-10 or norm_b < 1e-10:
+        return []
+    cos_theta = np.clip(np.dot(arr_a, arr_b) / (norm_a * norm_b), -1.0, 1.0)
+    angle = np.arccos(cos_theta)
+    new_t = TensorData(
+        id=_generate_id(),
+        data=(float(angle),),
+        shape=(1,),
+        dtype=TensorDType.NUMERIC,
+        label=f"angle({a.label},{b.label})",
+        color=a.color,
+        visible=True,
+        history=a.history + ("angle_between",)
+    )
+    return [new_t]
+
+
+def _op_hadamard(targets: list, params: dict, create_new: bool) -> list:
+    """Element-wise multiplication (Hadamard product)."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if a.shape != b.shape:
+        return []
+    arr_a = a.to_numpy()
+    arr_b = b.to_numpy()
+    result = arr_a * arr_b
+    new_data = _numpy_to_tuples(result)
+    new_t = TensorData(
+        id=_generate_id() if create_new else a.id,
+        data=new_data,
+        shape=a.shape,
+        dtype=a.dtype,
+        label=f"{a.label}⊙{b.label}",
+        color=a.color,
+        visible=True,
+        history=a.history + ("hadamard",)
+    )
+    return [new_t]
+
+
+def _op_outer_product(targets: list, params: dict, create_new: bool) -> list:
+    """Outer product of two vectors."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (_is_rank1(a) and _is_rank1(b)):
+        return []
+    arr_a = a.to_numpy()
+    arr_b = b.to_numpy()
+    result = np.outer(arr_a, arr_b)
+    new_data = _numpy_to_tuples(result)
+    new_t = TensorData(
+        id=_generate_id() if create_new else a.id,
+        data=new_data,
+        shape=result.shape,
+        dtype=a.dtype,
+        label=f"{a.label}⊗{b.label}",
+        color=a.color,
+        visible=True,
+        history=a.history + ("outer_product",)
+    )
+    return [new_t]
+
+
+def _op_kronecker(targets: list, params: dict, create_new: bool) -> list:
+    """Kronecker product of two matrices."""
+    if len(targets) < 2:
+        return []
+    a, b = targets[0], targets[1]
+    if not (_is_rank2(a) and _is_rank2(b)):
+        return []
+    arr_a = a.to_numpy()
+    arr_b = b.to_numpy()
+    result = np.kron(arr_a, arr_b)
+    new_data = _numpy_to_tuples(result)
+    new_t = TensorData(
+        id=_generate_id() if create_new else a.id,
+        data=new_data,
+        shape=result.shape,
+        dtype=a.dtype,
+        label=f"{a.label}⊗{b.label}",
+        color=a.color,
+        visible=True,
+        history=a.history + ("kronecker",)
+    )
+    return [new_t]
+
+
+# =============================================================================
+# MATRIX PROPERTIES
+# =============================================================================
+
+def _op_rank(targets: list, params: dict, create_new: bool) -> list:
+    """Compute matrix rank."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        r = np.linalg.matrix_rank(t.to_numpy())
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(float(r),),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"rank({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("rank",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_condition_number(targets: list, params: dict, create_new: bool) -> list:
+    """Compute condition number."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        try:
+            cond = np.linalg.cond(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(float(cond),),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"cond({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("condition_number",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_nullity(targets: list, params: dict, create_new: bool) -> list:
+    """Compute nullity (dimension of null space)."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        r = np.linalg.matrix_rank(arr)
+        nullity = arr.shape[1] - r  # nullity = n - rank
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(float(nullity),),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"nullity({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("nullity",)
+        )
+        results.append(new_t)
+    return results
+
+
+# =============================================================================
+# TRANSFORMATIONS
+# =============================================================================
+
+def _op_pseudoinverse(targets: list, params: dict, create_new: bool) -> list:
+    """Moore-Penrose pseudoinverse."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        try:
+            pinv = np.linalg.pinv(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        new_data = _numpy_to_tuples(pinv)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=pinv.shape,
+            dtype=t.dtype,
+            label=f"{t.label}⁺",
+            color=t.color,
+            visible=True,
+            history=t.history + ("pseudoinverse",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_adjoint(targets: list, params: dict, create_new: bool) -> list:
+    """Conjugate transpose (for real matrices, same as transpose)."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        adj = np.conj(t.to_numpy().T)
+        new_data = _numpy_to_tuples(adj)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=adj.shape,
+            dtype=t.dtype,
+            label=f"{t.label}*",
+            color=t.color,
+            visible=True,
+            history=t.history + ("adjoint",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_cofactor(targets: list, params: dict, create_new: bool) -> list:
+    """Cofactor matrix."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        arr = t.to_numpy()
+        n = arr.shape[0]
+        cofactors = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                minor = np.delete(np.delete(arr, i, axis=0), j, axis=1)
+                cofactors[i, j] = ((-1) ** (i + j)) * np.linalg.det(minor)
+        new_data = _numpy_to_tuples(cofactors)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=cofactors.shape,
+            dtype=t.dtype,
+            label=f"cof({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("cofactor",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_adjugate(targets: list, params: dict, create_new: bool) -> list:
+    """Adjugate matrix (transpose of cofactor matrix)."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        arr = t.to_numpy()
+        n = arr.shape[0]
+        cofactors = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                minor = np.delete(np.delete(arr, i, axis=0), j, axis=1)
+                cofactors[i, j] = ((-1) ** (i + j)) * np.linalg.det(minor)
+        adj = cofactors.T
+        new_data = _numpy_to_tuples(adj)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=adj.shape,
+            dtype=t.dtype,
+            label=f"adj({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("adjugate",)
+        )
+        results.append(new_t)
+    return results
+
+
+# =============================================================================
+# DECOMPOSITIONS
+# =============================================================================
+
+def _op_cholesky(targets: list, params: dict, create_new: bool) -> list:
+    """Cholesky decomposition (for positive definite matrices)."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        try:
+            L = np.linalg.cholesky(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        new_data = _numpy_to_tuples(L)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=L.shape,
+            dtype=t.dtype,
+            label=f"chol({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("cholesky",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_schur(targets: list, params: dict, create_new: bool) -> list:
+    """Schur decomposition."""
+    from scipy import linalg as sp_linalg
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        try:
+            T, Z = sp_linalg.schur(t.to_numpy())
+        except Exception:
+            continue
+        T_tensor = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(T),
+            shape=T.shape,
+            dtype=t.dtype,
+            label=f"T({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("schur",)
+        )
+        Z_tensor = TensorData(
+            id=_generate_id(),
+            data=_numpy_to_tuples(Z),
+            shape=Z.shape,
+            dtype=t.dtype,
+            label=f"Z({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("schur",)
+        )
+        results.extend([T_tensor, Z_tensor])
+    return results
+
+
+# =============================================================================
+# EIGENVALUE OPERATIONS
+# =============================================================================
+
+def _op_eigenvalues(targets: list, params: dict, create_new: bool) -> list:
+    """Compute eigenvalues only."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        try:
+            vals = np.linalg.eigvals(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        # Return real parts for real matrices
+        eigvals = tuple(float(np.real(v)) for v in vals)
+        new_t = TensorData(
+            id=_generate_id(),
+            data=eigvals,
+            shape=(len(eigvals),),
+            dtype=t.dtype,
+            label=f"λ({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("eigenvalues",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_eigenvectors(targets: list, params: dict, create_new: bool) -> list:
+    """Compute eigenvectors only."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        try:
+            _, vecs = np.linalg.eig(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        eigvecs = _numpy_to_tuples(np.real(vecs))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=eigvecs,
+            shape=vecs.shape,
+            dtype=t.dtype,
+            label=f"v({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("eigenvectors",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_spectral_radius(targets: list, params: dict, create_new: bool) -> list:
+    """Spectral radius (largest eigenvalue magnitude)."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        try:
+            vals = np.linalg.eigvals(t.to_numpy())
+        except np.linalg.LinAlgError:
+            continue
+        rho = float(np.max(np.abs(vals)))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(rho,),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"ρ({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("spectral_radius",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_power_iteration(targets: list, params: dict, create_new: bool) -> list:
+    """Power iteration for dominant eigenvector."""
+    max_iter = int(params.get("max_iter", 100))
+    results = []
+    for t in targets:
+        if not _is_rank2(t) or t.rows != t.cols:
+            continue
+        arr = t.to_numpy()
+        n = arr.shape[0]
+        v = np.ones(n) / np.sqrt(n)
+        for _ in range(max_iter):
+            v_new = arr @ v
+            norm = np.linalg.norm(v_new)
+            if norm < 1e-10:
+                break
+            v = v_new / norm
+        new_data = tuple(float(x) for x in v)
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=(n,),
+            dtype=t.dtype,
+            label=f"dom_eigvec({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("power_iteration",)
+        )
+        results.append(new_t)
+    return results
+
+
+# =============================================================================
+# CHANGE OF BASIS
+# =============================================================================
+
+def _op_change_basis(targets: list, params: dict, create_new: bool) -> list:
+    """Change of basis: P⁻¹AP."""
+    if len(targets) < 2:
+        return []
+    A, P = targets[0], targets[1]
+    if not (_is_rank2(A) and _is_rank2(P)):
+        return []
+    if A.rows != A.cols or P.rows != P.cols or A.rows != P.rows:
+        return []
+    try:
+        P_inv = np.linalg.inv(P.to_numpy())
+        result = P_inv @ A.to_numpy() @ P.to_numpy()
+    except np.linalg.LinAlgError:
+        return []
+    new_data = _numpy_to_tuples(result)
+    new_t = TensorData(
+        id=_generate_id() if create_new else A.id,
+        data=new_data,
+        shape=result.shape,
+        dtype=A.dtype,
+        label=f"{P.label}⁻¹{A.label}{P.label}",
+        color=A.color,
+        visible=True,
+        history=A.history + ("change_basis",)
+    )
+    return [new_t]
+
+
+def _op_similarity_transform(targets: list, params: dict, create_new: bool) -> list:
+    """Similarity transformation (same as change_basis)."""
+    return _op_change_basis(targets, params, create_new)
+
+
+def _op_orthogonalize(targets: list, params: dict, create_new: bool) -> list:
+    """Gram-Schmidt orthogonalization."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        Q, _ = np.linalg.qr(arr)
+        new_data = _numpy_to_tuples(Q)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=Q.shape,
+            dtype=t.dtype,
+            label=f"orth({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("orthogonalize",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_project_subspace(targets: list, params: dict, create_new: bool) -> list:
+    """Project onto column space of second matrix."""
+    if len(targets) < 2:
+        return []
+    v, A = targets[0], targets[1]
+    if not (_is_rank1(v) and _is_rank2(A)):
+        return []
+    arr_v = v.to_numpy()
+    arr_A = A.to_numpy()
+    # Projection matrix: A(A^T A)^{-1} A^T
+    try:
+        proj_matrix = arr_A @ np.linalg.inv(arr_A.T @ arr_A) @ arr_A.T
+        result = proj_matrix @ arr_v
+    except np.linalg.LinAlgError:
+        return []
+    new_data = tuple(float(x) for x in result)
+    new_t = TensorData(
+        id=_generate_id() if create_new else v.id,
+        data=new_data,
+        shape=(len(new_data),),
+        dtype=v.dtype,
+        label=f"proj_{A.label}({v.label})",
+        color=v.color,
+        visible=True,
+        history=v.history + ("project_subspace",)
+    )
+    return [new_t]
+
+
+# =============================================================================
+# NORMS
+# =============================================================================
+
+def _op_frobenius_norm(targets: list, params: dict, create_new: bool) -> list:
+    """Frobenius norm."""
+    results = []
+    for t in targets:
+        arr = t.to_numpy()
+        norm = float(np.linalg.norm(arr, 'fro'))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(norm,),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"‖{t.label}‖F",
+            color=t.color,
+            visible=True,
+            history=t.history + ("frobenius_norm",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_l1_norm(targets: list, params: dict, create_new: bool) -> list:
+    """L1 norm (max column sum for matrices, sum of abs for vectors)."""
+    results = []
+    for t in targets:
+        arr = t.to_numpy()
+        if _is_rank1(t):
+            norm = float(np.sum(np.abs(arr)))
+        else:
+            norm = float(np.linalg.norm(arr, 1))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(norm,),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"‖{t.label}‖₁",
+            color=t.color,
+            visible=True,
+            history=t.history + ("l1_norm",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_l2_norm(targets: list, params: dict, create_new: bool) -> list:
+    """L2 norm (spectral norm for matrices, Euclidean for vectors)."""
+    results = []
+    for t in targets:
+        arr = t.to_numpy()
+        norm = float(np.linalg.norm(arr, 2))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(norm,),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"‖{t.label}‖₂",
+            color=t.color,
+            visible=True,
+            history=t.history + ("l2_norm",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_inf_norm(targets: list, params: dict, create_new: bool) -> list:
+    """Infinity norm (max row sum for matrices, max abs for vectors)."""
+    results = []
+    for t in targets:
+        arr = t.to_numpy()
+        if _is_rank1(t):
+            norm = float(np.max(np.abs(arr)))
+        else:
+            norm = float(np.linalg.norm(arr, np.inf))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(norm,),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"‖{t.label}‖∞",
+            color=t.color,
+            visible=True,
+            history=t.history + ("inf_norm",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_nuclear_norm(targets: list, params: dict, create_new: bool) -> list:
+    """Nuclear norm (sum of singular values)."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        norm = float(np.linalg.norm(arr, 'nuc'))
+        new_t = TensorData(
+            id=_generate_id(),
+            data=(norm,),
+            shape=(1,),
+            dtype=TensorDType.NUMERIC,
+            label=f"‖{t.label}‖*",
+            color=t.color,
+            visible=True,
+            history=t.history + ("nuclear_norm",)
+        )
+        results.append(new_t)
+    return results
+
+
+# =============================================================================
+# LINEAR SYSTEMS
+# =============================================================================
+
+def _op_gaussian_elimination(targets: list, params: dict, create_new: bool) -> list:
+    """Row echelon form via Gaussian elimination."""
+    from scipy import linalg as sp_linalg
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy().copy()
+        m, n = arr.shape
+        row = 0
+        for col in range(n):
+            if row >= m:
+                break
+            # Find pivot
+            max_row = row + np.argmax(np.abs(arr[row:, col]))
+            if np.abs(arr[max_row, col]) < 1e-10:
+                continue
+            arr[[row, max_row]] = arr[[max_row, row]]
+            # Eliminate below
+            for i in range(row + 1, m):
+                factor = arr[i, col] / arr[row, col]
+                arr[i, col:] -= factor * arr[row, col:]
+            row += 1
+        new_data = _numpy_to_tuples(arr)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=arr.shape,
+            dtype=t.dtype,
+            label=f"REF({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("gaussian_elimination",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_rref(targets: list, params: dict, create_new: bool) -> list:
+    """Reduced row echelon form."""
+    from sympy import Matrix
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        sympy_mat = Matrix(arr.tolist())
+        rref_mat, _ = sympy_mat.rref()
+        rref_arr = np.array(rref_mat.tolist(), dtype=float)
+        new_data = _numpy_to_tuples(rref_arr)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=rref_arr.shape,
+            dtype=t.dtype,
+            label=f"RREF({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("rref",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_back_substitution(targets: list, params: dict, create_new: bool) -> list:
+    """Back substitution for upper triangular system."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        if arr.shape[0] != arr.shape[1] - 1:
+            # Expect augmented matrix [A|b]
+            continue
+        n = arr.shape[0]
+        A = arr[:, :n]
+        b = arr[:, n]
+        x = np.zeros(n)
+        for i in range(n - 1, -1, -1):
+            if np.abs(A[i, i]) < 1e-10:
+                continue
+            x[i] = (b[i] - np.dot(A[i, i+1:], x[i+1:])) / A[i, i]
+        new_data = tuple(float(v) for v in x)
+        new_t = TensorData(
+            id=_generate_id(),
+            data=new_data,
+            shape=(n,),
+            dtype=t.dtype,
+            label=f"x({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("back_substitution",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_solve_linear(targets: list, params: dict, create_new: bool) -> list:
+    """Solve linear system Ax = b."""
+    if len(targets) < 2:
+        return []
+    A, b = targets[0], targets[1]
+    if not (_is_rank2(A) and _is_rank1(b)):
+        return []
+    try:
+        x = np.linalg.solve(A.to_numpy(), b.to_numpy())
+    except np.linalg.LinAlgError:
+        return []
+    new_data = tuple(float(v) for v in x)
+    new_t = TensorData(
+        id=_generate_id(),
+        data=new_data,
+        shape=(len(new_data),),
+        dtype=A.dtype,
+        label=f"x",
+        color=b.color,
+        visible=True,
+        history=b.history + ("solve_linear",)
+    )
+    return [new_t]
+
+
+def _op_least_squares(targets: list, params: dict, create_new: bool) -> list:
+    """Least squares solution."""
+    if len(targets) < 2:
+        return []
+    A, b = targets[0], targets[1]
+    if not (_is_rank2(A) and _is_rank1(b)):
+        return []
+    try:
+        x, residuals, rank, s = np.linalg.lstsq(A.to_numpy(), b.to_numpy(), rcond=None)
+    except np.linalg.LinAlgError:
+        return []
+    new_data = tuple(float(v) for v in x)
+    new_t = TensorData(
+        id=_generate_id(),
+        data=new_data,
+        shape=(len(new_data),),
+        dtype=A.dtype,
+        label=f"x̂",
+        color=b.color,
+        visible=True,
+        history=b.history + ("least_squares",)
+    )
+    return [new_t]
+
+
+# =============================================================================
+# SPECIAL MATRICES
+# =============================================================================
+
+def _op_symmetrize(targets: list, params: dict, create_new: bool) -> list:
+    """Make symmetric: (A + Aᵀ) / 2."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        sym = (arr + arr.T) / 2
+        new_data = _numpy_to_tuples(sym)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=sym.shape,
+            dtype=t.dtype,
+            label=f"sym({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("symmetrize",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_skew_symmetrize(targets: list, params: dict, create_new: bool) -> list:
+    """Make skew-symmetric: (A - Aᵀ) / 2."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        arr = t.to_numpy()
+        skew = (arr - arr.T) / 2
+        new_data = _numpy_to_tuples(skew)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=skew.shape,
+            dtype=t.dtype,
+            label=f"skew({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("skew_symmetrize",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_diagonalize(targets: list, params: dict, create_new: bool) -> list:
+    """Extract diagonal as vector or create diagonal matrix."""
+    results = []
+    for t in targets:
+        if _is_rank2(t):
+            # Extract diagonal
+            diag = np.diag(t.to_numpy())
+            new_data = tuple(float(x) for x in diag)
+            new_t = TensorData(
+                id=_generate_id() if create_new else t.id,
+                data=new_data,
+                shape=(len(new_data),),
+                dtype=t.dtype,
+                label=f"diag({t.label})",
+                color=t.color,
+                visible=True,
+                history=t.history + ("diagonalize",)
+            )
+            results.append(new_t)
+        elif _is_rank1(t):
+            # Create diagonal matrix from vector
+            diag_mat = np.diag(t.to_numpy())
+            new_data = _numpy_to_tuples(diag_mat)
+            new_t = TensorData(
+                id=_generate_id() if create_new else t.id,
+                data=new_data,
+                shape=diag_mat.shape,
+                dtype=t.dtype,
+                label=f"diag({t.label})",
+                color=t.color,
+                visible=True,
+                history=t.history + ("diagonalize",)
+            )
+            results.append(new_t)
+    return results
+
+
+def _op_triangular_upper(targets: list, params: dict, create_new: bool) -> list:
+    """Extract upper triangular part."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        upper = np.triu(t.to_numpy())
+        new_data = _numpy_to_tuples(upper)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=upper.shape,
+            dtype=t.dtype,
+            label=f"triu({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("triangular_upper",)
+        )
+        results.append(new_t)
+    return results
+
+
+def _op_triangular_lower(targets: list, params: dict, create_new: bool) -> list:
+    """Extract lower triangular part."""
+    results = []
+    for t in targets:
+        if not _is_rank2(t):
+            continue
+        lower = np.tril(t.to_numpy())
+        new_data = _numpy_to_tuples(lower)
+        new_t = TensorData(
+            id=_generate_id() if create_new else t.id,
+            data=new_data,
+            shape=lower.shape,
+            dtype=t.dtype,
+            label=f"tril({t.label})",
+            color=t.color,
+            visible=True,
+            history=t.history + ("triangular_lower",)
+        )
         results.append(new_t)
     return results
 

@@ -543,8 +543,26 @@ class OperationTreeWidget:
             if tensor.rank != 2 or tensor.rows != tensor.cols:
                 return False
 
-        # Check tensor type requirements
-        if op.id in ("cross",) and tensor.rank == 1 and len(tensor.coords) != 3:
+        # Matrix-only operations (not applicable to vectors)
+        matrix_only_ops = {
+            "transpose", "inverse", "pseudoinverse", "adjoint", "cofactor", "adjugate",
+            "determinant", "trace", "rank", "condition_number", "nullity",
+            "eigen", "svd", "qr", "lu", "cholesky", "schur",
+            "eigenvalues", "eigenvectors", "spectral_radius", "power_iteration",
+            "symmetrize", "skew_symmetrize", "diagonalize", "triangular_upper", "triangular_lower",
+            "gaussian_elimination", "rref", "back_substitution",
+            "kronecker", "change_basis", "similarity_transform", "orthogonalize",
+        }
+        if op.id in matrix_only_ops and tensor.rank != 2:
+            return False
+
+        # Vector-only operations
+        vector_only_ops = {"normalize", "cross", "dot", "project", "reject", "angle_between"}
+        if op.id in vector_only_ops and tensor.rank != 1:
+            return False
+
+        # Cross product requires 3D vectors
+        if op.id == "cross" and tensor.rank == 1 and len(tensor.data) != 3:
             return False
 
         return True

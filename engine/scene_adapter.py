@@ -352,12 +352,60 @@ def _matrix_columns_as_vectors(matrix: np.ndarray, matrix_id: str, label: str,
 
     This is a temporary workaround while dedicated matrix rendering is incomplete.
     Each column is treated as a vector rooted at the origin.
+
+    Special handling for row vectors (1xN) and column vectors (Nx1):
+    - 1xN matrices: treated as a single N-dimensional vector (the row)
+    - Nx1 matrices: treated as a single N-dimensional vector (the column)
     """
     vectors = []
     if matrix.ndim != 2:
         return vectors
 
     rows, cols = matrix.shape
+
+    # Special case: 1xN row matrix - treat as a single vector
+    if rows == 1 and cols >= 1:
+        coords = list(matrix[0].tolist())
+        if len(coords) < 3:
+            coords += [0.0] * (3 - len(coords))
+        elif len(coords) > 3:
+            coords = coords[:3]
+
+        r, g, b = color
+        bright = lambda c: min(1.0, c * 0.8 + 0.2)
+        vec_color = (bright(r), bright(g), bright(b))
+
+        vectors.append(RendererVector(
+            id=f"{matrix_id}_row",
+            coords=np.array(coords, dtype=np.float32),
+            color=vec_color,
+            label=f"{label}",
+            visible=visible,
+        ))
+        return vectors
+
+    # Special case: Nx1 column matrix - treat as a single vector
+    if cols == 1 and rows >= 1:
+        coords = list(matrix[:, 0].tolist())
+        if len(coords) < 3:
+            coords += [0.0] * (3 - len(coords))
+        elif len(coords) > 3:
+            coords = coords[:3]
+
+        r, g, b = color
+        bright = lambda c: min(1.0, c * 0.8 + 0.2)
+        vec_color = (bright(r), bright(g), bright(b))
+
+        vectors.append(RendererVector(
+            id=f"{matrix_id}_col",
+            coords=np.array(coords, dtype=np.float32),
+            color=vec_color,
+            label=f"{label}",
+            visible=visible,
+        ))
+        return vectors
+
+    # Standard case: render each column as a vector
     for j in range(cols):
         col = matrix[:, j]
         coords = list(col.tolist())

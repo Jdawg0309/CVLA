@@ -158,6 +158,10 @@ def _parse_input_type(content: str, matrix_only: bool = False) -> str:
     """
     Parse text input to determine type.
 
+    Follows the same logic as input_panel.py:parse_input:
+    - Explicit brackets [1, 2, 3] → vector (rank-1)
+    - Everything else → matrix (rank-2) if parseable
+
     Returns:
         "vector" if 1D data
         "matrix" if 2D data
@@ -174,23 +178,32 @@ def _parse_input_type(content: str, matrix_only: bool = False) -> str:
             return "vector"
         return ""
 
-    # Try to parse as vector: "1, 2, 3" or "[1, 2, 3]" or "1 2 3"
-    # Try to parse as matrix: "1, 2; 3, 4" or "[[1, 2], [3, 4]]" or multi-line
+    # Rank-1 tensors require explicit brackets: [1, 2, 3]
+    # This matches the input_panel.py display logic
+    if _is_rank1_bracketed(content):
+        if _try_parse_vector(content) is not None:
+            return "vector"
+        return ""
 
-    # Check for matrix indicators
-    if ";" in content or "\n" in content or "[[" in content:
-        if _try_parse_matrix(content) is not None:
-            return "matrix"
-
-    # Try as vector
-    if _try_parse_vector(content) is not None:
-        return "vector"
-
-    # Try as matrix (might be single row)
+    # Everything else parses as rank-2 (matrix) if valid
     if _try_parse_matrix(content) is not None:
         return "matrix"
 
     return ""
+
+
+def _is_rank1_bracketed(content: str) -> bool:
+    """Detect explicit rank-1 syntax: single bracket pair with no nesting."""
+    text = content.strip()
+    if not (text.startswith("[") and text.endswith("]")):
+        return False
+    if text.startswith("[["):
+        return False
+    if text.count("[") != 1 or text.count("]") != 1:
+        return False
+    if ";" in text or "\n" in text:
+        return False
+    return True
 
 
 def _try_parse_vector(content: str) -> Optional[tuple]:
@@ -265,6 +278,20 @@ def _try_parse_matrix(content: str) -> Optional[tuple]:
             return tuple(result) if result else None
         except ValueError:
             return None
+
+    # Handle single-row matrix (no delimiters - just comma or space separated)
+    # This matches the display logic in input_panel.py
+    row = content.strip().strip("[]()").strip()
+    if row:
+        try:
+            if "," in row:
+                values = [float(v.strip()) for v in row.split(",") if v.strip()]
+            else:
+                values = [float(v.strip()) for v in row.split() if v.strip()]
+            if values:
+                return (tuple(values),)
+        except ValueError:
+            pass
 
     return None
 
