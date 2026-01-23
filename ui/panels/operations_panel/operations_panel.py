@@ -217,32 +217,57 @@ cli_log = CLIOperationLog()
 
 
 class TensorInspectorWidget:
-    """Read-only inspector that displays basic tensor metadata."""
+    """Elevated inspector that surfaces tensor metadata attractively."""
 
     def __init__(self):
-        self._panel_height = 200
+        self._panel_height = 320
 
     def render(self, tensor: Optional["TensorData"], width: float):
-        imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.04, 0.04, 0.08, 1.0)
-        flags = _WINDOW_ALWAYS_VERTICAL_SCROLLBAR
-        if imgui.begin_child("##tensor_inspector", width - 10, self._panel_height,
-                             border=True, flags=flags):
+        imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, 0.06, 0.06, 0.12, 1.0)
+        imgui.push_style_color(imgui.COLOR_BORDER, 0.3, 0.5, 0.9, 0.8)
+        if imgui.begin_child("##tensor_inspector", width - 10, self._panel_height, border=True):
             if tensor is None:
-                imgui.text_colored("No tensor selected.", 0.8, 0.4, 0.4, 1.0)
+                imgui.spacing()
+                imgui.text_colored("Select a tensor to inspect its properties.", 0.7, 0.55, 0.45, 1.0)
+                imgui.text_colored("The inspector will summarize its order, shape, and values.", 0.5, 0.7, 0.8, 1.0)
             else:
                 self._render_content(tensor, width)
         imgui.end_child()
-        imgui.pop_style_color(1)
+        imgui.pop_style_color(2)
 
     def _render_content(self, tensor: "TensorData", width: float):
-        shape_label = self._format_shape(tensor)
-        imgui.text_colored(f"{tensor.label}", 0.6, 0.9, 0.6, 1.0)
-        imgui.text(f"Order: {tensor.rank}")
-        imgui.text(f"Shape: {shape_label}")
         imgui.spacing()
-        values = self._matrix_view_text(tensor)
-        if values:
-            self._render_cli_block("Values", values, width, 80)
+        imgui.text_colored("Tensor Inspector", 0.7, 0.8, 1.0, 1.0)
+        imgui.text_colored(tensor.label, 0.8, 0.9, 0.6, 1.0)
+        imgui.separator()
+        rows = [
+            ("Order", str(tensor.rank)),
+            ("Shape", self._format_shape(tensor)),
+            ("Type", self._format_type(tensor)),
+        ]
+        for title, value in rows:
+            imgui.push_style_color(imgui.COLOR_TEXT, 0.6, 0.8, 0.95, 1.0)
+            imgui.text(f"{title}:")
+            imgui.pop_style_color()
+            imgui.same_line()
+            imgui.text_colored(value, 0.95, 0.95, 0.75, 1.0)
+        imgui.spacing()
+        self._render_values_block(tensor, width)
+
+    def _format_type(self, tensor: "TensorData") -> str:
+        if tensor.rank == 0:
+            return "Scalar"
+        if tensor.rank == 1:
+            rows, cols = self._vector_orientation(tensor)
+            return f"Vector ({rows}×{cols})"
+        if tensor.rank == 2:
+            return "Matrix"
+        return "Higher-order tensor"
+
+    def _vector_orientation(self, tensor: "TensorData") -> Tuple[int, int]:
+        if len(tensor.shape) == 2:
+            return tensor.shape
+        return (tensor.shape[0], 1)
 
     def _format_shape(self, tensor: "TensorData") -> str:
         if tensor.rank == 0:
@@ -259,36 +284,34 @@ class TensorInspectorWidget:
             return "×".join(str(dim) for dim in tensor.shape)
         return "—"
 
+    def _render_values_block(self, tensor: "TensorData", width: float):
+        text = self._matrix_view_text(tensor)
+        if not text:
+            return
+        block_width = max(width - 40, 160)
+        imgui.text_colored("Values", 0.6, 0.8, 1.0, 1.0)
+        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.1, 0.1, 0.14, 1.0)
+        imgui.push_style_color(imgui.COLOR_TEXT, 0.9, 0.9, 0.9, 1.0)
+        _, _ = imgui.input_text_multiline(
+            "##tensor_values",
+            text,
+            block_width,
+            140,
+            imgui.INPUT_TEXT_READ_ONLY | imgui.INPUT_TEXT_NO_HORIZONTAL_SCROLL,
+        )
+        imgui.pop_style_color(2)
+
     def _matrix_view_text(self, tensor: "TensorData") -> str:
         arr = tensor.to_numpy()
         if arr.ndim == 0:
             return str(float(arr))
         if arr.ndim == 1:
-            separator = "\n" if len(tensor.shape) == 2 and tensor.shape[1] == 1 else " "
+            separator = "\n" if self._vector_orientation(tensor)[1] == 1 else " "
             return separator.join(str(float(x)) for x in arr)
         lines = []
         for row in arr:
             lines.append("  ".join(str(float(v)) for v in row))
         return "\n".join(lines)
-
-    def _render_cli_block(self, label: str, content: str, width: float, min_height: int = 60):
-        text = (content or "").strip() or "—"
-        lines = max(1, text.count("\n") + 1)
-        height = min(max(min_height, lines * 18 + 12), 120)
-        block_width = max(width - 24, 120)
-        read_only_flag = getattr(imgui, "INPUT_TEXT_READ_ONLY", 1 << 20)
-        no_scroll_flag = getattr(imgui, "INPUT_TEXT_NO_HORIZONTAL_SCROLL", 1 << 24)
-        imgui.text_colored(label, 0.7, 0.9, 1.0, 1.0)
-        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.03, 0.03, 0.05, 1.0)
-        imgui.push_style_color(imgui.COLOR_TEXT, 0.8, 0.9, 1.0, 1.0)
-        _, _ = imgui.input_text_multiline(
-            f"##tensor_cli_{label.replace(' ', '_')}",
-            text,
-            block_width,
-            height,
-            read_only_flag | no_scroll_flag,
-        )
-        imgui.pop_style_color(2)
 
 
 
